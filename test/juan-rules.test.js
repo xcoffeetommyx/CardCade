@@ -12,6 +12,7 @@ test("JUAN matches the active color, the printed face, or a Prism", () => {
   assert.equal(rules.canPlay(card("tide-3-a"), top, "blaze"), true);
   assert.equal(rules.canPlay(card("tide-7-a"), top, "blaze"), false);
   assert.equal(rules.canPlay(card("prism-1"), top, "blaze"), true);
+  assert.equal(rules.canPlay(card("prism-burst-1"), top, "blaze"), true);
   assert.equal(rules.canPlay(card("grove-7-a"), top, "grove"), true, "a Prism-selected color controls the next match");
 });
 
@@ -27,4 +28,5 @@ test("JUAN sorting and CPU color choice remain deck-specific", () => {
   assert.equal(rules.chooseColor(hand), "tide");
   assert.equal(rules.cardPoints(card("spark-double-draw")), 18);
   assert.equal(rules.cardPoints(card("prism-1")), 25);
+  assert.equal(rules.cardPoints(card("prism-burst-1")), 35);
 });

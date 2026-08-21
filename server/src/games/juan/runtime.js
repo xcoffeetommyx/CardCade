@@ -68,6 +68,9 @@ export class JuanRuntime {
       case "draw":
         this.#engine.draw(match, viewer.seat);
         break;
+      case "end_turn":
+        this.#engine.endTurn(match, viewer.seat);
+        break;
       default:
         throw new GameError("That JUAN action is not supported.", "UNKNOWN_GAME_ACTION");
     }

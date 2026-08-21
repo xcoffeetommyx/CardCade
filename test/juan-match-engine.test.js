@@ -28,18 +28,18 @@ function setTable(match, { hands, top = "blaze-3-a", activeSeat = 0, activeColor
   return match;
 }
 
-test("JUAN deals six cards and keeps the 80-card deck private", () => {
+test("JUAN deals seven cards and keeps the 108-card deck private", () => {
   const engine = new MatchEngine({ shuffleDeck: identityShuffle });
   const match = engine.createMatch([human(0, "One"), human(1, "Two"), human(2, "Three"), human(3, "Four")]);
-  assert.ok(match.players.every((player) => player.hand.length === 6));
-  assert.equal(match.stock.length, 55);
+  assert.ok(match.players.every((player) => player.hand.length === 7));
+  assert.equal(match.stock.length, 79);
   assert.equal(match.discardPile.length, 1);
   assert.equal(match.discardPile[0].kind, "number");
 
   const view = engine.viewFor(match, 0, new Map([[0, true], [1, true], [2, true], [3, true]]));
   const serialized = JSON.stringify(view);
   assert.equal(view.type, "juan_match_state");
-  assert.equal(view.hand.length, 6);
+  assert.equal(view.hand.length, 7);
   assert.ok(view.state.players.every((player) => !Object.hasOwn(player, "hand")));
   for (const hiddenCard of match.players[1].hand) assert.equal(serialized.includes(`"${hiddenCard.id}"`), false);
 });
@@ -84,6 +84,18 @@ test("JUAN Pause, Turnabout, and Double Draw own their turn effects", () => {
   assert.equal(match.activeSeat, 2, "Double Draw also costs the target's turn");
 });
 
+test("JUAN Prism Burst chooses the next color and deals four cards", () => {
+  const engine = new MatchEngine({ shuffleDeck: identityShuffle });
+  const match = setTable(matchFor(), {
+    hands: [["prism-burst-1", "blaze-7-a"], ["tide-1-a"], ["grove-1-a"]],
+    stock: ["spark-1-a", "spark-2-a", "spark-3-a", "spark-4-a", "spark-5-a"]
+  });
+  engine.play(match, 0, "prism-burst-1", "tide");
+  assert.equal(match.activeColor, "tide");
+  assert.equal(match.players[1].hand.length, 5);
+  assert.equal(match.activeSeat, 2);
+});
+
 test("JUAN recycles the discard stack when a player draws from an empty stock", () => {
   const engine = new MatchEngine({ shuffleDeck: identityShuffle });
   const match = setTable(matchFor(), {
@@ -95,6 +107,38 @@ test("JUAN recycles the discard stack when a player draws from an empty stock", 
   assert.equal(match.discardPile.length, 1);
   assert.equal(match.discardPile[0].id, "blaze-3-a");
   assert.equal(match.activeSeat, 1);
+});
+
+test("JUAN lets a player play only a playable card they just drew, or keep it", () => {
+  const engine = new MatchEngine({ shuffleDeck: identityShuffle });
+  const match = setTable(matchFor(), {
+    hands: [["blaze-8-a"], ["spark-1-a"], ["grove-1-a"]],
+    top: "blaze-7-a",
+    stock: ["tide-7-a"]
+  });
+
+  engine.draw(match, 0);
+  assert.equal(match.activeSeat, 0);
+  assert.equal(match.drawnCardId, "tide-7-a");
+  assertGameError(() => engine.play(match, 0, "blaze-8-a"), "DRAWN_CARD_ONLY");
+
+  engine.endTurn(match, 0);
+  assert.equal(match.activeSeat, 1);
+  assert.equal(match.drawnCardId, null);
+  assert.match(match.lastMoveText, /kept the drawn card/);
+});
+
+test("JUAN automatically ends a turn after drawing a card that cannot play", () => {
+  const engine = new MatchEngine({ shuffleDeck: identityShuffle });
+  const match = setTable(matchFor(), {
+    hands: [["grove-8-a"], ["spark-1-a"], ["grove-1-a"]],
+    top: "blaze-7-a",
+    stock: ["tide-2-a"]
+  });
+
+  engine.draw(match, 0);
+  assert.equal(match.activeSeat, 1);
+  assert.equal(match.drawnCardId, null);
 });
 
 test("JUAN ends when a hand empties and scores every card still held", () => {

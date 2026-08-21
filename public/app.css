@@ -295,6 +295,12 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 .game-card[data-accent="coral"] { --card-accent: var(--coral); }
 .game-card[data-accent="blue"] { --card-accent: var(--blue); }
 .game-card[data-accent="violet"] { --card-accent: var(--violet); }
+.game-card[data-accent="spectrum"] { --card-accent: #f2bf3d; }
+.game-card[data-accent="spectrum"] .mini-card {
+  color: #fff8e8;
+  background: conic-gradient(from 35deg, #ef4d54 0 25%, #f2bf3d 0 50%, #43b66b 0 75%, #2d7dd2 0);
+  text-shadow: 2px 2px 0 #07101d;
+}
 .game-card h3 { font-size: 1.45rem; }
 .game-card p { max-width: 440px; color: var(--muted); line-height: 1.5; }
 .game-card .mini-card { width: 70px; height: 96px; border: 3px solid #e9e1d3; border-radius: 7px; color: var(--card-accent); background: var(--paper); box-shadow: 4px 4px 0 #020812; display: grid; place-items: center; font: 900 1.4rem "Courier New", monospace; transform: rotate(6deg); }
@@ -660,6 +666,171 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 }
 .round-result p { color: var(--muted); line-height: 1.5; }
 
+/* ---------- JUAN color/action table ---------- */
+.juan-game {
+  --juan-blaze: #ef4d54;
+  --juan-tide: #2d7dd2;
+  --juan-grove: #43b66b;
+  --juan-spark: #f2bf3d;
+}
+
+.juan-lane-bar {
+  min-height: 50px;
+  padding: 8px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(8px, 2vw, 18px);
+  border: 2px solid var(--line);
+  border-radius: 13px;
+  color: var(--muted);
+  background: rgba(8, 24, 43, .88);
+  font: 800 .7rem "Cardcade Pixel", "Courier New", monospace;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+.juan-lane-bar > strong { min-width: 52px; color: var(--ink); }
+.juan-lane { width: 18px; height: 18px; border: 2px solid rgba(255,255,255,.5); border-radius: 4px; opacity: .36; transform: rotate(45deg) scale(.72); transition: transform 160ms ease, opacity 160ms ease, box-shadow 160ms ease; }
+.juan-lane.active { opacity: 1; transform: rotate(45deg) scale(1); box-shadow: 0 0 0 3px rgba(255,255,255,.12), 0 0 18px currentColor; }
+.juan-direction { min-width: 34px; color: var(--mint); font-size: 1.35rem; text-align: center; }
+
+.juan-blaze { --juan-face: var(--juan-blaze, #ef4d54); --juan-deep: #a92138; }
+.juan-tide { --juan-face: var(--juan-tide, #2d7dd2); --juan-deep: #14508c; }
+.juan-grove { --juan-face: var(--juan-grove, #43b66b); --juan-deep: #18723f; }
+.juan-spark { --juan-face: var(--juan-spark, #f2bf3d); --juan-deep: #b87918; }
+.juan-lane.juan-blaze { background: #ef4d54; color: #ef4d54; }
+.juan-lane.juan-tide { background: #2d7dd2; color: #2d7dd2; }
+.juan-lane.juan-grove { background: #43b66b; color: #43b66b; }
+.juan-lane.juan-spark { background: #f2bf3d; color: #f2bf3d; }
+
+.juan-game .game-opponents { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.juan-game .game-seat { min-height: 66px; }
+.juan-game .game-seat.juan-alert { border-color: #f2bf3d; box-shadow: 0 0 20px rgba(242,191,61,.14); }
+.juan-game .game-seat.juan-alert small { color: #ffd76c; }
+.juan-game .mini-deck, .juan-stock {
+  color: #fff4da;
+  background:
+    linear-gradient(135deg, transparent 0 44%, rgba(255,255,255,.2) 44% 50%, transparent 50%),
+    linear-gradient(45deg, #d73e4d, #183e72 48%, #24905a);
+  background-size: 18px 18px, auto;
+}
+
+.juan-table {
+  border-color: #414c72;
+  background:
+    linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px),
+    radial-gradient(circle at 50% 110%, #26376d, #17254d 58%, #0a1634);
+  background-size: 4px 4px, 4px 4px, auto;
+}
+.juan-pile-zone { min-height: 150px; display: flex; align-items: center; justify-content: center; gap: clamp(22px, 6vw, 70px); }
+.juan-pile-zone .active-pile { min-height: 135px; min-width: 100px; }
+.juan-stock {
+  position: relative;
+  width: 86px;
+  height: 122px;
+  display: grid;
+  place-items: center;
+  border: 5px solid #f2ebdd;
+  border-radius: 10px;
+  box-shadow: 7px 8px 0 rgba(0,0,0,.42), 0 0 0 2px #1a2947;
+  transform: rotate(-4deg);
+  font: 900 .88rem "Cardcade Pixel", monospace;
+  letter-spacing: .08em;
+}
+.juan-stock::after { content: ""; position: absolute; inset: 7px; border: 2px solid rgba(255,255,255,.74); border-radius: 5px; }
+.juan-stock b { position: absolute; right: -9px; bottom: -9px; min-width: 29px; height: 29px; display: grid; place-items: center; border: 2px solid #f2ebdd; border-radius: 50%; color: #06101f; background: #f2bf3d; font-size: .72rem; }
+
+.juan-card {
+  color: #fffaf0;
+  border-color: #f7f0e3;
+  background:
+    linear-gradient(rgba(255,255,255,.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.07) 1px, transparent 1px),
+    linear-gradient(145deg, rgba(255,255,255,.22) 0 13%, transparent 13% 62%, rgba(0,0,0,.15) 62% 100%),
+    var(--juan-face);
+  background-size: 5px 5px, 5px 5px, auto, auto;
+  text-shadow: 2px 2px 0 rgba(5,9,20,.86), -1px -1px 0 rgba(5,9,20,.52), 1px -1px 0 rgba(5,9,20,.52), -1px 1px 0 rgba(5,9,20,.52);
+  box-shadow: 5px 7px 0 rgba(0,0,0,.48), inset 0 0 0 2px rgba(0,0,0,.13);
+}
+.juan-card::after {
+  content: "";
+  position: absolute;
+  inset: 5px;
+  border: 2px solid rgba(255,255,255,.42);
+  border-radius: 5px;
+  pointer-events: none;
+}
+.juan-card.juan-prism {
+  --juan-face: #111823;
+  background:
+    linear-gradient(rgba(255,255,255,.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.045) 1px, transparent 1px),
+    conic-gradient(from 35deg at 50% 52%, #ef4d54 0 25%, #f2bf3d 0 50%, #43b66b 0 75%, #2d7dd2 0) 50% 50% / 72% 62% no-repeat,
+    #101720;
+  background-size: 5px 5px, 5px 5px, 72% 62%, auto;
+}
+.juan-card-orbit {
+  position: absolute;
+  z-index: 1;
+  inset: 17% 13%;
+  border: 4px solid rgba(255,255,255,.76);
+  border-radius: 7px 22px 7px 22px;
+  transform: rotate(-17deg) skewY(-7deg);
+  box-shadow: inset 0 0 0 2px rgba(0,0,0,.14), 3px 4px 0 rgba(0,0,0,.13);
+}
+.juan-prism .juan-card-orbit { background: rgba(8,12,20,.28); }
+.juan-face { position: absolute; z-index: 2; inset: 17% 15%; display: grid; place-items: center; align-content: center; gap: 4px; transform: rotate(-3deg); }
+.juan-face b { font: 900 clamp(2.4rem, 8vw, 4.3rem)/.9 "Cardcade Pixel", "Courier New", monospace; letter-spacing: -.07em; }
+.juan-face small { max-width: 90%; font: 900 .58rem/1 "Cardcade Pixel", monospace; letter-spacing: .03em; text-transform: uppercase; text-align: center; }
+.juan-corner { line-height: .86; }
+.juan-corner strong { max-width: 44px; font-family: "Cardcade Pixel", monospace; font-size: clamp(.92rem, 3vw, 1.25rem); letter-spacing: -.08em; }
+.juan-corner i { margin-top: 3px; font: 900 .62rem "Cardcade Pixel", monospace; }
+.juan-card.played .juan-face b { font-size: 2.7rem; }
+.juan-card.played .juan-face small { font-size: .48rem; }
+.juan-card.turn-drawn:not(.selected) {
+  --card-lift: calc(var(--fan-selected-lift, 38px) * .45);
+  border-color: #fff4b6;
+  box-shadow: 0 17px 28px rgba(0,0,0,.4), 0 0 0 3px rgba(255,244,182,.82), 4px 5px 0 rgba(7,10,18,.32);
+}
+.juan-card.turn-drawn:not(.selected)::before {
+  content: "DRAWN";
+  position: absolute;
+  z-index: 5;
+  right: 5px;
+  top: 5px;
+  padding: 3px 4px;
+  border: 1px solid rgba(6,16,31,.55);
+  border-radius: 3px;
+  color: #06101f;
+  background: #fff4b6;
+  font: 900 .43rem "Cardcade Pixel", monospace;
+  text-shadow: none;
+  pointer-events: none;
+}
+
+.juan-color-chooser {
+  position: relative;
+  z-index: 260;
+  min-height: 39px;
+  margin: 0 0 4px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  color: var(--muted);
+  font: 800 .63rem "Cardcade Pixel", monospace;
+  text-transform: uppercase;
+}
+.juan-color-choice { min-height: 32px; padding: 4px 7px; display: inline-flex; gap: 5px; align-items: center; border: 2px solid transparent; border-radius: 6px; color: var(--ink); background: #11243e; font-size: .6rem; opacity: .72; }
+.juan-color-choice i { width: 11px; height: 11px; border-radius: 3px; background: var(--juan-choice); }
+.juan-color-choice.juan-blaze { --juan-choice: #ef4d54; }
+.juan-color-choice.juan-tide { --juan-choice: #2d7dd2; }
+.juan-color-choice.juan-grove { --juan-choice: #43b66b; }
+.juan-color-choice.juan-spark { --juan-choice: #f2bf3d; }
+.juan-color-choice.active { border-color: #fff4da; opacity: 1; box-shadow: 0 0 0 2px rgba(255,255,255,.13); }
+.juan-result { border-color: #f2bf3d; }
+
 .hot-seat-handoff {
   min-height: calc(100svh - 28px);
   display: grid;
@@ -740,6 +911,10 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   .physical-hand { min-height: 230px; padding-inline: 8px; }
   .game-actions { gap: 5px; padding: 6px; }
   .game-actions button { min-height: 48px; font-size: .76rem; }
+  .juan-game .game-opponents { display: flex; overflow-x: auto; overscroll-behavior-inline: contain; scroll-snap-type: x proximity; scrollbar-width: none; }
+  .juan-game .game-opponents::-webkit-scrollbar { display: none; }
+  .juan-game .game-seat { flex: 0 0 145px; min-height: 58px; scroll-snap-align: start; }
+  .juan-game .juan-pile-zone { min-height: 125px; }
 }
 
 @media (max-height: 680px) {
@@ -801,6 +976,16 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   .playing-card.played { flex-basis: 72px; width: 72px !important; height: 102px !important; }
   .playing-card.played .card-corner strong { font-size: 1rem; }
   .game-actions button { font-size: .69rem; padding-inline: 4px; }
+  .juan-lane-bar { min-height: 44px; gap: 8px; padding-inline: 7px; font-size: .6rem; }
+  .juan-lane { width: 15px; height: 15px; }
+  .juan-lane-bar > strong { min-width: 42px; }
+  .juan-direction { min-width: 25px; font-size: 1.1rem; }
+  .juan-stock { width: 72px; height: 102px; }
+  .juan-pile-zone { gap: 34px; }
+  .juan-color-chooser { justify-content: space-between; gap: 3px; font-size: .56rem; }
+  .juan-color-choice { min-height: 30px; padding-inline: 5px; font-size: .53rem; }
+  .juan-color-choice i { width: 9px; height: 9px; }
+  .juan-face small { font-size: .48rem; }
 }
 
 @media (max-width: 520px) and (min-height: 620px) {

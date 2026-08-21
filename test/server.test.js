@@ -257,10 +257,10 @@ test("Solo starts JUAN with the original color/action deck", async (t) => {
   assert.equal(result.body.room.phase, "playing");
   assert.equal(result.body.room.gameId, "juan");
   assert.equal(result.body.game.view.type, "juan_match_state");
-  assert.equal(result.body.game.view.hand.length, 6);
+  assert.equal(result.body.game.view.hand.length, 7);
   assert.equal(result.body.game.view.state.players.length, 4);
   assert.equal(result.body.game.view.state.players.every((player) => !Object.hasOwn(player, "hand")), true);
-  assert.ok(result.body.game.view.hand.every((card) => ["number", "pause", "turnabout", "double-draw", "prism"].includes(card.kind)));
+  assert.ok(result.body.game.view.hand.every((card) => ["number", "pause", "turnabout", "double-draw", "prism", "prism-burst"].includes(card.kind)));
 });
 
 test("a host starts JUAN from the same global Cardcade room", async (t) => {
@@ -290,7 +290,7 @@ test("a host starts JUAN from the same global Cardcade room", async (t) => {
 
   assert.equal(message.room.phase, "playing");
   assert.equal(message.room.game.name, "JUAN");
-  assert.equal(message.view.hand.length, 6);
+  assert.equal(message.view.hand.length, 7);
   assert.equal(message.view.state.players.length, 3);
 });
 
@@ -372,7 +372,7 @@ test("JUAN Hot Seat mixes private human hands with CPU seats", async (t) => {
   assert.equal(result.body.room.gameId, "juan");
   assert.equal(result.body.hotSeat.seats.length, 2);
   assert.equal(result.body.hotSeat.botCount, 2);
-  assert.equal(result.body.game.view.hand.length, 6);
+  assert.equal(result.body.game.view.hand.length, 7);
   assert.equal(result.body.game.view.state.players.length, 4);
   assert.equal(result.body.game.view.state.players.filter((player) => player.type === "bot").length, 2);
 
@@ -382,7 +382,7 @@ test("JUAN Hot Seat mixes private human hands with CPU seats", async (t) => {
     body: JSON.stringify({ token: guestSeat.token })
   });
   assert.equal(guest.body.game.gameId, "juan");
-  assert.equal(guest.body.game.view.hand.length, 6);
+  assert.equal(guest.body.game.view.hand.length, 7);
 });
 
 test("Hot Seat runs Thirteen with four private human hands and host-controlled closure", async (t) => {

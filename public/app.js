@@ -38,6 +38,7 @@ const state = {
   gameMode: null,
   gameSort: "rank",
   selectedCards: new Set(),
+  juanChosenColor: null,
   gameActionLock: false,
   dealtHandOwners: new Set(),
   lastPileSignature: null
@@ -57,6 +58,8 @@ const thirteenRules = globalThis.ThirteenRules;
 const cardPresentation = globalThis.CardcadePresentation;
 const standard52 = globalThis.CardcadeStandard52;
 const hotSeatFlow = globalThis.CardcadeHotSeat;
+const juanDeck = globalThis.CardcadeJuanDeck;
+const juanRules = globalThis.JuanRules;
 
 const standardGameAdapters = {
   "three-seven": {
@@ -70,6 +73,20 @@ const standardGameAdapters = {
     noMoveText: "No legal play. Pass."
   }
 };
+
+const juanGameAdapter = {
+  gameId: "juan",
+  rules: juanRules,
+  deck: juanDeck,
+  passLabel: "Draw",
+  noMoveText: "No matching card. Draw one.",
+  sortModes: ["color", "face"],
+  defaultSort: "color"
+};
+
+function supportsGame(gameId) {
+  return Boolean(standardGameAdapters[gameId]) || gameId === "juan";
+}
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -679,6 +696,145 @@ function renderStandardGame() {
     </section>`;
 }
 
+function juanSelection() {
+  const view = state.gameView;
+  if (!view || !juanRules || !juanDeck) return { ok: false, reason: "JUAN unavailable" };
+  const selected = view.hand.filter((card) => state.selectedCards.has(card.id));
+  if (!selected.length) {
+    return { ok: false, reason: view.state.drawnCardId ? "Play the drawn card or keep it" : "Select one card to play" };
+  }
+  if (selected.length !== 1) return { ok: false, reason: "JUAN plays one card at a time" };
+  const [card] = selected;
+  if (view.state.drawnCardId && card.id !== view.state.drawnCardId) {
+    return { ok: false, reason: "Play the drawn card or keep it" };
+  }
+  if (!juanRules.canPlay(card, view.state.topCard, view.state.activeColor)) {
+    return { ok: false, reason: "Match the color lane or printed face" };
+  }
+  if ((card.kind === "prism" || card.kind === "prism-burst") && !juanDeck.COLORS.includes(state.juanChosenColor)) {
+    return { ok: false, reason: "Choose the Prism's next color" };
+  }
+  const color = card.kind === "prism" || card.kind === "prism-burst" ? ` · ${juanDeck.COLOR_NAME[state.juanChosenColor]} next` : "";
+  return { ok: true, reason: `${juanDeck.cardLong(card)}${color}`, card };
+}
+
+function renderJuanCard(card, index, { played = false, enter = false, selectable = false, dealt = false, turnDrawn = false } = {}) {
+  const selected = !played && state.selectedCards.has(card.id);
+  const action = juanDeck.ACTION_FACE[card.kind];
+  const face = card.kind === "number" ? String(card.value) : action?.symbol || "?";
+  const short = card.kind === "number" ? String(card.value) : action?.short || "?";
+  const name = card.kind === "number" ? juanDeck.COLOR_NAME[card.color] : action?.name || card.kind;
+  const colorClass = card.color ? `juan-${card.color}` : "juan-prism";
+  const classes = [
+    "playing-card",
+    "juan-card",
+    colorClass,
+    selected ? "selected" : "",
+    turnDrawn ? "turn-drawn" : "",
+    played ? "played" : "",
+    played && enter ? "enter" : "",
+    selectable && !played ? "selectable" : "",
+    dealt && !played ? "dealt" : ""
+  ].filter(Boolean).join(" ");
+  const delay = (played && enter) || dealt
+    ? `style="animation-delay:${Math.min(index, dealt ? 12 : 5) * (dealt ? 24 : 35)}ms"`
+    : "";
+  return `
+    <button class="${classes}" type="button" ${played ? "disabled" : ""} ${delay}
+      ${played ? "" : `data-game-card="${escapeHtml(card.id)}" data-card-index="${index}" tabindex="${selectable ? "0" : "-1"}`}
+      aria-label="${escapeHtml(juanDeck.cardLong(card))}" aria-pressed="${selected}">
+      <span class="card-corner juan-corner"><strong>${escapeHtml(short)}</strong><i>${card.color ? escapeHtml(juanDeck.COLOR_NAME[card.color][0]) : "✦"}</i></span>
+      <span class="juan-card-orbit" aria-hidden="true"></span>
+      <span class="juan-face"><b>${escapeHtml(face)}</b><small>${escapeHtml(name)}</small></span>
+      <span class="card-corner bottom juan-corner"><strong>${escapeHtml(short)}</strong><i>${card.color ? escapeHtml(juanDeck.COLOR_NAME[card.color][0]) : "✦"}</i></span>
+    </button>`;
+}
+
+function juanColorChooser(selectedCard) {
+  if (!selectedCard || !["prism", "prism-burst"].includes(selectedCard.kind)) return "";
+  return `
+    <div class="juan-color-chooser" role="group" aria-label="Choose the Prism's next color">
+      <span>Prism lane</span>
+      ${juanDeck.COLORS.map((color) => `
+        <button type="button" class="juan-color-choice juan-${color} ${state.juanChosenColor === color ? "active" : ""}" data-action="choose-juan-color" data-color="${color}" aria-pressed="${state.juanChosenColor === color}">
+          <i aria-hidden="true"></i>${escapeHtml(juanDeck.COLOR_NAME[color])}
+        </button>`).join("")}
+    </div>`;
+}
+
+function renderJuanGame() {
+  const view = state.gameView;
+  if (!view || !juanRules || !juanDeck) return `<div class="empty-state">Dealing the JUAN deck…</div>`;
+  const match = view.state;
+  const viewer = state.room?.players.find((player) => player.isYou);
+  const viewerSeat = viewer?.seat;
+  const yourPlayer = match.players.find((player) => player.seat === viewerSeat);
+  const opponents = match.players.filter((player) => player.seat !== viewerSeat);
+  const isYourTurn = match.activeSeat === viewerSeat && !match.roundOver;
+  const activePlayer = match.players.find((player) => player.seat === match.activeSeat);
+  const evaluation = juanSelection();
+  const sortedHand = juanRules.sortCards(view.hand, state.gameSort);
+  const selectedCard = view.hand.find((card) => state.selectedCards.has(card.id));
+  const hasDrawChoice = isYourTurn && Boolean(match.drawnCardId);
+  const canDraw = isYourTurn && (!state.selectedCards.size || hasDrawChoice) && !state.gameActionLock;
+  const pileSignature = `${match.topCard.id}:${match.activeColor}`;
+  const pileIsNew = pileSignature !== state.lastPileSignature;
+  state.lastPileSignature = pileSignature;
+  const handOwner = `juan:${state.room?.code || "table"}:${viewerSeat ?? "viewer"}:round-${match.round}`;
+  const isDealing = !state.dealtHandOwners.has(handOwner);
+  state.dealtHandOwners.add(handOwner);
+
+  return `
+    <section class="standard-card-game juan-game" data-game-id="juan" data-active-color="${escapeHtml(match.activeColor)}">
+      <header class="game-topbar">
+        <button class="back-button" type="button" data-action="leave-game" aria-label="Leave game">←</button>
+        <div><span class="family-kicker">${state.gameMode === "solo" ? "Solo table" : state.gameMode === "hot-seat" ? "Hot Seat table" : `Room ${escapeHtml(state.room.code)}`}</span><h2>JUAN</h2><p>Race to one · ${escapeHtml(match.lastMoveText)}</p></div>
+        <button class="game-score" type="button" disabled><span>Score</span><strong>${yourPlayer?.score ?? 0}</strong></button>
+      </header>
+      <div class="juan-lane-bar">
+        <span>Active color</span>
+        ${juanDeck.COLORS.map((color) => `<i class="juan-lane juan-${color} ${match.activeColor === color ? "active" : ""}" title="${escapeHtml(juanDeck.COLOR_NAME[color])}"></i>`).join("")}
+        <strong>${escapeHtml(juanDeck.COLOR_NAME[match.activeColor])}</strong>
+        <span class="juan-direction" aria-label="Play direction ${match.direction === 1 ? "forward" : "backward"}">${match.direction === 1 ? "↻" : "↺"}</span>
+      </div>
+      <div class="game-opponents">
+        ${opponents.map((player) => `
+          <article class="game-seat ${match.activeSeat === player.seat ? "active" : ""} ${player.juan ? "juan-alert" : ""}">
+            <span class="player-avatar">${escapeHtml(player.avatar)}</span>
+            <span><strong>${escapeHtml(player.name)}</strong><small>${player.juan ? "JUAN! · 1 card" : `${player.cardCount} cards`}</small></span>
+            <span class="mini-deck" aria-hidden="true">${Math.min(player.cardCount, 7)}</span>
+          </article>`).join("")}
+      </div>
+      <section class="game-table juan-table">
+        <div class="game-status"><span><strong>${match.roundOver ? "Match complete" : isYourTurn ? `${escapeHtml(yourPlayer?.name || "You")}, your turn` : `${escapeHtml(activePlayer?.name || "Player")} is thinking`}</strong><small>Stock ${match.stockCount} · match color or face</small></span><span class="badge">${escapeHtml(juanDeck.COLOR_NAME[match.activeColor])}</span></div>
+        <div class="juan-pile-zone">
+          <div class="juan-stock" aria-label="${match.stockCount} cards in stock"><span>JUAN</span><b>${match.stockCount}</b></div>
+          <div class="active-pile">${renderJuanCard(match.topCard, 0, { played: true, enter: pileIsNew })}</div>
+        </div>
+      </section>
+      <section class="physical-hand ${isYourTurn ? "your-turn" : ""}">
+        <div class="hand-heading"><span><strong>Your hand${yourPlayer?.juan ? " · JUAN!" : ""}</strong><small>${view.hand.length} cards · ${escapeHtml(state.gameSort)} sort</small></span><span class="selection-status ${evaluation.ok ? "valid" : state.selectedCards.size ? "invalid" : ""}">${escapeHtml(evaluation.reason)}</span></div>
+        ${juanColorChooser(selectedCard)}
+        <div class="game-hand" data-hand-owner="${escapeHtml(handOwner)}" aria-label="Your fanned JUAN hand">${sortedHand.map((card, index) => renderJuanCard(card, index, {
+          selectable: isYourTurn && !state.gameActionLock && (!match.drawnCardId || match.drawnCardId === card.id),
+          dealt: isDealing,
+          turnDrawn: match.drawnCardId === card.id
+        })).join("")}</div>
+      </section>
+      <nav class="game-actions juan-actions">
+        <button type="button" data-action="game-hint" ${isYourTurn && !state.gameActionLock ? "" : "disabled"}>Hint</button>
+        <button type="button" data-action="game-sort" ${state.gameActionLock ? "disabled" : ""}>Sort</button>
+        <button type="button" data-action="game-pass" ${canDraw ? "" : "disabled"}>${hasDrawChoice ? "Keep" : "Draw"}</button>
+        <button class="primary" type="button" data-action="game-play" ${isYourTurn && evaluation.ok && !state.gameActionLock ? "" : "disabled"}>▶ Play</button>
+      </nav>
+      ${match.roundOver ? `
+        <div class="round-result juan-result">
+          <div><span class="family-kicker">JUAN complete</span><h3>${escapeHtml(match.lastMoveText)}</h3><p>${match.placements.map((seat, index) => `${index + 1}. ${escapeHtml(match.players.find((player) => player.seat === seat)?.name || "Player")}`).join(" · ")}</p></div>
+          <button class="action-button" type="button" data-action="leave-game">Return to Cardcade</button>
+        </div>` : ""}
+    </section>`;
+}
+
 function renderHotSeatHandoff() {
   const nextSeat = state.hotSeatSeats.find((seat) => seat.playerId === state.hotSeatPendingPlayerId);
   const match = state.gameView?.state;
@@ -752,7 +908,7 @@ function render() {
     "local-lobby": renderLocalLobby,
     multiplayer: renderMultiplayer,
     room: renderRoom,
-    game: renderStandardGame,
+    game: renderCurrentGame,
     "hot-seat-handoff": renderHotSeatHandoff,
     settings: renderSettings
   };
@@ -763,6 +919,10 @@ function render() {
     layoutStandardHand();
     animateStandardHandReflow(previousHand);
   }
+}
+
+function renderCurrentGame() {
+  return state.room?.gameId === "juan" ? renderJuanGame() : renderStandardGame();
 }
 
 function captureStandardHandSnapshot() {
@@ -873,7 +1033,12 @@ function toggleStandardCard(cardId) {
   const match = state.gameView?.state;
   const viewer = state.room?.players.find((player) => player.isYou);
   if (state.gameActionLock || !match || match.roundOver || match.activeSeat !== viewer?.seat) return;
-  if (state.selectedCards.has(cardId)) state.selectedCards.delete(cardId);
+  if (state.room?.gameId === "juan") {
+    if (match.drawnCardId && match.drawnCardId !== cardId) return;
+    if (state.selectedCards.has(cardId)) state.selectedCards.clear();
+    else state.selectedCards = new Set([cardId]);
+    state.juanChosenColor = null;
+  } else if (state.selectedCards.has(cardId)) state.selectedCards.delete(cardId);
   else state.selectedCards.add(cardId);
   render();
 }
@@ -994,6 +1159,7 @@ function queueHotSeatCpuTurn({ room = state.room, view = state.gameView } = {}) 
   state.hotSeatPendingPlayerId = null;
   state.hotSeatWaitingForCpu = true;
   state.selectedCards = new Set();
+  state.juanChosenColor = null;
   state.gameActionLock = false;
   state.dealtHandOwners = new Set();
   state.lastPileSignature = null;
@@ -1010,6 +1176,7 @@ function queueHotSeatHandoff(seatNumber, { room = state.room, view = state.gameV
   state.hotSeatPendingPlayerId = nextSeat.playerId;
   state.hotSeatWaitingForCpu = false;
   state.selectedCards = new Set();
+  state.juanChosenColor = null;
   state.gameActionLock = false;
   state.dealtHandOwners = new Set();
   state.lastPileSignature = null;
@@ -1026,6 +1193,7 @@ function beginHotSeatSession(session) {
   state.gameView = hiddenPrivateView(session.game?.view);
   state.hotSeatForceHandoff = false;
   state.hotSeatWaitingForCpu = false;
+  state.gameSort = session.game?.gameId === "juan" ? juanGameAdapter.defaultSort : "rank";
   const targetSeat = hotSeatFlow?.requiredSeat(session.game?.view?.state, state.hotSeatSeats);
   if (isHotSeatCpuTurn(session.game?.view)) {
     connectRoom(state.session);
@@ -1052,6 +1220,7 @@ async function revealHotSeatHand() {
   state.hotSeatPendingPlayerId = null;
   state.hotSeatWaitingForCpu = false;
   state.selectedCards = new Set();
+  state.juanChosenColor = null;
   state.gameActionLock = false;
   state.dealtHandOwners = new Set();
   state.lastPileSignature = null;
@@ -1072,6 +1241,7 @@ function clearGameSession() {
   state.hotSeatForceHandoff = false;
   state.hotSeatWaitingForCpu = false;
   state.selectedCards = new Set();
+  state.juanChosenColor = null;
   state.gameActionLock = false;
   state.dealtHandOwners = new Set();
   state.lastPileSignature = null;
@@ -1152,7 +1322,7 @@ function connectRoom(session) {
     if (message.type === "room_state") {
       state.room = message.room;
       if (state.screen === "room") render();
-    } else if (message.type === "game_state" && standardGameAdapters[message.gameId]) {
+    } else if (message.type === "game_state" && supportsGame(message.gameId)) {
       if (state.gameMode === "hot-seat" && state.hotSeatPendingPlayerId) return;
       if (state.gameMode === "hot-seat") {
         const viewer = message.room.players.find((player) => player.isYou);
@@ -1176,11 +1346,14 @@ function connectRoom(session) {
         state.dealtHandOwners = new Set();
         state.lastPileSignature = null;
       }
+      if (message.gameId === "juan" && !juanGameAdapter.sortModes.includes(state.gameSort)) state.gameSort = juanGameAdapter.defaultSort;
+      if (standardGameAdapters[message.gameId] && !["rank", "combo", "suit"].includes(state.gameSort)) state.gameSort = "rank";
       state.room = message.room;
       state.gameView = message.view;
       state.gameActionLock = false;
       const handIds = new Set(message.view.hand.map((card) => card.id));
       state.selectedCards = new Set([...state.selectedCards].filter((cardId) => handIds.has(cardId)));
+      if (!state.selectedCards.size) state.juanChosenColor = null;
       state.screen = "game";
       render();
     } else if (message.type === "table_closed") {
@@ -1218,6 +1391,8 @@ function enterGameSession(session, mode) {
   state.gameView = session.game?.view || null;
   state.gameMode = mode;
   state.selectedCards = new Set();
+  state.juanChosenColor = null;
+  state.gameSort = session.game?.gameId === "juan" ? juanGameAdapter.defaultSort : "rank";
   state.gameActionLock = false;
   state.dealtHandOwners = new Set();
   state.lastPileSignature = null;
@@ -1258,7 +1433,7 @@ async function resumeRoom() {
     }
 
     const session = await api(`/api/rooms/${encodeURIComponent(saved.code)}/reconnect`, { method: "POST", body: JSON.stringify({ token: saved.token }) });
-    if (standardGameAdapters[session.game?.gameId]) enterGameSession({ ...session, token: saved.token }, saved.mode || "multiplayer");
+    if (supportsGame(session.game?.gameId)) enterGameSession({ ...session, token: saved.token }, saved.mode || "multiplayer");
     else enterRoom({ ...session, token: saved.token, mode: saved.mode });
   } catch (error) {
     localStorage.removeItem(storageKeys.room);
@@ -1421,15 +1596,36 @@ document.addEventListener("click", async (event) => {
     state.room = null;
     navigate("multiplayer");
   }
+  if (action === "choose-juan-color") {
+    if (!juanDeck?.COLORS.includes(button.dataset.color)) return;
+    state.juanChosenColor = button.dataset.color;
+    render();
+  }
   if (action === "game-sort") {
     if (state.gameActionLock) return;
-    const modes = ["rank", "combo", "suit"];
+    const modes = state.room?.gameId === "juan" ? juanGameAdapter.sortModes : ["rank", "combo", "suit"];
     state.gameSort = modes[(modes.indexOf(state.gameSort) + 1) % modes.length];
     render();
   }
   if (action === "game-hint") {
     if (state.gameActionLock) return;
     const match = state.gameView.state;
+    if (state.room?.gameId === "juan") {
+      const candidateHand = match.drawnCardId
+        ? state.gameView.hand.filter((card) => card.id === match.drawnCardId)
+        : state.gameView.hand;
+      const legal = juanRules.getLegalCards(candidateHand, match.topCard, match.activeColor);
+      if (!legal.length) showToast(juanGameAdapter.noMoveText);
+      else {
+        const choice = legal.slice().sort((left, right) => juanRules.moveCost(left, state.gameView.hand) - juanRules.moveCost(right, state.gameView.hand))[0];
+        state.selectedCards = new Set([choice.id]);
+        state.juanChosenColor = choice.kind === "prism" || choice.kind === "prism-burst"
+          ? juanRules.chooseColor(state.gameView.hand.filter((card) => card.id !== choice.id))
+          : null;
+        render();
+      }
+      return;
+    }
     const game = currentStandardGame();
     if (!game) return;
     const moves = legalMovesForGame(game, match);
@@ -1444,11 +1640,16 @@ document.addEventListener("click", async (event) => {
   if (action === "game-play") {
     if (state.gameActionLock) return;
     const cardIds = [...state.selectedCards];
-    if (!cardIds.length || !gameSelection().ok) return;
+    const evaluation = state.room?.gameId === "juan" ? juanSelection() : gameSelection();
+    if (!cardIds.length || !evaluation.ok) return;
     state.gameActionLock = true;
     animateStandardHandExit(cardIds, () => {
       state.selectedCards.clear();
-      if (!sendRoom({ type: "play", cardIds })) {
+      const message = state.room?.gameId === "juan"
+        ? { type: "play", cardId: cardIds[0], chosenColor: state.juanChosenColor }
+        : { type: "play", cardIds };
+      state.juanChosenColor = null;
+      if (!sendRoom(message)) {
         state.gameActionLock = false;
         render();
       }
@@ -1457,7 +1658,15 @@ document.addEventListener("click", async (event) => {
   if (action === "game-pass") {
     if (state.gameActionLock) return;
     state.gameActionLock = true;
-    if (!sendRoom({ type: "pass" })) {
+    const isJuan = state.room?.gameId === "juan";
+    const message = isJuan
+      ? { type: state.gameView?.state?.drawnCardId ? "end_turn" : "draw" }
+      : { type: "pass" };
+    if (isJuan) {
+      state.selectedCards.clear();
+      state.juanChosenColor = null;
+    }
+    if (!sendRoom(message)) {
       state.gameActionLock = false;
       render();
     }
@@ -1487,6 +1696,7 @@ document.addEventListener("click", async (event) => {
     state.room = null;
     state.gameView = null;
     state.selectedCards = new Set();
+    state.juanChosenColor = null;
     state.gameActionLock = false;
     state.dealtHandOwners = new Set();
     state.lastPileSignature = null;

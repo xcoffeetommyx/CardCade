@@ -7,7 +7,7 @@
 
   if (!deck) throw new Error("JUAN rules require the shared JUAN deck.");
   const COLOR_INDEX = new Map(deck.COLORS.map((color, index) => [color, index]));
-  const KIND_ORDER = Object.freeze({ number: 0, pause: 1, turnabout: 2, "double-draw": 3, prism: 4 });
+  const KIND_ORDER = Object.freeze({ number: 0, pause: 1, turnabout: 2, "double-draw": 3, prism: 4, "prism-burst": 5 });
 
   function faceKey(card) {
     return card.kind === "number" ? `number:${card.value}` : card.kind;
@@ -15,7 +15,7 @@
 
   function canPlay(card, topCard, activeColor) {
     if (!card || !topCard) return false;
-    if (card.kind === "prism") return true;
+    if (card.kind === "prism" || card.kind === "prism-burst") return true;
     if (card.color === activeColor) return true;
     return faceKey(card) === faceKey(topCard);
   }
@@ -53,12 +53,13 @@
     if (card.kind === "turnabout") return 14;
     if (card.kind === "double-draw") return 18;
     if (card.kind === "prism") return 25;
+    if (card.kind === "prism-burst") return 35;
     return 0;
   }
 
   function moveCost(card, hand = []) {
     const leavesOne = hand.length === 2 ? -50 : 0;
-    const preservesPrism = card.kind === "prism" ? 20 : 0;
+    const preservesPrism = card.kind === "prism" || card.kind === "prism-burst" ? 20 : 0;
     return cardPoints(card) + preservesPrism + leavesOne;
   }
 

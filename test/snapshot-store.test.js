@@ -111,7 +111,7 @@ test("restores JUAN through the shared room and persistence layer", () => {
   assert.equal(session.room.phase, "playing");
   assert.equal(session.room.gameSettings.sharedDevice, true);
   assert.equal(view.type, "juan_match_state");
-  assert.equal(view.hand.length, 6);
+  assert.equal(view.hand.length, 7);
   assert.equal(view.state.players.length, 3);
   assert.equal(view.state.players.every((player) => !Object.hasOwn(player, "hand")), true);
   snapshots.close();

@@ -3,7 +3,7 @@ import juanDeck from "../../../../shared/juan-deck.js";
 import rules from "../../../../shared/juan-rules.js";
 import { GameError as RoomError } from "../../game-error.js";
 
-const DEAL_COUNT = 6;
+const DEAL_COUNT = 7;
 
 export class MatchEngine {
   constructor({ shuffleDeck = secureShuffle } = {}) {
@@ -46,6 +46,8 @@ export class MatchEngine {
       stock,
       discardPile: [openingCard],
       activeColor: openingCard.color,
+      drawnCardId: null,
+      drawnSeat: null,
       placements: [],
       roundOver: false,
       matchOver: false,
@@ -62,14 +64,18 @@ export class MatchEngine {
     if (!rules.canPlay(card, topCard, match.activeColor)) {
       throw new RoomError("Match the active color or printed face, or play a Prism.", "CARD_DOES_NOT_MATCH");
     }
-    if (card.kind === "prism" && !juanDeck.COLORS.includes(chosenColor)) {
+    if (match.drawnSeat === player.seat && match.drawnCardId && card.id !== match.drawnCardId) {
+      throw new RoomError("After drawing, play the drawn card or keep your hand.", "DRAWN_CARD_ONLY");
+    }
+    if ((card.kind === "prism" || card.kind === "prism-burst") && !juanDeck.COLORS.includes(chosenColor)) {
       throw new RoomError("Choose a color lane for the Prism.", "COLOR_REQUIRED");
     }
 
     player.hand = player.hand.filter((candidate) => candidate.id !== card.id);
+    clearDrawChoice(match);
     player.juan = player.hand.length === 1;
     match.discardPile.push(card);
-    match.activeColor = card.kind === "prism" ? chosenColor : card.color;
+    match.activeColor = card.kind === "prism" || card.kind === "prism-burst" ? chosenColor : card.color;
     player.lastPlay = { kind: "play", label: juanDeck.cardLabel(card), cards: [{ ...card }] };
     const juanCall = player.juan ? " JUAN — one card remains!" : "";
     match.lastMoveText = `${player.name} played ${juanDeck.cardLabel(card)}.${juanCall}`;
@@ -86,10 +92,35 @@ export class MatchEngine {
 
   draw(match, seat) {
     const player = requireActivePlayer(match, seat);
+    if (match.drawnSeat === player.seat && match.drawnCardId) {
+      throw new RoomError("Play the drawn card or keep your hand before drawing again.", "ALREADY_DREW", 409);
+    }
     const drawn = this.#drawCards(match, player, 1);
     player.juan = player.hand.length === 1;
-    player.lastPlay = { kind: "draw", label: drawn ? "Drew 1" : "Stock empty", cards: [] };
-    match.lastMoveText = drawn ? `${player.name} drew a card.` : `${player.name} found the stock empty.`;
+    const drawnCard = drawn[0] || null;
+    const playable = drawnCard && rules.canPlay(drawnCard, match.discardPile.at(-1), match.activeColor);
+    player.lastPlay = { kind: "draw", label: drawnCard ? "Drew 1" : "Stock empty", cards: [] };
+    match.lastMoveText = playable
+      ? `${player.name} drew a playable card.`
+      : drawnCard ? `${player.name} drew a card.` : `${player.name} found the stock empty.`;
+    match.log.unshift(match.lastMoveText);
+    if (playable) {
+      match.drawnCardId = drawnCard.id;
+      match.drawnSeat = player.seat;
+    } else {
+      clearDrawChoice(match);
+      match.activeSeat = nextPlayer(match, player.seat)?.seat ?? null;
+    }
+    return match;
+  }
+
+  endTurn(match, seat) {
+    const player = requireActivePlayer(match, seat);
+    if (match.drawnSeat !== player.seat || !match.drawnCardId) {
+      throw new RoomError("Draw a playable card before choosing to keep it.", "DRAW_CHOICE_NOT_ACTIVE", 409);
+    }
+    clearDrawChoice(match);
+    match.lastMoveText = `${player.name} kept the drawn card.`;
     match.log.unshift(match.lastMoveText);
     match.activeSeat = nextPlayer(match, player.seat)?.seat ?? null;
     return match;
@@ -103,10 +134,17 @@ export class MatchEngine {
     const legal = rules.getLegalCards(player.hand, topCard, match.activeColor);
     if (!legal.length) {
       this.draw(match, player.seat);
+      if (match.drawnSeat === player.seat && match.drawnCardId) {
+        const drawnCard = player.hand.find((card) => card.id === match.drawnCardId);
+        const chosenColor = drawnCard.kind === "prism" || drawnCard.kind === "prism-burst"
+          ? rules.chooseColor(player.hand.filter((candidate) => candidate.id !== drawnCard.id))
+          : null;
+        this.play(match, player.seat, drawnCard.id, chosenColor);
+      }
       return true;
     }
     const card = chooseBotCard(player, legal);
-    const chosenColor = card.kind === "prism"
+    const chosenColor = card.kind === "prism" || card.kind === "prism-burst"
       ? rules.chooseColor(player.hand.filter((candidate) => candidate.id !== card.id))
       : null;
     this.play(match, player.seat, card.id, chosenColor);
@@ -146,6 +184,7 @@ export class MatchEngine {
         activeColor: match.activeColor,
         topCard: { ...topCard },
         stockCount: match.stock.length,
+        drawnCardId: match.drawnSeat === viewer.seat ? match.drawnCardId : null,
         players: match.players.map((player) => ({
           seat: player.seat,
           name: player.name,
@@ -190,10 +229,19 @@ export class MatchEngine {
     }
 
     if (card.kind === "double-draw") {
-      const count = this.#drawCards(match, target, 2);
+      const count = this.#drawCards(match, target, 2).length;
       target.juan = target.hand.length === 1;
       target.lastPlay = { kind: "draw", label: `Drew ${count}`, cards: [] };
       match.lastMoveText += ` ${target.name} draws ${count} and loses the turn.`;
+      match.activeSeat = nextPlayer(match, target.seat)?.seat ?? null;
+      return;
+    }
+
+    if (card.kind === "prism-burst") {
+      const count = this.#drawCards(match, target, 4).length;
+      target.juan = target.hand.length === 1;
+      target.lastPlay = { kind: "draw", label: `Drew ${count}`, cards: [] };
+      match.lastMoveText += ` ${target.name} takes a four-card Prism Burst and loses the turn.`;
       match.activeSeat = nextPlayer(match, target.seat)?.seat ?? null;
       return;
     }
@@ -202,16 +250,16 @@ export class MatchEngine {
   }
 
   #drawCards(match, player, requestedCount) {
-    let count = 0;
+    const drawnCards = [];
     for (let index = 0; index < requestedCount; index += 1) {
       if (!match.stock.length) this.#recycleDiscard(match);
       const card = match.stock.pop();
       if (!card) break;
       player.hand.push(card);
-      count += 1;
+      drawnCards.push(card);
     }
     player.hand = rules.sortCards(player.hand, "color");
-    return count;
+    return drawnCards;
   }
 
   #recycleDiscard(match) {
@@ -237,8 +285,8 @@ function createMatchPlayer({ seat, name, avatar, type, style }) {
 }
 
 function validateDeck(deck) {
-  if (!Array.isArray(deck) || deck.length !== 80) throw new RoomError("JUAN requires its complete 80-card deck.", "INVALID_DECK", 500);
-  if (new Set(deck.map((card) => card.id)).size !== 80) throw new RoomError("The JUAN deck contains duplicate cards.", "INVALID_DECK", 500);
+  if (!Array.isArray(deck) || deck.length !== 108) throw new RoomError("JUAN requires its complete 108-card deck.", "INVALID_DECK", 500);
+  if (new Set(deck.map((card) => card.id)).size !== 108) throw new RoomError("The JUAN deck contains duplicate cards.", "INVALID_DECK", 500);
 }
 
 function requireActivePlayer(match, seat) {
@@ -251,6 +299,11 @@ function requireActivePlayer(match, seat) {
 
 function getPlayer(match, seat) {
   return match.players.find((player) => player.seat === Number(seat));
+}
+
+function clearDrawChoice(match) {
+  match.drawnCardId = null;
+  match.drawnSeat = null;
 }
 
 function nextPlayer(match, fromSeat) {
