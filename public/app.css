@@ -90,8 +90,6 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 }
 
 .brand strong { display: block; font-size: 1.12rem; letter-spacing: 0.02em; }
-.brand small { display: block; margin-top: 0.12rem; color: var(--muted); font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase; }
-
 .brand-mark { position: relative; width: 47px; height: 48px; display: block; }
 .brand-mark i {
   position: absolute;

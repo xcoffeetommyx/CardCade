@@ -115,7 +115,6 @@ function renderHome() {
   return `
     <section class="home-grid">
       <div class="home-copy">
-        <p class="eyebrow">Insert imagination</p>
         <h1>Every table starts here.</h1>
         <p class="lede">Pick a game, gather around one room code, and handle cards that feel like physical objects—not tiny buttons in a panel.</p>
         <div class="home-actions">
