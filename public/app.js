@@ -28,8 +28,22 @@ const state = {
 };
 
 const threeSevenRules = globalThis.ThreeSevenRules;
+const thirteenRules = globalThis.ThirteenRules;
 const cardPresentation = globalThis.CardcadePresentation;
 const standard52 = globalThis.CardcadeStandard52;
+
+const standardGameAdapters = {
+  "three-seven": {
+    rules: threeSevenRules,
+    passLabel: "Pass + Draw",
+    noMoveText: "No legal play. Pass and draw."
+  },
+  thirteen: {
+    rules: thirteenRules,
+    passLabel: "Pass",
+    noMoveText: "No legal play. Pass."
+  }
+};
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -301,25 +315,68 @@ function renderRoom() {
     </div>`;
 }
 
-function threeSevenSelection() {
+function currentStandardGame() {
+  const gameId = state.room?.gameId;
+  const adapter = standardGameAdapters[gameId];
+  return adapter ? { gameId, ...adapter } : null;
+}
+
+function gameSelection() {
   const view = state.gameView;
-  if (!view || !threeSevenRules) return { ok: false, reason: "Game unavailable" };
+  const game = currentStandardGame();
+  if (!view || !game?.rules) return { ok: false, reason: "Game unavailable" };
   const match = view.state;
   const cards = view.hand.filter((card) => state.selectedCards.has(card.id));
   if (!cards.length) return { ok: false, reason: "Select cards to play" };
-  const combo = threeSevenRules.detectCombo(cards, match.round);
+  const combo = game.rules.detectCombo(cards, match.round);
   if (!combo) return { ok: false, reason: "Not a legal combination" };
   if (match.openingRequired && !state.selectedCards.has(match.openingCardId)) {
-    return { ok: false, reason: `Opening play needs ${threeSevenCardLabel(match.openingCardId)}` };
+    return { ok: false, reason: `Opening play needs ${standardCardLabel(match.openingCardId)}` };
   }
-  if (!threeSevenRules.canBeat(combo, match.currentLead?.combo || null)) {
+  if (!game.rules.canBeat(combo, match.currentLead?.combo || null)) {
     return { ok: false, reason: "Does not beat the active pile" };
   }
-  return { ok: true, reason: threeSevenRules.comboDescription(combo), combo };
+  return { ok: true, reason: game.rules.comboDescription(combo), combo };
 }
 
-function threeSevenCardLabel(cardId) {
+function standardCardLabel(cardId) {
   return standard52.cardLabel(cardId);
+}
+
+function legalMovesForGame(game, match) {
+  if (game.gameId === "thirteen") {
+    return game.rules.getLegalMoves(
+      state.gameView.hand,
+      match.currentLead?.combo || null,
+      match.openingRequired
+    );
+  }
+  return game.rules.getLegalMoves(
+    state.gameView.hand,
+    match.currentLead?.combo || null,
+    match.openingRequired ? match.openingCardId : null,
+    match.round
+  );
+}
+
+function gameLadder(gameId, match) {
+  if (gameId === "thirteen") {
+    return `
+      <div class="suit-ladder rank-ladder">
+        <span>Low</span><span class="rank-run"><b>3</b> · 4 · 5 · 6 · 7 · 8 · 9 · 10 · J · Q · K · A · <b class="high-card">2</b></span><span>High</span>
+      </div>`;
+  }
+  const orderedSuits = match.suitOrder
+    .map((suit, index) => `<span class="suit-rank ${index === match.suitOrder.length - 1 ? "high" : ""}"><b>${index + 1}</b>${standard52.SUIT_SYMBOL[suit]}</span>`)
+    .join("<i>›</i>");
+  return `<div class="suit-ladder"><span>Low</span>${orderedSuits}<span>High</span></div>`;
+}
+
+function placeLabel(place) {
+  if (place === 1) return "1st";
+  if (place === 2) return "2nd";
+  if (place === 3) return "3rd";
+  return `${place}th`;
 }
 
 function renderPlayingCard(card, index, { played = false, enter = false, selectable = false, dealt = false } = {}) {
@@ -352,48 +409,52 @@ function renderPlayingCard(card, index, { played = false, enter = false, selecta
     </button>`;
 }
 
-function renderThreeSevenGame() {
+function renderStandardGame() {
   const view = state.gameView;
   if (!view) return `<div class="empty-state">Dealing the cards…</div>`;
+  const game = currentStandardGame();
+  if (!game) return `<div class="empty-state">This game does not have a Cardcade table renderer yet.</div>`;
   const match = view.state;
   const viewer = state.room?.players.find((player) => player.isYou);
   const viewerSeat = viewer?.seat;
   const yourPlayer = match.players.find((player) => player.seat === viewerSeat);
   const opponents = match.players.filter((player) => player.seat !== viewerSeat);
   const isYourTurn = match.activeSeat === viewerSeat && !match.roundOver;
-  const evaluation = threeSevenSelection();
-  const sortedHand = threeSevenRules.sortCards(view.hand, state.gameSort, match.round);
+  const evaluation = gameSelection();
+  const sortedHand = game.rules.sortCards(view.hand, state.gameSort, match.round);
   const activePlayer = match.players.find((player) => player.seat === match.activeSeat);
-  const orderedSuits = match.suitOrder.map((suit, index) => `<span class="suit-rank ${index === match.suitOrder.length - 1 ? "high" : ""}"><b>${index + 1}</b>${standard52.SUIT_SYMBOL[suit]}</span>`).join("<i>›</i>");
   const lead = match.currentLead;
   const canPass = isYourTurn && Boolean(lead) && state.selectedCards.size === 0 && !state.gameActionLock;
   const isHost = viewer?.role === "host";
   const pileSignature = lead ? lead.cards.map((card) => card.id).sort().join(",") : "";
   const pileIsNew = Boolean(lead) && pileSignature !== state.lastPileSignature;
   state.lastPileSignature = pileSignature;
-  const handOwner = `${state.room?.code || "table"}:${viewerSeat || "viewer"}:round-${match.round}`;
+  const handOwner = `${game.gameId}:${state.room?.code || "table"}:${viewerSeat ?? "viewer"}:round-${match.round}`;
   const isDealing = !state.dealtHandOwners.has(handOwner);
   state.dealtHandOwners.add(handOwner);
+  const title = state.room?.game?.name || (game.gameId === "thirteen" ? "Thirteen" : "3s & 7s");
+  const roundLabel = game.gameId === "three-seven" ? `Round ${match.round}/${match.totalRounds}` : `Round ${match.round}`;
+  const tableCount = game.gameId === "three-seven" ? `Stock ${match.drawCount}` : "13-card deal";
 
   return `
-    <section class="three-seven-game">
+    <section class="standard-card-game" data-game-id="${escapeHtml(game.gameId)}">
       <header class="game-topbar">
         <button class="back-button" type="button" data-action="leave-game" aria-label="Leave game">←</button>
-        <div><span class="family-kicker">${state.gameMode === "solo" ? "Solo table" : `Room ${escapeHtml(state.room.code)}`}</span><h2>3s & 7s</h2><p>Round ${match.round}/${match.totalRounds} · ${escapeHtml(match.lastMoveText)}</p></div>
+        <div><span class="family-kicker">${state.gameMode === "solo" ? "Solo table" : `Room ${escapeHtml(state.room.code)}`}</span><h2>${escapeHtml(title)}</h2><p>${roundLabel} · ${escapeHtml(match.lastMoveText)}</p></div>
         <button class="game-score" type="button" disabled><span>Score</span><strong>${yourPlayer?.score ?? 0}</strong></button>
       </header>
-      <div class="suit-ladder"><span>Low</span>${orderedSuits}<span>High</span></div>
+      ${gameLadder(game.gameId, match)}
       <div class="game-opponents">
         ${opponents.map((player) => `
           <article class="game-seat ${match.activeSeat === player.seat ? "active" : ""}">
             <span class="player-avatar">${escapeHtml(player.avatar)}</span>
-            <span><strong>${escapeHtml(player.name)}</strong><small>${player.finished ? `${player.place}${player.place === 1 ? "st" : player.place === 2 ? "nd" : player.place === 3 ? "rd" : "th"} place` : `${player.cardCount} cards${player.passed ? " · passed" : ""}`}</small></span>
+            <span><strong>${escapeHtml(player.name)}</strong><small>${player.finished ? `${placeLabel(player.place)} place` : `${player.cardCount} cards${player.passed ? " · passed" : ""}`}</small></span>
             <span class="mini-deck" aria-hidden="true">${Math.min(player.cardCount, 7)}</span>
           </article>`).join("")}
       </div>
       <section class="game-table">
-        <div class="game-status"><span><strong>${match.roundOver ? "Round complete" : isYourTurn ? `${escapeHtml(yourPlayer?.name || "You")}, your turn` : `${escapeHtml(activePlayer?.name || "Player")} is thinking`}</strong><small>Stock ${match.drawCount} · ${lead ? `${escapeHtml(lead.playerName)} controls the pile` : "open lead"}</small></span><span class="badge">${lead ? escapeHtml(lead.label) : "Open lead"}</span></div>
-        <div class="active-pile">${lead ? lead.cards.map((card, index) => renderPlayingCard(card, index, { played: true, enter: pileIsNew })).join("") : `<div class="empty-pile"><strong>No active pile</strong><span>${match.openingRequired ? `Lead must include ${threeSevenCardLabel(match.openingCardId)}.` : "Lead with any legal combination."}</span></div>`}</div>
+        <div class="game-status"><span><strong>${match.roundOver ? "Round complete" : isYourTurn ? `${escapeHtml(yourPlayer?.name || "You")}, your turn` : `${escapeHtml(activePlayer?.name || "Player")} is thinking`}</strong><small>${tableCount} · ${lead ? `${escapeHtml(lead.playerName)} controls the pile` : "open lead"}</small></span><span class="badge">${lead ? escapeHtml(lead.label) : "Open lead"}</span></div>
+        <div class="active-pile">${lead ? lead.cards.map((card, index) => renderPlayingCard(card, index, { played: true, enter: pileIsNew })).join("") : `<div class="empty-pile"><strong>No active pile</strong><span>${match.openingRequired ? `Lead must include ${standardCardLabel(match.openingCardId)}.` : "Lead with any legal combination."}</span></div>`}</div>
       </section>
       <section class="physical-hand ${isYourTurn ? "your-turn" : ""}">
         <div class="hand-heading"><span><strong>Your hand</strong><small>${view.hand.length} cards · ${escapeHtml(state.gameSort)} sort</small></span><span class="selection-status ${evaluation.ok ? "valid" : state.selectedCards.size ? "invalid" : ""}">${escapeHtml(evaluation.reason)}</span></div>
@@ -402,13 +463,13 @@ function renderThreeSevenGame() {
       <nav class="game-actions">
         <button type="button" data-action="game-hint" ${isYourTurn && !state.gameActionLock ? "" : "disabled"}>Hint</button>
         <button type="button" data-action="game-sort" ${state.gameActionLock ? "disabled" : ""}>Sort</button>
-        <button type="button" data-action="game-pass" ${canPass ? "" : "disabled"}>Pass + Draw</button>
+        <button type="button" data-action="game-pass" ${canPass ? "" : "disabled"}>${game.passLabel}</button>
         <button class="primary" type="button" data-action="game-play" ${isYourTurn && evaluation.ok && !state.gameActionLock ? "" : "disabled"}>▶ Play</button>
       </nav>
       ${match.roundOver ? `
         <div class="round-result">
           <div><span class="family-kicker">${match.matchOver ? "Final standings" : `Round ${match.round} complete`}</span><h3>${escapeHtml(match.lastMoveText)}</h3><p>${match.placements.map((seat, index) => `${index + 1}. ${escapeHtml(match.players.find((player) => player.seat === seat)?.name || "Player")}`).join(" · ")}</p></div>
-          ${!match.matchOver && match.mercyOfferPending && match.mercyLeaderSeat === viewerSeat ? `<div class="button-row"><button class="action-button" data-action="mercy-take-win">Take the win</button><button class="action-button primary" data-action="mercy-double">Double or nothing</button></div>` : ""}
+          ${game.gameId === "three-seven" && !match.matchOver && match.mercyOfferPending && match.mercyLeaderSeat === viewerSeat ? `<div class="button-row"><button class="action-button" data-action="mercy-take-win">Take the win</button><button class="action-button primary" data-action="mercy-double">Double or nothing</button></div>` : ""}
           ${!match.matchOver && !match.mercyOfferPending ? `<button class="action-button primary" type="button" data-action="next-round" ${isHost ? "" : "disabled"}>${isHost ? "Deal next round" : "Waiting for host"}</button>` : ""}
           ${match.matchOver ? `<button class="action-button" type="button" data-action="leave-game">Return to Cardcade</button>` : ""}
         </div>` : ""}
@@ -432,25 +493,25 @@ function renderSettings() {
 }
 
 function render() {
-  const previousHand = captureThreeSevenHandSnapshot();
+  const previousHand = captureStandardHandSnapshot();
   const screens = {
     home: renderHome,
     library: renderLibrary,
     "local-lobby": renderLocalLobby,
     multiplayer: renderMultiplayer,
     room: renderRoom,
-    game: renderThreeSevenGame,
+    game: renderStandardGame,
     settings: renderSettings
   };
   document.body.classList.toggle("playing-game", state.screen === "game");
   app.innerHTML = (screens[state.screen] || renderHome)();
   if (state.screen === "game") {
-    layoutThreeSevenHand();
-    animateThreeSevenHandReflow(previousHand);
+    layoutStandardHand();
+    animateStandardHandReflow(previousHand);
   }
 }
 
-function captureThreeSevenHandSnapshot() {
+function captureStandardHandSnapshot() {
   const hand = app.querySelector(".game-hand");
   if (!hand) return null;
   const cards = [...hand.querySelectorAll("[data-game-card]")];
@@ -464,7 +525,7 @@ function captureThreeSevenHandSnapshot() {
   };
 }
 
-function animateThreeSevenHandReflow(previousHand) {
+function animateStandardHandReflow(previousHand) {
   const hand = app.querySelector(".game-hand");
   if (!hand || !previousHand || previousHand.owner !== (hand.dataset.handOwner || "")) return;
   const cards = [...hand.querySelectorAll("[data-game-card]")];
@@ -473,8 +534,8 @@ function animateThreeSevenHandReflow(previousHand) {
     card.classList.contains("selected") ? "selected" : ""
   ].join(":")).join("|");
 
-  // This is the continuity guard from ThreeSeven: opponent/server updates
-  // may move the surrounding table, but an unchanged hand must stay still.
+  // This shared continuity guard keeps opponent/server updates from moving an
+  // unchanged hand even when the surrounding table changes.
   if (currentSignature === previousHand.signature) return;
 
   const reduceMotion = localStorage.getItem(storageKeys.reducedMotion) === "true"
@@ -497,7 +558,7 @@ function animateThreeSevenHandReflow(previousHand) {
   }
 }
 
-function layoutThreeSevenHand() {
+function layoutStandardHand() {
   const hand = app.querySelector(".game-hand");
   if (!hand || !cardPresentation) return;
   const cards = [...hand.querySelectorAll("[data-game-card]")];
@@ -533,7 +594,7 @@ function layoutThreeSevenHand() {
   });
 
   // Settle a replacement row without transitions. Subsequent selection and
-  // sort changes are animated by the FLIP pass above, exactly as ThreeSeven.
+  // Sort changes are animated by the shared FLIP pass above.
   if (!hand.classList.contains("fan-ready")) {
     void hand.offsetWidth;
     hand.classList.add("fan-ready");
@@ -548,11 +609,11 @@ function layoutThreeSevenHand() {
     const index = cardPresentation.fanIndexAtPoint(rects, event.clientX, event.clientY, raised);
     if (index < 0 || !cards[index]) return;
     event.preventDefault();
-    toggleThreeSevenCard(cards[index].dataset.gameCard);
+    toggleStandardCard(cards[index].dataset.gameCard);
   };
 }
 
-function toggleThreeSevenCard(cardId) {
+function toggleStandardCard(cardId) {
   const match = state.gameView?.state;
   const viewer = state.room?.players.find((player) => player.isYou);
   if (state.gameActionLock || !match || match.roundOver || match.activeSeat !== viewer?.seat) return;
@@ -561,7 +622,7 @@ function toggleThreeSevenCard(cardId) {
   render();
 }
 
-function animateThreeSevenHandExit(cardIds, onComplete) {
+function animateStandardHandExit(cardIds, onComplete) {
   const nodes = cardIds
     .map((id) => app.querySelector(`[data-game-card="${CSS.escape(id)}"]`))
     .filter(Boolean);
@@ -653,10 +714,11 @@ function connectRoom(session) {
     if (message.type === "room_state") {
       state.room = message.room;
       if (state.screen === "room") render();
-    } else if (message.type === "game_state" && message.gameId === "three-seven") {
+    } else if (message.type === "game_state" && standardGameAdapters[message.gameId]) {
+      const previousGameId = state.room?.gameId;
       const previousRound = state.gameView?.state?.round;
       const incomingRound = message.view?.state?.round;
-      if (previousRound !== incomingRound) {
+      if (previousGameId !== message.gameId || previousRound !== incomingRound) {
         state.dealtHandOwners = new Set();
         state.lastPileSignature = null;
       }
@@ -706,7 +768,7 @@ async function resumeRoom() {
   if (!saved) return;
   try {
     const session = await api(`/api/rooms/${encodeURIComponent(saved.code)}/reconnect`, { method: "POST", body: JSON.stringify({ token: saved.token }) });
-    if (session.game?.gameId === "three-seven") enterGameSession({ ...session, token: saved.token }, saved.mode || "multiplayer");
+    if (standardGameAdapters[session.game?.gameId]) enterGameSession({ ...session, token: saved.token }, saved.mode || "multiplayer");
     else enterRoom({ ...session, token: saved.token, mode: saved.mode });
   } catch (error) {
     localStorage.removeItem(storageKeys.room);
@@ -734,7 +796,7 @@ document.addEventListener("click", async (event) => {
     const name = savePlayerName(document.querySelector("#local-name")?.value || playerName());
     button.disabled = true;
     try {
-      const session = await api("/api/solo/three-seven", { method: "POST", body: JSON.stringify({ name, botCount: state.localBots }) });
+      const session = await api(`/api/solo/${encodeURIComponent(state.selectedGameId)}`, { method: "POST", body: JSON.stringify({ name, botCount: state.localBots }) });
       enterGameSession(session, "solo");
     } catch (error) {
       showToast(error.message);
@@ -777,16 +839,13 @@ document.addEventListener("click", async (event) => {
   if (action === "game-hint") {
     if (state.gameActionLock) return;
     const match = state.gameView.state;
-    const moves = threeSevenRules.getLegalMoves(
-      state.gameView.hand,
-      match.currentLead?.combo || null,
-      match.openingRequired ? match.openingCardId : null,
-      match.round
-    );
-    if (!moves.length) showToast("No legal play. Pass and draw.");
+    const game = currentStandardGame();
+    if (!game) return;
+    const moves = legalMovesForGame(game, match);
+    if (!moves.length) showToast(game.noMoveText);
     else {
       const hintPlayer = { hand: state.gameView.hand, style: "human" };
-      const move = moves.slice().sort((left, right) => threeSevenRules.moveCost(left, hintPlayer) - threeSevenRules.moveCost(right, hintPlayer))[0];
+      const move = moves.slice().sort((left, right) => game.rules.moveCost(left, hintPlayer) - game.rules.moveCost(right, hintPlayer))[0];
       state.selectedCards = new Set(move.cards.map((card) => card.id));
       render();
     }
@@ -794,9 +853,9 @@ document.addEventListener("click", async (event) => {
   if (action === "game-play") {
     if (state.gameActionLock) return;
     const cardIds = [...state.selectedCards];
-    if (!cardIds.length || !threeSevenSelection().ok) return;
+    if (!cardIds.length || !gameSelection().ok) return;
     state.gameActionLock = true;
-    animateThreeSevenHandExit(cardIds, () => {
+    animateStandardHandExit(cardIds, () => {
       state.selectedCards.clear();
       if (!sendRoom({ type: "play", cardIds })) {
         state.gameActionLock = false;
@@ -836,11 +895,11 @@ document.addEventListener("keydown", (event) => {
   const card = event.target.closest?.("[data-game-card]");
   if (!card || !["Enter", " "].includes(event.key)) return;
   event.preventDefault();
-  toggleThreeSevenCard(card.dataset.gameCard);
+  toggleStandardCard(card.dataset.gameCard);
 });
 
 window.addEventListener("resize", () => {
-  if (state.screen === "game") requestAnimationFrame(layoutThreeSevenHand);
+  if (state.screen === "game") requestAnimationFrame(layoutStandardHand);
 });
 
 document.addEventListener("submit", async (event) => {

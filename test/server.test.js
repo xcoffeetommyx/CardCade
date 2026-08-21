@@ -68,7 +68,13 @@ test("health, catalog, and launcher are served from one process", async (t) => {
 
   const launcher = await fetch(origin);
   assert.equal(launcher.status, 200);
-  assert.match(await launcher.text(), /<title>Cardcade<\/title>/);
+  const launcherBody = await launcher.text();
+  assert.match(launcherBody, /<title>Cardcade<\/title>/);
+  assert.match(launcherBody, /shared\/thirteen-rules\.js/);
+
+  const thirteenRules = await fetch(`${origin}/shared/thirteen-rules.js`);
+  assert.equal(thirteenRules.status, 200);
+  assert.match(await thirteenRules.text(), /ThirteenRules/);
 });
 
 test("HTTP room creation and joining return private sessions", async (t) => {
