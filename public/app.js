@@ -1,5 +1,12 @@
 const app = document.querySelector("#app");
 const toast = document.querySelector("#toast");
+const installButton = document.querySelector("#install-button");
+const installDialog = document.querySelector("#install-dialog");
+const installDialogCopy = document.querySelector("#install-dialog-copy");
+const networkStatus = document.querySelector("#network-status");
+const systemBanner = document.querySelector("#system-banner");
+const systemBannerMessage = document.querySelector("#system-banner-message");
+const systemBannerAction = systemBanner?.querySelector('[data-action="apply-app-update"]');
 
 const storageKeys = {
   name: "cardcade.playerName.v1",
@@ -25,6 +32,8 @@ const state = {
   room: null,
   socket: null,
   socketIntentionalClose: false,
+  reconnectTimer: null,
+  reconnectAttempts: 0,
   gameView: null,
   gameMode: null,
   gameSort: "rank",
@@ -32,6 +41,15 @@ const state = {
   gameActionLock: false,
   dealtHandOwners: new Set(),
   lastPileSignature: null
+};
+
+const pwaState = {
+  online: navigator.onLine,
+  roomConnection: "idle",
+  deferredInstallPrompt: null,
+  serviceWorkerRegistration: null,
+  updateAvailable: false,
+  updateRequested: false
 };
 
 const threeSevenRules = globalThis.ThreeSevenRules;
@@ -80,15 +98,152 @@ function showToast(message) {
 }
 
 async function api(path, options = {}) {
-  const response = await fetch(path, {
-    ...options,
-    headers: { "Content-Type": "application/json", ...(options.headers || {}) }
-  });
+  let response;
+  try {
+    response = await fetch(path, {
+      ...options,
+      headers: { "Content-Type": "application/json", ...(options.headers || {}) }
+    });
+  } catch {
+    throw new Error(navigator.onLine
+      ? "Cardcade could not reach the server. Check the connection and try again."
+      : "Cardcade is offline. Reconnect before starting or joining a table.");
+  }
   const body = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new Error(body.error?.message || "Cardcade could not complete that request.");
   }
   return body;
+}
+
+function isStandaloneApp() {
+  return matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+}
+
+function isAppleMobileDevice() {
+  return /iPhone|iPad|iPod/i.test(navigator.userAgent)
+    || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+}
+
+function updateInstallButton() {
+  if (!installButton) return;
+  const canExplainIosInstall = isAppleMobileDevice() && !isStandaloneApp();
+  installButton.hidden = isStandaloneApp() || (!pwaState.deferredInstallPrompt && !canExplainIosInstall);
+  installButton.textContent = isAppleMobileDevice() ? "Add to Home" : "Install app";
+}
+
+function showInstallHelp() {
+  if (!installDialog || !installDialogCopy) return;
+  installDialogCopy.innerHTML = isAppleMobileDevice()
+    ? `<ol class="install-steps"><li>Open the browser's <strong>Share</strong> menu.</li><li>Choose <strong>Add to Home Screen</strong>.</li><li>Keep <strong>Open as Web App</strong> enabled when that option appears, then tap <strong>Add</strong>.</li></ol><p>Launch Cardcade from its Home Screen icon for the full standalone layout.</p>`
+    : `<p>Open your browser menu and choose <strong>Install Cardcade</strong> or <strong>Add to Home screen</strong>. Installation requires HTTPS outside local development.</p>`;
+  if (typeof installDialog.showModal === "function") installDialog.showModal();
+  else installDialog.setAttribute("open", "");
+}
+
+async function requestAppInstall() {
+  const promptEvent = pwaState.deferredInstallPrompt;
+  if (!promptEvent) {
+    showInstallHelp();
+    return;
+  }
+  await promptEvent.prompt();
+  await promptEvent.userChoice.catch(() => null);
+  pwaState.deferredInstallPrompt = null;
+  updateInstallButton();
+}
+
+function renderShellStatus() {
+  const label = networkStatus?.querySelector("span:last-child");
+  const status = !pwaState.online
+    ? { kind: "offline", label: "Offline", message: "Offline — the launcher is available, but games and rooms need a connection.", action: false }
+    : pwaState.roomConnection === "reconnecting"
+      ? { kind: "reconnecting", label: "Reconnecting", message: "Reconnecting to your private table…", action: false }
+      : pwaState.updateAvailable
+        ? { kind: "update", label: "Update ready", message: "A new Cardcade build is ready.", action: true }
+        : { kind: "online", label: isStandaloneApp() ? "App mode" : "Online", message: "", action: false };
+
+  if (networkStatus) networkStatus.dataset.status = status.kind;
+  if (label) label.textContent = status.label;
+  if (!systemBanner || !systemBannerMessage || !systemBannerAction) return;
+  systemBanner.dataset.status = status.kind;
+  systemBanner.hidden = !status.message;
+  systemBannerMessage.textContent = status.message;
+  systemBannerAction.hidden = !status.action;
+}
+
+function setRoomConnection(status) {
+  pwaState.roomConnection = status;
+  renderShellStatus();
+}
+
+function markAppUpdateAvailable(registration) {
+  if (!navigator.serviceWorker.controller) return;
+  pwaState.serviceWorkerRegistration = registration;
+  pwaState.updateAvailable = true;
+  renderShellStatus();
+}
+
+async function registerCardcadeServiceWorker() {
+  if (!("serviceWorker" in navigator)) return;
+  try {
+    const registration = await navigator.serviceWorker.register("/sw.js");
+    pwaState.serviceWorkerRegistration = registration;
+    if (registration.waiting) markAppUpdateAvailable(registration);
+    registration.addEventListener("updatefound", () => {
+      const worker = registration.installing;
+      worker?.addEventListener("statechange", () => {
+        if (worker.state === "installed" && navigator.serviceWorker.controller) {
+          markAppUpdateAvailable(registration);
+        }
+      });
+    });
+    if (document.visibilityState === "visible") registration.update().catch(() => {});
+  } catch {
+    // Cardcade still works as a normal website when service workers are unavailable.
+  }
+}
+
+function setupPwaShell() {
+  document.documentElement.classList.toggle("standalone-app", isStandaloneApp());
+  updateInstallButton();
+  renderShellStatus();
+
+  addEventListener("beforeinstallprompt", (event) => {
+    event.preventDefault();
+    pwaState.deferredInstallPrompt = event;
+    updateInstallButton();
+  });
+  addEventListener("appinstalled", () => {
+    pwaState.deferredInstallPrompt = null;
+    updateInstallButton();
+    showToast("Cardcade was added to your device.");
+  });
+  addEventListener("online", () => {
+    pwaState.online = true;
+    renderShellStatus();
+    if (roomReconnectEligible()) scheduleRoomReconnect(0);
+  });
+  addEventListener("offline", () => {
+    pwaState.online = false;
+    renderShellStatus();
+  });
+  matchMedia("(display-mode: standalone)").addEventListener?.("change", () => {
+    document.documentElement.classList.toggle("standalone-app", isStandaloneApp());
+    updateInstallButton();
+    renderShellStatus();
+  });
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+      pwaState.serviceWorkerRegistration?.update().catch(() => {});
+    }
+  });
+  navigator.serviceWorker?.addEventListener("controllerchange", () => {
+    if (!pwaState.updateRequested) return;
+    pwaState.updateRequested = false;
+    location.reload();
+  });
+  registerCardcadeServiceWorker();
 }
 
 function screenHeader(title, copy, back = "home") {
@@ -602,6 +757,7 @@ function render() {
     settings: renderSettings
   };
   document.body.classList.toggle("playing-game", ["game", "hot-seat-handoff"].includes(state.screen));
+  document.body.classList.toggle("home-screen", state.screen === "home");
   app.innerHTML = (screens[state.screen] || renderHome)();
   if (state.screen === "game") {
     layoutStandardHand();
@@ -807,12 +963,19 @@ function saveHotSeatSession() {
 }
 
 function disconnectRoomSocket() {
+  clearTimeout(state.reconnectTimer);
+  state.reconnectTimer = null;
+  state.reconnectAttempts = 0;
   const socket = state.socket;
-  if (!socket) return;
+  if (!socket) {
+    setRoomConnection("idle");
+    return;
+  }
   socket.cardcadeIntentionalClose = true;
   state.socketIntentionalClose = true;
   state.socket = null;
   socket.close();
+  setRoomConnection("idle");
 }
 
 function hiddenPrivateView(view) {
@@ -939,13 +1102,41 @@ function sendRoom(message) {
   return true;
 }
 
+function roomReconnectEligible() {
+  if (!state.session || state.socketIntentionalClose) return false;
+  if (["room", "game"].includes(state.screen)) return true;
+  return state.screen === "hot-seat-handoff" && state.hotSeatWaitingForCpu;
+}
+
+function scheduleRoomReconnect(delayOverride = null) {
+  if (!roomReconnectEligible() || state.reconnectTimer) return;
+  if (state.socket && [WebSocket.CONNECTING, WebSocket.OPEN].includes(state.socket.readyState)) return;
+  setRoomConnection("reconnecting");
+  const delay = delayOverride ?? Math.min(10_000, 750 * (2 ** state.reconnectAttempts));
+  state.reconnectAttempts += 1;
+  state.reconnectTimer = setTimeout(() => {
+    state.reconnectTimer = null;
+    if (!navigator.onLine || !roomReconnectEligible()) return;
+    connectRoom(state.session);
+  }, delay);
+}
+
 function connectRoom(session) {
+  clearTimeout(state.reconnectTimer);
+  state.reconnectTimer = null;
+  state.socketIntentionalClose = false;
+  if (!navigator.onLine) {
+    setRoomConnection("reconnecting");
+    scheduleRoomReconnect();
+    return;
+  }
   if (state.socket) {
     state.socket.cardcadeIntentionalClose = true;
     state.socketIntentionalClose = true;
     state.socket.close();
   }
   state.socketIntentionalClose = false;
+  setRoomConnection("reconnecting");
   const protocol = location.protocol === "https:" ? "wss:" : "ws:";
   const socket = new WebSocket(`${protocol}//${location.host}/ws`);
   state.socket = socket;
@@ -954,6 +1145,10 @@ function connectRoom(session) {
   });
   socket.addEventListener("message", (event) => {
     const message = JSON.parse(event.data);
+    if (["room_state", "game_state"].includes(message.type)) {
+      state.reconnectAttempts = 0;
+      setRoomConnection("connected");
+    }
     if (message.type === "room_state") {
       state.room = message.room;
       if (state.screen === "room") render();
@@ -1000,7 +1195,11 @@ function connectRoom(session) {
     }
   });
   socket.addEventListener("close", () => {
-    if (!socket.cardcadeIntentionalClose && !state.socketIntentionalClose && ["room", "game"].includes(state.screen)) showToast("Room connection closed. Use Resume to reconnect.");
+    if (state.socket === socket) state.socket = null;
+    if (!socket.cardcadeIntentionalClose && !state.socketIntentionalClose && roomReconnectEligible()) {
+      if (navigator.onLine) showToast("Table connection interrupted. Cardcade is reconnecting.");
+      scheduleRoomReconnect();
+    }
   });
 }
 
@@ -1073,6 +1272,22 @@ document.addEventListener("click", async (event) => {
   if (!button) return;
   const action = button.dataset.action;
 
+  if (action === "install-pwa") await requestAppInstall();
+  if (action === "dismiss-install-help") {
+    if (typeof installDialog?.close === "function") installDialog.close();
+    else installDialog?.removeAttribute("open");
+  }
+  if (action === "apply-app-update") {
+    const waiting = pwaState.serviceWorkerRegistration?.waiting;
+    if (!waiting) {
+      pwaState.serviceWorkerRegistration?.update().catch(() => {});
+      showToast("Cardcade is checking for the latest build.");
+    } else {
+      button.disabled = true;
+      pwaState.updateRequested = true;
+      waiting.postMessage({ type: "SKIP_WAITING" });
+    }
+  }
   if (action === "home") navigate("home");
   if (action === "open-solo") { state.mode = "solo"; state.selectedGameId = null; navigate("library"); }
   if (action === "open-hot-seat") {
@@ -1323,10 +1538,10 @@ document.addEventListener("submit", async (event) => {
 });
 
 async function boot() {
+  setupPwaShell();
   try {
     state.catalog = await api("/api/catalog");
     render();
-    if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
   } catch (error) {
     app.innerHTML = `<div class="empty-state"><h2>Cardcade could not start.</h2><p class="error-text">${escapeHtml(error.message)}</p></div>`;
   }

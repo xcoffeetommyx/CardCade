@@ -80,6 +80,11 @@ test("health, catalog, and launcher are served from one process", async (t) => {
   const hotSeatFlow = await fetch(`${origin}/shared/hot-seat-flow.js`);
   assert.equal(hotSeatFlow.status, 200);
   assert.match(await hotSeatFlow.text(), /CardcadeHotSeat/);
+
+  const manifest = await fetch(`${origin}/manifest.webmanifest`);
+  assert.match(manifest.headers.get("content-type"), /application\/manifest\+json/);
+  const appIcon = await fetch(`${origin}/assets/pwa/icon-192.png`);
+  assert.equal(appIcon.headers.get("content-type"), "image/png");
 });
 
 test("HTTP room creation and joining return private sessions", async (t) => {

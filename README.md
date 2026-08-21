@@ -39,6 +39,16 @@ Compose publishes the configured port on the host's network interfaces so phones
 
 See [docs/architecture.md](docs/architecture.md) and [docs/privacy-and-deployment.md](docs/privacy-and-deployment.md).
 
+## Install on a phone
+
+Cardcade includes a standalone manifest, Android/maskable icons, Apple Home Screen metadata, modern iPhone launch images, safe-area layout, an offline launcher shell, and controlled update prompts.
+
+- On iPhone or iPad, open the browser Share menu, choose **Add to Home Screen**, keep **Open as Web App** enabled when shown, and launch Cardcade from its new icon.
+- On Android, use Cardcade's **Install app** button when it appears or the browser's **Install app / Add to Home screen** command.
+- Chromium installation and service workers require HTTPS outside `localhost`/`127.0.0.1`. Use the server's private HTTPS Tailscale or Funnel entry point for a fully installable phone build; never commit that address.
+
+See [docs/pwa-mobile-shell.md](docs/pwa-mobile-shell.md) for platform behavior and update details.
+
 ## Repository status
 
 No GitHub remote is configured during local development. Do not add a production hostname, private Funnel address, reconnect token, or room code to tracked files.
