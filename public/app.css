@@ -742,52 +742,179 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 .juan-stock b { position: absolute; right: -9px; bottom: -9px; min-width: 29px; height: 29px; display: grid; place-items: center; border: 2px solid #f2ebdd; border-radius: 50%; color: #06101f; background: #f2bf3d; font-size: .72rem; }
 
 .juan-card {
+  --juan-paper: #f5eddd;
   color: #fffaf0;
-  border-color: #f7f0e3;
+  border-color: #fff8e9;
   background:
-    linear-gradient(rgba(255,255,255,.07) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,.07) 1px, transparent 1px),
-    linear-gradient(145deg, rgba(255,255,255,.22) 0 13%, transparent 13% 62%, rgba(0,0,0,.15) 62% 100%),
+    linear-gradient(rgba(89,63,35,.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(89,63,35,.055) 1px, transparent 1px),
+    var(--juan-paper);
+  background-size: 4px 4px, 4px 4px, auto;
+  box-shadow: 5px 7px 0 rgba(0,0,0,.5), inset 0 0 0 1px rgba(72,47,23,.14);
+  text-shadow: none;
+}
+.juan-card-ink {
+  position: absolute;
+  z-index: 0;
+  inset: 4px;
+  overflow: hidden;
+  border: 2px solid rgba(5,13,26,.42);
+  border-radius: 5px;
+  background:
+    linear-gradient(rgba(255,255,255,.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.055) 1px, transparent 1px),
+    linear-gradient(155deg, rgba(255,255,255,.2), transparent 29%, rgba(5,13,26,.16) 76%),
     var(--juan-face);
   background-size: 5px 5px, 5px 5px, auto, auto;
-  text-shadow: 2px 2px 0 rgba(5,9,20,.86), -1px -1px 0 rgba(5,9,20,.52), 1px -1px 0 rgba(5,9,20,.52), -1px 1px 0 rgba(5,9,20,.52);
-  box-shadow: 5px 7px 0 rgba(0,0,0,.48), inset 0 0 0 2px rgba(0,0,0,.13);
-}
-.juan-card::after {
-  content: "";
-  position: absolute;
-  inset: 5px;
-  border: 2px solid rgba(255,255,255,.42);
-  border-radius: 5px;
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,.22), inset 0 -18px 32px rgba(5,13,26,.14);
   pointer-events: none;
 }
-.juan-card.juan-prism {
-  --juan-face: #111823;
+.juan-card-ink::before {
+  content: "";
+  position: absolute;
+  width: 150%;
+  height: 36%;
+  left: -25%;
+  top: 31%;
+  border-block: 2px solid rgba(255,255,255,.42);
+  background: rgba(255,255,255,.12);
+  transform: rotate(-28deg);
+  box-shadow: 0 4px 0 rgba(5,13,26,.09);
+}
+.juan-card-ink::after {
+  content: "";
+  position: absolute;
+  inset: 7px;
+  border: 1px solid rgba(255,255,255,.28);
+  border-radius: 3px;
+}
+.juan-card.juan-prism { --juan-face: #111a2a; --juan-deep: #070d18; }
+.juan-prism .juan-card-ink {
   background:
     linear-gradient(rgba(255,255,255,.045) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255,255,255,.045) 1px, transparent 1px),
-    conic-gradient(from 35deg at 50% 52%, #ef4d54 0 25%, #f2bf3d 0 50%, #43b66b 0 75%, #2d7dd2 0) 50% 50% / 72% 62% no-repeat,
-    #101720;
-  background-size: 5px 5px, 5px 5px, 72% 62%, auto;
+    conic-gradient(from 45deg at 50% 50%, #ef4d54 0 25%, #f2bf3d 0 50%, #43b66b 0 75%, #2d7dd2 0) 50% 50% / 170% 170%,
+    #101827;
+  background-size: 5px 5px, 5px 5px, 170% 170%, auto;
 }
-.juan-card-orbit {
+.juan-prism .juan-card-ink::before {
+  height: 39%;
+  border-color: rgba(255,255,255,.62);
+  background: rgba(7,13,24,.44);
+}
+.juan-card-emblem {
   position: absolute;
-  z-index: 1;
-  inset: 17% 13%;
-  border: 4px solid rgba(255,255,255,.76);
-  border-radius: 7px 22px 7px 22px;
-  transform: rotate(-17deg) skewY(-7deg);
-  box-shadow: inset 0 0 0 2px rgba(0,0,0,.14), 3px 4px 0 rgba(0,0,0,.13);
+  z-index: 2;
+  inset: 24% 17% 22%;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 5px;
+  border: 3px solid rgba(6,16,31,.72);
+  border-radius: 20% 7% 20% 7%;
+  color: var(--juan-deep);
+  background:
+    linear-gradient(rgba(73,49,25,.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(73,49,25,.045) 1px, transparent 1px),
+    linear-gradient(145deg, #fffaf0, #e8ddc9);
+  background-size: 4px 4px, 4px 4px, auto;
+  box-shadow: 4px 5px 0 rgba(5,13,26,.45), inset 0 0 0 2px rgba(255,255,255,.7);
+  transform: rotate(-7deg);
 }
-.juan-prism .juan-card-orbit { background: rgba(8,12,20,.28); }
-.juan-face { position: absolute; z-index: 2; inset: 17% 15%; display: grid; place-items: center; align-content: center; gap: 4px; transform: rotate(-3deg); }
-.juan-face b { font: 900 clamp(2.4rem, 8vw, 4.3rem)/.9 "Cardcade Pixel", "Courier New", monospace; letter-spacing: -.07em; }
-.juan-face small { max-width: 90%; font: 900 .58rem/1 "Cardcade Pixel", monospace; letter-spacing: .03em; text-transform: uppercase; text-align: center; }
-.juan-corner { line-height: .86; }
-.juan-corner strong { max-width: 44px; font-family: "Cardcade Pixel", monospace; font-size: clamp(.92rem, 3vw, 1.25rem); letter-spacing: -.08em; }
-.juan-corner i { margin-top: 3px; font: 900 .62rem "Cardcade Pixel", monospace; }
-.juan-card.played .juan-face b { font-size: 2.7rem; }
-.juan-card.played .juan-face small { font-size: .48rem; }
+.juan-card-emblem::before,
+.juan-card-emblem::after {
+  content: "";
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--juan-deep);
+  background: var(--juan-paper);
+  transform: rotate(45deg);
+}
+.juan-card-emblem::before { left: -7px; top: 12px; }
+.juan-card-emblem::after { right: -7px; bottom: 12px; }
+.juan-card-emblem b {
+  font: 900 clamp(2rem, 7vw, 4.05rem)/.84 "Cardcade Pixel", "Courier New", monospace;
+  letter-spacing: -.07em;
+  transform: rotate(7deg);
+}
+.juan-card-emblem b.juan-rank-glyph {
+  font-family: "Cardcade Ranks", "Courier New", monospace;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+.juan-card-emblem small {
+  max-width: 92%;
+  padding: 3px 5px 2px;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  font: 900 .54rem/1 "Cardcade Pixel", monospace;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  text-align: center;
+  transform: rotate(7deg);
+}
+.juan-kind-number .juan-card-emblem b { font-size: clamp(2.9rem, 9vw, 4.8rem); }
+.juan-kind-turnabout .juan-card-emblem b { font-size: clamp(2.35rem, 7vw, 3.8rem); }
+.juan-kind-double-draw .juan-card-emblem b,
+.juan-kind-prism-burst .juan-card-emblem b { font-size: clamp(1.85rem, 6vw, 3.2rem); }
+.juan-kind-prism .juan-card-emblem b { font-size: clamp(2.25rem, 7vw, 3.7rem); }
+.juan-prism .juan-card-emblem {
+  color: #0a1424;
+  background:
+    linear-gradient(rgba(73,49,25,.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(73,49,25,.045) 1px, transparent 1px),
+    linear-gradient(145deg, #fffaf0, #e8ddc9);
+  background-size: 4px 4px, 4px 4px, auto;
+}
+.juan-prism .juan-card-emblem::before { border-color: #ef4d54; background: #f2bf3d; }
+.juan-prism .juan-card-emblem::after { border-color: #2d7dd2; background: #43b66b; }
+.juan-card-brand {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  bottom: 8px;
+  color: rgba(255,255,255,.82);
+  font: 900 .42rem/1 "Cardcade Pixel", monospace;
+  letter-spacing: .18em;
+  text-shadow: 1px 1px 0 rgba(5,13,26,.48);
+  transform: translateX(-50%);
+}
+.juan-corner {
+  top: 10px;
+  left: 10px;
+  color: #fffaf0;
+  line-height: .78;
+  text-shadow: 2px 2px 0 rgba(5,13,26,.7);
+}
+.juan-corner strong {
+  max-width: 44px;
+  font-family: "Cardcade Pixel", monospace;
+  font-size: clamp(.9rem, 3vw, 1.22rem);
+  letter-spacing: -.07em;
+}
+.juan-corner strong.juan-rank-glyph {
+  font-family: "Cardcade Ranks", "Courier New", monospace;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+.juan-lane-pip {
+  width: 8px;
+  height: 8px;
+  margin-top: 5px;
+  border: 1px solid rgba(255,255,255,.82);
+  background: rgba(255,255,255,.3);
+  transform: rotate(45deg);
+}
+.juan-prism .juan-lane-pip {
+  border-color: #fffaf0;
+  background: conic-gradient(#ef4d54 0 25%, #f2bf3d 0 50%, #43b66b 0 75%, #2d7dd2 0);
+}
+.juan-card.played .juan-card-emblem { inset: 23% 15% 21%; }
+.juan-card.played .juan-card-emblem b { font-size: 2.35rem; }
+.juan-card.played.juan-kind-number .juan-card-emblem b { font-size: 2.8rem; }
+.juan-card.played .juan-card-emblem small { font-size: .42rem; }
+.juan-card.played .juan-card-brand { font-size: .35rem; }
 .juan-card.turn-drawn:not(.selected) {
   --card-lift: calc(var(--fan-selected-lift, 38px) * .45);
   border-color: #fff4b6;
@@ -985,7 +1112,7 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   .juan-color-chooser { justify-content: space-between; gap: 3px; font-size: .56rem; }
   .juan-color-choice { min-height: 30px; padding-inline: 5px; font-size: .53rem; }
   .juan-color-choice i { width: 9px; height: 9px; }
-  .juan-face small { font-size: .48rem; }
+  .juan-card-emblem small { font-size: .48rem; }
 }
 
 @media (max-width: 520px) and (min-height: 620px) {

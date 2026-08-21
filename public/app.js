@@ -721,6 +721,7 @@ function juanSelection() {
 function renderJuanCard(card, index, { played = false, enter = false, selectable = false, dealt = false, turnDrawn = false } = {}) {
   const selected = !played && state.selectedCards.has(card.id);
   const action = juanDeck.ACTION_FACE[card.kind];
+  const isNumber = card.kind === "number";
   const face = card.kind === "number" ? String(card.value) : action?.symbol || "?";
   const short = card.kind === "number" ? String(card.value) : action?.short || "?";
   const name = card.kind === "number" ? juanDeck.COLOR_NAME[card.color] : action?.name || card.kind;
@@ -728,6 +729,7 @@ function renderJuanCard(card, index, { played = false, enter = false, selectable
   const classes = [
     "playing-card",
     "juan-card",
+    `juan-kind-${card.kind}`,
     colorClass,
     selected ? "selected" : "",
     turnDrawn ? "turn-drawn" : "",
@@ -743,10 +745,11 @@ function renderJuanCard(card, index, { played = false, enter = false, selectable
     <button class="${classes}" type="button" ${played ? "disabled" : ""} ${delay}
       ${played ? "" : `data-game-card="${escapeHtml(card.id)}" data-card-index="${index}" tabindex="${selectable ? "0" : "-1"}`}
       aria-label="${escapeHtml(juanDeck.cardLong(card))}" aria-pressed="${selected}">
-      <span class="card-corner juan-corner"><strong>${escapeHtml(short)}</strong><i>${card.color ? escapeHtml(juanDeck.COLOR_NAME[card.color][0]) : "✦"}</i></span>
-      <span class="juan-card-orbit" aria-hidden="true"></span>
-      <span class="juan-face"><b>${escapeHtml(face)}</b><small>${escapeHtml(name)}</small></span>
-      <span class="card-corner bottom juan-corner"><strong>${escapeHtml(short)}</strong><i>${card.color ? escapeHtml(juanDeck.COLOR_NAME[card.color][0]) : "✦"}</i></span>
+      <span class="juan-card-ink" aria-hidden="true"></span>
+      <span class="card-corner juan-corner"><strong class="${isNumber ? "juan-rank-glyph" : ""}">${escapeHtml(short)}</strong><i class="juan-lane-pip" aria-hidden="true"></i></span>
+      <span class="juan-card-emblem"><b class="${isNumber ? "juan-rank-glyph" : ""}">${escapeHtml(face)}</b><small>${escapeHtml(name)}</small></span>
+      <span class="juan-card-brand" aria-hidden="true">JUAN</span>
+      <span class="card-corner bottom juan-corner"><strong class="${isNumber ? "juan-rank-glyph" : ""}">${escapeHtml(short)}</strong><i class="juan-lane-pip" aria-hidden="true"></i></span>
     </button>`;
 }
 
