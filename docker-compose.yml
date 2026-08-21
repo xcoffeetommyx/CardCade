@@ -7,7 +7,7 @@ services:
       PORT: 4380
       DB_FILE: /app/data/cardcade.sqlite3
     ports:
-      - "127.0.0.1:${CARDCADE_PORT:-4380}:4380"
+      - "0.0.0.0:${CARDCADE_PORT:-4380}:4380"
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4380/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
       interval: 30s
