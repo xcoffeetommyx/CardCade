@@ -1041,6 +1041,9 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   .juan-game .game-opponents { display: flex; overflow-x: auto; overscroll-behavior-inline: contain; scroll-snap-type: x proximity; scrollbar-width: none; }
   .juan-game .game-opponents::-webkit-scrollbar { display: none; }
   .juan-game .game-seat { flex: 0 0 145px; min-height: 58px; scroll-snap-align: start; }
+  .juan-game .game-opponents.fit-opponents { overflow-x: hidden; scroll-snap-type: none; }
+  .juan-game .game-opponents.fit-opponents .game-seat { flex: 1 1 0; min-width: 0; }
+  .juan-game .game-opponents.fit-opponents .game-seat > span:nth-child(2) { min-width: 0; }
   .juan-game .juan-pile-zone { min-height: 125px; }
 }
 

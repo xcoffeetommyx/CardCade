@@ -800,7 +800,7 @@ function renderJuanGame() {
         <strong>${escapeHtml(juanDeck.COLOR_NAME[match.activeColor])}</strong>
         <span class="juan-direction" aria-label="Play direction ${match.direction === 1 ? "forward" : "backward"}">${match.direction === 1 ? "↻" : "↺"}</span>
       </div>
-      <div class="game-opponents">
+      <div class="game-opponents ${opponents.length <= 3 ? "fit-opponents" : ""}">
         ${opponents.map((player) => `
           <article class="game-seat ${match.activeSeat === player.seat ? "active" : ""} ${player.juan ? "juan-alert" : ""}">
             <span class="player-avatar">${escapeHtml(player.avatar)}</span>
