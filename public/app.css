@@ -708,6 +708,13 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   .game-actions button { font-size: .69rem; padding-inline: 4px; }
 }
 
+@media (max-width: 520px) and (orientation: portrait) {
+  .standard-card-game {
+    --game-card-width: clamp(78px, 22vw, 94px);
+    --game-card-height: calc(var(--game-card-width) * 1.42);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.001ms !important; animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; }
 }

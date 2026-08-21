@@ -568,12 +568,13 @@ function layoutStandardHand() {
   const cardHeight = cards[0].offsetHeight || cardWidth * 1.42;
   if (!containerWidth || !cardWidth) return;
   const compactLandscape = innerWidth > innerHeight && innerHeight <= 640;
+  const portraitPhone = innerWidth <= 520 && innerHeight > innerWidth;
   const layout = cardPresentation.calculateFanLayout({
     count: cards.length,
     containerWidth,
     cardWidth,
     cardHeight,
-    sidePadding: 8,
+    sidePadding: portraitPhone ? 12 : 8,
     minimumVisibleIndex: Math.max(16, cardWidth * 0.2),
     maximumRotation: compactLandscape ? 8 : 11,
     curveRatio: compactLandscape ? 0.06 : 0.12,
