@@ -659,7 +659,7 @@ function renderStandardGame() {
   return `
     <section class="standard-card-game" data-game-id="${escapeHtml(game.gameId)}">
       <header class="game-topbar">
-        <button class="back-button" type="button" data-action="leave-game" aria-label="Leave game">←</button>
+        <button class="back-button" type="button" data-action="leave-game" aria-label="${state.gameMode === "multiplayer" ? "Return to room lobby" : "Leave game"}">←</button>
         <div><span class="family-kicker">${state.gameMode === "solo" ? "Solo table" : state.gameMode === "hot-seat" ? "Hot Seat table" : `Room ${escapeHtml(state.room.code)}`}</span><h2>${escapeHtml(title)}</h2><p>${roundLabel} · ${escapeHtml(match.lastMoveText)}</p></div>
         <button class="game-score" type="button" disabled><span>Score</span><strong>${yourPlayer?.score ?? 0}</strong></button>
       </header>
@@ -790,7 +790,7 @@ function renderJuanGame() {
   return `
     <section class="standard-card-game juan-game" data-game-id="juan" data-active-color="${escapeHtml(match.activeColor)}">
       <header class="game-topbar">
-        <button class="back-button" type="button" data-action="leave-game" aria-label="Leave game">←</button>
+        <button class="back-button" type="button" data-action="leave-game" aria-label="${state.gameMode === "multiplayer" ? "Return to room lobby" : "Leave game"}">←</button>
         <div><span class="family-kicker">${state.gameMode === "solo" ? "Solo table" : state.gameMode === "hot-seat" ? "Hot Seat table" : `Room ${escapeHtml(state.room.code)}`}</span><h2>JUAN</h2><p>Race to one · ${escapeHtml(match.lastMoveText)}</p></div>
         <button class="game-score" type="button" disabled><span>Score</span><strong>${yourPlayer?.score ?? 0}</strong></button>
       </header>
@@ -1324,7 +1324,15 @@ function connectRoom(session) {
     }
     if (message.type === "room_state") {
       state.room = message.room;
-      if (state.screen === "room") render();
+      if (message.room.phase === "configuring" && state.screen === "game") {
+        state.gameView = null;
+        state.selectedCards = new Set();
+        state.juanChosenColor = null;
+        state.gameActionLock = false;
+        state.dealtHandOwners = new Set();
+        state.lastPileSignature = null;
+        navigate("room");
+      } else if (state.screen === "room") render();
     } else if (message.type === "game_state" && supportsGame(message.gameId)) {
       if (state.gameMode === "hot-seat" && state.hotSeatPendingPlayerId) return;
       if (state.gameMode === "hot-seat") {
@@ -1687,6 +1695,19 @@ document.addEventListener("click", async (event) => {
         await closeHotSeatTable();
       } catch (error) {
         showToast(error.message);
+      }
+      return;
+    }
+    if (state.gameMode === "multiplayer") {
+      const you = state.room?.players.find((player) => player.isYou);
+      if (you?.role !== "host") {
+        showToast("Only the room host can return the table to game selection.");
+        return;
+      }
+      state.gameActionLock = true;
+      if (!sendRoom({ type: "return_to_lobby" })) {
+        state.gameActionLock = false;
+        render();
       }
       return;
     }

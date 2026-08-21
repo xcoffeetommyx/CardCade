@@ -280,6 +280,10 @@ test("a host starts JUAN from the same global Cardcade room", async (t) => {
   socket.send(JSON.stringify({ type: "set_bot_count", botCount: 2 }));
   await update;
 
+  const blockedStart = nextMessage(socket, (message) => message.type === "error" && message.error.code === "ROOM_NOT_READY");
+  socket.send(JSON.stringify({ type: "start_game" }));
+  await blockedStart;
+
   update = nextMessage(socket, (message) => message.type === "room_state" && message.room.canStart === true);
   socket.send(JSON.stringify({ type: "set_ready", ready: true }));
   await update;
@@ -292,6 +296,25 @@ test("a host starts JUAN from the same global Cardcade room", async (t) => {
   assert.equal(message.room.game.name, "JUAN");
   assert.equal(message.view.hand.length, 7);
   assert.equal(message.view.state.players.length, 3);
+
+  const lobbyState = nextMessage(socket, (candidate) => candidate.type === "room_state" && candidate.room.phase === "configuring");
+  socket.send(JSON.stringify({ type: "return_to_lobby" }));
+  const lobby = await lobbyState;
+  assert.equal(lobby.room.code, host.code);
+  assert.equal(lobby.room.gameId, "juan");
+  assert.equal(lobby.room.players.length, 1);
+  assert.equal(lobby.room.gameSettings.botCount, 2);
+
+  update = nextMessage(socket, (candidate) => candidate.type === "room_state" && candidate.room.canStart === true);
+  socket.send(JSON.stringify({ type: "set_ready", ready: true }));
+  await update;
+
+  const restartedState = nextMessage(socket, (candidate) => candidate.type === "game_state" && candidate.gameId === "juan");
+  socket.send(JSON.stringify({ type: "start_game" }));
+  const restarted = await restartedState;
+  assert.equal(restarted.room.code, host.code);
+  assert.equal(restarted.room.phase, "playing");
+  assert.equal(restarted.view.hand.length, 7);
 });
 
 test("Hot Seat creates private human seats on the shared 3s & 7s runtime", async (t) => {

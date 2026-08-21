@@ -77,6 +77,24 @@ test("available games can start when the table is ready", () => {
   assert.equal(room.startBlocker, null);
 });
 
+test("the host can return a playing room to game selection without losing its players", () => {
+  const { store } = setup();
+  const host = store.createRoom({ name: "Host" });
+  const guest = store.joinRoom(host.code, { name: "Guest" });
+  store.selectGame(host.code, host.token, "juan");
+  store.setReady(host.code, host.token, true);
+  store.setReady(host.code, guest.token, true);
+  store.markPlaying(host.code, host.token);
+
+  assert.throws(() => store.returnToLobby(host.code, guest.token), { code: "HOST_ONLY" });
+  const room = store.returnToLobby(host.code, host.token);
+  assert.equal(room.code, host.code);
+  assert.equal(room.phase, "configuring");
+  assert.equal(room.gameId, "juan");
+  assert.equal(room.players.length, 2);
+  assert.equal(room.players.every((player) => player.ready === false), true);
+});
+
 test("leaving host promotes the oldest remaining guest", () => {
   const { store } = setup();
   const host = store.createRoom({ name: "Host" });

@@ -414,12 +414,34 @@ export function createCardcadeServer({
 
   function startRoomGame(code, token) {
     const room = rooms.publicRoom(code, token);
+    if (room.phase !== "configuring") {
+      throw new AppError("ROOM_IN_PROGRESS", "That room has already started.", 409);
+    }
     const runtime = requireRuntime(room.gameId);
-    runtime.start(room);
-    rooms.markPlaying(code, token);
+    // A configuring room can only have a runtime after an interrupted or
+    // previously failed start. Remove that orphan before beginning a new game.
+    if (runtime.has(code)) runtime.remove(code);
+    try {
+      runtime.start(room);
+      rooms.markPlaying(code, token);
+    } catch (error) {
+      runtime.remove(code);
+      throw error;
+    }
     persistRoom(code);
     broadcastRoom(code);
     scheduleBotTurns(code);
+  }
+
+  function returnRoomToLobby(code, token) {
+    const activeRoom = rooms.publicRoom(code, token);
+    rooms.returnToLobby(code, token);
+    gameRuntimes.get(activeRoom.gameId)?.remove?.(code);
+    const timer = botTimers.get(code);
+    if (timer) clearTimeout(timer);
+    botTimers.delete(code);
+    persistRoom(code);
+    broadcastRoom(code);
   }
 
   function handleAction(socket, message) {
@@ -436,6 +458,9 @@ export function createCardcadeServer({
         break;
       case "start_game":
         startRoomGame(code, token);
+        return;
+      case "return_to_lobby":
+        returnRoomToLobby(code, token);
         return;
       case "rename_player":
         rooms.renamePlayer(code, token, message.name);

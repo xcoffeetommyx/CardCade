@@ -196,6 +196,20 @@ export class RoomStore {
     return this.project(room, player.id);
   }
 
+  returnToLobby(code, token) {
+    const room = this.#getRoom(code);
+    const player = this.#authenticatePlayer(room, token);
+    this.#assertHost(player);
+    assert(room.phase === "playing", "ROOM_NOT_IN_PROGRESS", "That room is already in the lobby.", 409);
+
+    room.phase = "configuring";
+    for (const roomPlayer of room.players) {
+      roomPlayer.ready = false;
+    }
+    touch(room, this.#now());
+    return this.project(room, player.id);
+  }
+
   leaveRoom(code, token) {
     const room = this.#getRoom(code);
     const player = this.#authenticatePlayer(room, token);
