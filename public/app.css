@@ -521,9 +521,8 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 .game-status small { margin-top: 3px; color: #b2c5bb; font-size: .75rem; }
 .active-pile { min-height: 150px; display: flex; align-items: center; justify-content: center; }
 .active-pile.cards-pile {
-  --pile-card-half: 43px;
   position: relative;
-  width: min(100%, var(--pile-ideal-width, 100%));
+  width: 100%;
   max-width: 100%;
   overflow: hidden;
 }
@@ -623,7 +622,7 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 .card-center { position: absolute; inset: 0; display: grid; place-items: center; font: 4.1rem Georgia, serif; filter: drop-shadow(2px 3px 0 rgba(0,0,0,.09)); }
 .card-center.court { inset: 22% 13% 8%; filter: drop-shadow(2px 3px 0 rgba(0,0,0,.12)); }
 .card-center.court svg { width: 100%; height: 100%; overflow: visible; }
-.playing-card.played { position: absolute; z-index: var(--pile-z, 1); left: clamp(var(--pile-card-half, 43px), var(--pile-left, 50%), calc(100% - var(--pile-card-half, 43px))); top: 50%; flex: 0 0 86px; width: 86px; height: 122px; transform: translate(-50%, -50%) rotate(var(--pile-rotate, 0deg)); opacity: 1; cursor: default; margin: 0; }
+.playing-card.played { position: absolute; left: 50%; top: 50%; flex: 0 0 86px; width: 86px; height: 122px; transform: translate3d(calc(-50% + var(--pile-x, 0px)), calc(-50% + var(--pile-y, 0px)), 0) rotate(var(--pile-rotation, 0deg)); opacity: 1; cursor: default; margin: 0; }
 .playing-card.played .card-center { font-size: 2.8rem; }
 .playing-card.played.enter { animation: cardPileIn .22s cubic-bezier(.2,.8,.3,1.1) both; }
 .playing-card.dealt { animation: cardFanDeal .38s cubic-bezier(.18,.82,.25,1.05) both; }
@@ -632,8 +631,8 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 .playing-card.card-departing { opacity: 0; }
 
 @keyframes cardPileIn {
-  from { transform: translate(-50%, calc(-50% + 14px)) rotate(var(--pile-rotate, 0deg)) scale(.9); opacity: 0; }
-  to { transform: translate(-50%, -50%) rotate(var(--pile-rotate, 0deg)) scale(1); opacity: 1; }
+  from { transform: translate3d(calc(-50% + var(--pile-x, 0px)), calc(-50% + var(--pile-y, 0px) + 14px), 0) rotate(var(--pile-rotation, 0deg)) scale(.9); opacity: 0; }
+  to { transform: translate3d(calc(-50% + var(--pile-x, 0px)), calc(-50% + var(--pile-y, 0px)), 0) rotate(var(--pile-rotation, 0deg)) scale(1); opacity: 1; }
 }
 @keyframes cardFanDeal {
   from {
@@ -765,6 +764,7 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 }
 .juan-pile-zone { min-height: 150px; display: flex; align-items: center; justify-content: center; gap: clamp(22px, 6vw, 70px); }
 .juan-pile-zone .active-pile { min-height: 135px; min-width: 100px; }
+.juan-pile-zone .active-pile.cards-pile { width: 86px; min-width: 86px; flex: 0 0 86px; overflow: visible; }
 .juan-stock {
   position: relative;
   width: 86px;
@@ -1229,7 +1229,6 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   .active-pile .empty-pile { padding: 16px 8px; }
   .hand-heading { gap: .35rem; }
   .selection-status { max-width: 48%; font-size: .65rem; }
-  .active-pile.cards-pile { --pile-card-half: 36px; }
   .playing-card.played { flex-basis: 72px; width: 72px; height: 102px; }
   .playing-card.played .card-corner strong { font-size: 1rem; }
   .game-actions button { font-size: .69rem; padding-inline: 4px; }
@@ -1238,6 +1237,7 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   .juan-lane-bar > strong { min-width: 42px; }
   .juan-direction { min-width: 25px; font-size: 1.1rem; }
   .juan-stock { width: 72px; height: 102px; }
+  .juan-pile-zone .active-pile.cards-pile { width: 72px; min-width: 72px; flex-basis: 72px; }
   .juan-pile-zone { gap: 34px; }
   .juan-prism-picker { padding: 18px 14px 16px; }
   .juan-prism-picker h3 { font-size: 1.15rem; }

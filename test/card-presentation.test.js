@@ -47,6 +47,34 @@ test('produces a shallow symmetric curve and outward rotations', () => {
   assert.ok(Math.abs(first.rotation) <= 11);
 });
 
+test('fits a 13-card table combination inside a narrow pile while preserving a shallow fan', () => {
+  const containerWidth = 340;
+  const cardWidth = 72;
+  const sidePadding = 18;
+  const layout = calculateFanLayout({
+    count: 13,
+    containerWidth,
+    cardWidth,
+    cardHeight: 102,
+    sidePadding,
+    minimumVisibleIndex: 14,
+    maximumRotation: 7,
+    curveRatio: 0.08,
+    focusLiftRatio: 0,
+    selectedLiftRatio: 0
+  });
+  const first = layout.cards[0];
+  const center = layout.cards[6];
+  const last = layout.cards.at(-1);
+
+  assert.ok(layout.span <= containerWidth - sidePadding * 2 + 0.0001);
+  assert.ok(layout.step >= 14, 'each card keeps a visible leading corner strip');
+  assert.ok(first.rotation < 0 && last.rotation > 0);
+  assert.equal(center.rotation, 0);
+  assert.ok(first.y > center.y);
+  assert.ok(Math.abs(first.rotation) <= 7);
+});
+
 test('moves an edge-focused card inward far enough to expose its complete face', () => {
   const layout = calculateFanLayout({
     count: 20,

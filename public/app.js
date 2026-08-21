@@ -601,19 +601,10 @@ function placeLabel(place) {
   return `${place}th`;
 }
 
-function playedCardStyle(index, pileCount, { animate = false, dealt = false } = {}) {
+function playedCardStyle(index, { animate = false, dealt = false } = {}) {
   const declarations = [];
-  if (Number.isInteger(pileCount) && pileCount > 0) {
-    const progress = pileCount === 1 ? 50 : (index / (pileCount - 1)) * 100;
-    const rotation = pileCount === 1 ? 0 : ((index % 5) - 2) * 0.8;
-    declarations.push(`--pile-left:${progress.toFixed(3)}%`, `--pile-rotate:${rotation.toFixed(2)}deg`, `--pile-z:${index + 1}`);
-  }
   if (animate || dealt) declarations.push(`animation-delay:${Math.min(index, dealt ? 12 : 5) * (dealt ? 24 : 35)}ms`);
   return declarations.length ? `style="${declarations.join(";")}"` : "";
-}
-
-function activePileStyle(cardCount) {
-  return `style="--pile-ideal-width:${Math.max(96, 42 + (cardCount * 54))}px"`;
 }
 
 function renderSeatLastCard(player, gameId) {
@@ -633,7 +624,7 @@ function renderSeatLastCard(player, gameId) {
   return `<span class="seat-last-card standard-seat-card ${red ? "red" : "black"}" aria-label="Last played ${escapeHtml(standard52.cardLong(card))}"><strong>${escapeHtml(card.rank)}</strong><i>${suit}</i></span>`;
 }
 
-function renderPlayingCard(card, index, { played = false, enter = false, selectable = false, dealt = false, pileCount = null } = {}) {
+function renderPlayingCard(card, index, { played = false, enter = false, selectable = false, dealt = false } = {}) {
   const suit = standard52.SUIT_SYMBOL[card.suit];
   const red = card.suit === "H" || card.suit === "D";
   const selected = !played && state.selectedCards.has(card.id);
@@ -650,7 +641,7 @@ function renderPlayingCard(card, index, { played = false, enter = false, selecta
     selectable && !played ? "selectable" : "",
     dealt && !played ? "dealt" : ""
   ].filter(Boolean).join(" ");
-  const style = playedCardStyle(index, pileCount, { animate: played && enter, dealt });
+  const style = playedCardStyle(index, { animate: played && enter, dealt });
   return `
     <button class="${classes}" type="button" ${played ? "disabled" : ""} ${style}
       ${played ? "" : `data-game-card="${escapeHtml(card.id)}" data-card-index="${index}" tabindex="${selectable ? "0" : "-1"}"`}
@@ -706,7 +697,7 @@ function renderStandardGame() {
       </div>
       <section class="game-table">
         <div class="game-status"><span><strong>${match.roundOver ? "Round complete" : isYourTurn ? `${escapeHtml(yourPlayer?.name || "You")}, your turn` : `${escapeHtml(activePlayer?.name || "Player")} is thinking`}</strong><small>${tableCount} · ${lead ? `${escapeHtml(lead.playerName)} controls the pile` : "open lead"}</small></span><span class="badge">${lead ? escapeHtml(lead.label) : "Open lead"}</span></div>
-        <div class="active-pile ${lead ? "cards-pile" : ""}" ${lead ? activePileStyle(lead.cards.length) : ""}>${lead ? lead.cards.map((card, index) => renderPlayingCard(card, index, { played: true, enter: pileIsNew, pileCount: lead.cards.length })).join("") : `<div class="empty-pile"><strong>No active pile</strong><span>${match.openingRequired ? `Lead must include ${standardCardLabel(match.openingCardId)}.` : "Lead with any legal combination."}</span></div>`}</div>
+        <div class="active-pile ${lead ? "cards-pile" : ""}">${lead ? lead.cards.map((card, index) => renderPlayingCard(card, index, { played: true, enter: pileIsNew })).join("") : `<div class="empty-pile"><strong>No active pile</strong><span>${match.openingRequired ? `Lead must include ${standardCardLabel(match.openingCardId)}.` : "Lead with any legal combination."}</span></div>`}</div>
       </section>
       <section class="physical-hand ${isYourTurn ? "your-turn" : ""}">
         <div class="hand-heading"><span><strong>Your hand</strong><small>${view.hand.length} cards · ${escapeHtml(state.gameSort)} sort</small></span><span class="selection-status ${evaluation.ok ? "valid" : state.selectedCards.size ? "invalid" : ""}">${escapeHtml(evaluation.reason)}</span></div>
@@ -750,7 +741,7 @@ function juanSelection() {
   return { ok: true, reason: `${juanDeck.cardLong(card)}${color}`, card };
 }
 
-function renderJuanCard(card, index, { played = false, enter = false, selectable = false, dealt = false, turnDrawn = false, pileCount = null } = {}) {
+function renderJuanCard(card, index, { played = false, enter = false, selectable = false, dealt = false, turnDrawn = false } = {}) {
   const selected = !played && state.selectedCards.has(card.id);
   const action = juanDeck.ACTION_FACE[card.kind];
   const isNumber = card.kind === "number";
@@ -770,7 +761,7 @@ function renderJuanCard(card, index, { played = false, enter = false, selectable
     selectable && !played ? "selectable" : "",
     dealt && !played ? "dealt" : ""
   ].filter(Boolean).join(" ");
-  const style = playedCardStyle(index, pileCount, { animate: played && enter, dealt });
+  const style = playedCardStyle(index, { animate: played && enter, dealt });
   return `
     <button class="${classes}" type="button" ${played ? "disabled" : ""} ${style}
       ${played ? "" : `data-game-card="${escapeHtml(card.id)}" data-card-index="${index}" tabindex="${selectable ? "0" : "-1"}"`}
@@ -895,7 +886,7 @@ function renderJuanGame() {
         <div class="game-status"><span><strong>${match.roundOver ? "Match complete" : isYourTurn ? `${escapeHtml(yourPlayer?.name || "You")}, your turn` : `${escapeHtml(activePlayer?.name || "Player")} is thinking`}</strong><small>Stock ${match.stockCount} · match color or face</small></span><span class="badge">${escapeHtml(juanDeck.COLOR_NAME[match.activeColor])}</span></div>
         <div class="juan-pile-zone">
           <div class="juan-stock" aria-label="${match.stockCount} cards in stock"><span>JUAN</span><b>${match.stockCount}</b></div>
-          <div class="active-pile cards-pile" ${activePileStyle(1)}>${renderJuanCard(match.topCard, 0, { played: true, enter: pileIsNew, pileCount: 1 })}</div>
+          <div class="active-pile cards-pile">${renderJuanCard(match.topCard, 0, { played: true, enter: pileIsNew })}</div>
         </div>
       </section>
       <section class="physical-hand ${isYourTurn ? "your-turn" : ""}">
@@ -1004,11 +995,46 @@ function render() {
   const prismReveal = ["game", "hot-seat-handoff"].includes(state.screen) ? renderJuanPrismReveal() : "";
   app.innerHTML = `${screen}${prismReveal}`;
   if (state.screen === "game") {
+    layoutActivePiles();
     layoutStandardHand();
     animateStandardHandReflow(previousHand);
     const firstColor = app.querySelector(".juan-prism-dialog .juan-color-choice");
     if (firstColor) requestAnimationFrame(() => firstColor.focus({ preventScroll: true }));
   }
+}
+
+function layoutActivePiles() {
+  if (!cardPresentation) return;
+  app.querySelectorAll(".active-pile.cards-pile").forEach((pile) => {
+    const cards = [...pile.querySelectorAll(".playing-card.played")];
+    if (!cards.length) return;
+    const containerWidth = pile.clientWidth;
+    const cardWidth = cards[0].offsetWidth;
+    const cardHeight = cards[0].offsetHeight || cardWidth * 1.42;
+    if (!containerWidth || !cardWidth) return;
+    const layout = cardPresentation.calculateFanLayout({
+      count: cards.length,
+      containerWidth,
+      cardWidth,
+      cardHeight,
+      // The pile is intentionally shallower than the player's held hand, but
+      // still reserves a small outside gutter for rotated card corners.
+      sidePadding: 18,
+      minimumVisibleIndex: Math.max(14, cardWidth * 0.2),
+      maximumRotation: 7,
+      curveRatio: 0.08,
+      focusLiftRatio: 0,
+      selectedLiftRatio: 0
+    });
+    pile.dataset.pileDensity = layout.density;
+    cards.forEach((card, index) => {
+      const position = layout.cards[index];
+      card.style.setProperty("--pile-x", `${position.x}px`);
+      card.style.setProperty("--pile-y", `${position.y}px`);
+      card.style.setProperty("--pile-rotation", `${position.rotation}deg`);
+      card.style.zIndex = String(position.zIndex);
+    });
+  });
 }
 
 function renderCurrentGame() {
@@ -1840,7 +1866,10 @@ document.addEventListener("keydown", (event) => {
 });
 
 window.addEventListener("resize", () => {
-  if (state.screen === "game") requestAnimationFrame(layoutStandardHand);
+  if (state.screen === "game") requestAnimationFrame(() => {
+    layoutActivePiles();
+    layoutStandardHand();
+  });
 });
 
 document.addEventListener("submit", async (event) => {

@@ -13,13 +13,16 @@ test("the UI pixel font substitutes the readable 2 and 5 glyphs globally", () =>
   assert.match(css, /pixelify-sans-latin\.woff2[\s\S]*U\+0033-0034, U\+0036-10FFFF/);
 });
 
-test("long table combinations use a bounded overlapping pile", () => {
+test("long table combinations use the shared adaptive fan pile", () => {
   const app = read("public/app.js");
   const css = read("public/app.css");
-  assert.match(app, /function activePileStyle/);
-  assert.match(app, /pileCount: lead\.cards\.length/);
-  assert.match(css, /\.active-pile\.cards-pile[\s\S]*width: min\(100%, var\(--pile-ideal-width/);
-  assert.match(css, /left: clamp\(var\(--pile-card-half/);
+  assert.match(app, /function layoutActivePiles/);
+  assert.match(app, /cardPresentation\.calculateFanLayout/);
+  assert.match(app, /maximumRotation: 7/);
+  assert.match(app, /layoutActivePiles\(\);[\s\S]*layoutStandardHand\(\)/);
+  assert.match(css, /\.active-pile\.cards-pile[\s\S]*width: 100%/);
+  assert.match(css, /--pile-x/);
+  assert.match(css, /--pile-rotation/);
 });
 
 test("table seats render the last public card instead of player initials", () => {
