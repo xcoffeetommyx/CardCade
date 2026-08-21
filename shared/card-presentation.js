@@ -131,7 +131,7 @@
     }, null).index;
   }
 
-  function fanIndexAtPoint(rects, clientX, clientY, raisedIndices = []) {
+  function fanIndexAtPoint(rects, clientX, clientY, raisedIndices = [], indexRects = []) {
     if (!Array.isArray(rects) || !rects.length) return -1;
     const pointerX = Number(clientX);
     const pointerY = Number(clientY);
@@ -150,6 +150,35 @@
 
     const raised = new Set((Array.isArray(raisedIndices) ? raisedIndices : [])
       .filter(index => Number.isInteger(index) && index >= 0 && index < measured.length));
+
+    // Dense hands expose the rank/suit corners rather than each card's full
+    // face. Their transformed corner centers are the most faithful tap
+    // anchors; axis-aligned card bounds drift as the fan rotates and curves.
+    const measuredIndices = Array.isArray(indexRects) && indexRects.length === measured.length
+      ? indexRects.map(rect => ({
+          left: Number(rect && rect.left),
+          right: Number(rect && rect.right),
+          top: Number(rect && rect.top),
+          bottom: Number(rect && rect.bottom)
+        }))
+      : [];
+    if (measuredIndices.length && measuredIndices.every(rect => Object.values(rect).every(Number.isFinite))) {
+      const indexTop = Math.min(...measuredIndices.map(rect => rect.top));
+      const indexBottom = Math.max(...measuredIndices.map(rect => rect.bottom));
+      const averageHeight = measuredIndices.reduce((total, rect) => total + rect.bottom - rect.top, 0) / measuredIndices.length;
+      const verticalSlop = clamp(averageHeight * 0.55, 8, 22);
+      if (pointerY >= indexTop - verticalSlop && pointerY <= indexBottom + verticalSlop) {
+        return measuredIndices.reduce((closest, rect, index) => {
+          const centerX = (rect.left + rect.right) / 2;
+          const centerY = (rect.top + rect.bottom) / 2;
+          const distanceX = pointerX - centerX;
+          const distanceY = (pointerY - centerY) * 0.55;
+          const distance = distanceX * distanceX + distanceY * distanceY;
+          return !closest || distance < closest.distance ? { index, distance } : closest;
+        }, null).index;
+      }
+    }
+
     if (raised.size) {
       const restingTops = measured.flatMap((rect, index) => raised.has(index) ? [] : [rect.top]);
       const restingTop = restingTops.length

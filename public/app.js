@@ -605,8 +605,9 @@ function layoutStandardHand() {
     const viewer = state.room?.players.find((player) => player.isYou);
     if (state.gameActionLock || !match || match.roundOver || match.activeSeat !== viewer?.seat) return;
     const rects = cards.map((card) => card.getBoundingClientRect());
+    const indexRects = cards.map((card) => card.querySelector(".card-corner:not(.bottom)")?.getBoundingClientRect());
     const raised = cards.flatMap((card, index) => state.selectedCards.has(card.dataset.gameCard) ? [index] : []);
-    const index = cardPresentation.fanIndexAtPoint(rects, event.clientX, event.clientY, raised);
+    const index = cardPresentation.fanIndexAtPoint(rects, event.clientX, event.clientY, raised, indexRects);
     if (index < 0 || !cards[index]) return;
     event.preventDefault();
     toggleStandardCard(cards[index].dataset.gameCard);

@@ -110,3 +110,56 @@ test('aligns pointer targets with visible fan strips beside a raised card', () =
   assert.equal(fanIndexAtPoint(rects, 4 * step + 60, -12, [4]), 4, 'the raised card owns its protruding face');
   assert.equal(fanIndexAtPoint(rects, -20, 40, [4]), -1, 'blank hand space does not select an edge card');
 });
+
+test('uses transformed rank corners as precise targets in a dense 13-card fan', () => {
+  const cardWidth = 94;
+  const cardHeight = 134;
+  const step = 22;
+  const rects = Array.from({ length: 13 }, (_, index) => ({
+    left: index * step - Math.abs(index - 6) * 0.7,
+    right: index * step + cardWidth + Math.abs(index - 6) * 0.7,
+    top: Math.abs(index - 6) * 1.4,
+    bottom: Math.abs(index - 6) * 1.4 + cardHeight
+  }));
+  const indexRects = rects.map((rect, index) => ({
+    left: index * step + 7,
+    right: index * step + 29,
+    top: rect.top + 6,
+    bottom: rect.top + 39
+  }));
+
+  for (let index = 0; index < indexRects.length; index += 1) {
+    const target = indexRects[index];
+    assert.equal(
+      fanIndexAtPoint(rects, (target.left + target.right) / 2, (target.top + target.bottom) / 2, [], indexRects),
+      index,
+      `the visible corner for dense card ${index} should own its tap`
+    );
+  }
+});
+
+test('lets an adjacent visible corner win beside a raised dense-hand card', () => {
+  const cardWidth = 94;
+  const cardHeight = 134;
+  const step = 22;
+  const raisedIndex = 7;
+  const rects = Array.from({ length: 13 }, (_, index) => ({
+    left: index * step,
+    right: index * step + cardWidth,
+    top: index === raisedIndex ? -38 : 0,
+    bottom: index === raisedIndex ? cardHeight - 38 : cardHeight
+  }));
+  const indexRects = rects.map((rect, index) => ({
+    left: index * step + 7,
+    right: index * step + 29,
+    top: index === raisedIndex ? -32 : 6,
+    bottom: index === raisedIndex ? 1 : 39
+  }));
+  const neighbor = indexRects[raisedIndex + 1];
+
+  assert.equal(
+    fanIndexAtPoint(rects, (neighbor.left + neighbor.right) / 2, (neighbor.top + neighbor.bottom) / 2, [raisedIndex], indexRects),
+    raisedIndex + 1,
+    'tapping the neighboring printed index must not reselect the raised card'
+  );
+});
