@@ -23,6 +23,7 @@ test("long table combinations use the shared adaptive fan pile", () => {
   assert.match(css, /\.active-pile\.cards-pile[\s\S]*width: 100%/);
   assert.match(css, /--pile-x/);
   assert.match(css, /--pile-rotation/);
+  assert.match(css, /\.playing-card\.played\s*\{[\s\S]*?transition: none/);
 });
 
 test("table seats render the last public card instead of player initials", () => {

@@ -622,7 +622,22 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 .card-center { position: absolute; inset: 0; display: grid; place-items: center; font: 4.1rem Georgia, serif; filter: drop-shadow(2px 3px 0 rgba(0,0,0,.09)); }
 .card-center.court { inset: 22% 13% 8%; filter: drop-shadow(2px 3px 0 rgba(0,0,0,.12)); }
 .card-center.court svg { width: 100%; height: 100%; overflow: visible; }
-.playing-card.played { position: absolute; left: 50%; top: 50%; flex: 0 0 86px; width: 86px; height: 122px; transform: translate3d(calc(-50% + var(--pile-x, 0px)), calc(-50% + var(--pile-y, 0px)), 0) rotate(var(--pile-rotation, 0deg)); opacity: 1; cursor: default; margin: 0; }
+.playing-card.played {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  flex: 0 0 86px;
+  width: 86px;
+  height: 122px;
+  transform: translate3d(calc(-50% + var(--pile-x, 0px)), calc(-50% + var(--pile-y, 0px)), 0) rotate(var(--pile-rotation, 0deg));
+  /* The surrounding table is intentionally re-rendered on game updates. A
+     stable pile must not inherit the hand's transform transition during that
+     replacement layout; new plays still use cardPileIn below. */
+  transition: none;
+  opacity: 1;
+  cursor: default;
+  margin: 0;
+}
 .playing-card.played .card-center { font-size: 2.8rem; }
 .playing-card.played.enter { animation: cardPileIn .22s cubic-bezier(.2,.8,.3,1.1) both; }
 .playing-card.dealt { animation: cardFanDeal .38s cubic-bezier(.18,.82,.25,1.05) both; }
