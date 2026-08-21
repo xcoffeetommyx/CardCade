@@ -39,6 +39,8 @@ const state = {
   gameSort: "rank",
   selectedCards: new Set(),
   juanChosenColor: null,
+  juanPrismReveal: null,
+  juanPrismRevealTimer: null,
   gameActionLock: false,
   dealtHandOwners: new Set(),
   lastPileSignature: null
@@ -599,7 +601,39 @@ function placeLabel(place) {
   return `${place}th`;
 }
 
-function renderPlayingCard(card, index, { played = false, enter = false, selectable = false, dealt = false } = {}) {
+function playedCardStyle(index, pileCount, { animate = false, dealt = false } = {}) {
+  const declarations = [];
+  if (Number.isInteger(pileCount) && pileCount > 0) {
+    const progress = pileCount === 1 ? 50 : (index / (pileCount - 1)) * 100;
+    const rotation = pileCount === 1 ? 0 : ((index % 5) - 2) * 0.8;
+    declarations.push(`--pile-left:${progress.toFixed(3)}%`, `--pile-rotate:${rotation.toFixed(2)}deg`, `--pile-z:${index + 1}`);
+  }
+  if (animate || dealt) declarations.push(`animation-delay:${Math.min(index, dealt ? 12 : 5) * (dealt ? 24 : 35)}ms`);
+  return declarations.length ? `style="${declarations.join(";")}"` : "";
+}
+
+function activePileStyle(cardCount) {
+  return `style="--pile-ideal-width:${Math.max(96, 42 + (cardCount * 54))}px"`;
+}
+
+function renderSeatLastCard(player, gameId) {
+  const card = player.lastPlayedCard
+    || (player.lastPlay?.kind === "play" ? player.lastPlay.cards?.at(-1) : null);
+  if (!card) {
+    return `<span class="seat-last-card empty" aria-label="No card played yet"><i aria-hidden="true"></i></span>`;
+  }
+  if (gameId === "juan") {
+    const action = juanDeck.ACTION_FACE[card.kind];
+    const face = card.kind === "number" ? String(card.value) : action?.symbol || "?";
+    const colorClass = card.color ? `juan-${card.color}` : "juan-prism";
+    return `<span class="seat-last-card juan-seat-card ${colorClass}" aria-label="Last played ${escapeHtml(juanDeck.cardLong(card))}"><strong>${escapeHtml(face)}</strong></span>`;
+  }
+  const suit = standard52.SUIT_SYMBOL[card.suit];
+  const red = card.suit === "H" || card.suit === "D";
+  return `<span class="seat-last-card standard-seat-card ${red ? "red" : "black"}" aria-label="Last played ${escapeHtml(standard52.cardLong(card))}"><strong>${escapeHtml(card.rank)}</strong><i>${suit}</i></span>`;
+}
+
+function renderPlayingCard(card, index, { played = false, enter = false, selectable = false, dealt = false, pileCount = null } = {}) {
   const suit = standard52.SUIT_SYMBOL[card.suit];
   const red = card.suit === "H" || card.suit === "D";
   const selected = !played && state.selectedCards.has(card.id);
@@ -616,11 +650,9 @@ function renderPlayingCard(card, index, { played = false, enter = false, selecta
     selectable && !played ? "selectable" : "",
     dealt && !played ? "dealt" : ""
   ].filter(Boolean).join(" ");
-  const delay = (played && enter) || dealt
-    ? `style="animation-delay:${Math.min(index, dealt ? 12 : 5) * (dealt ? 24 : 35)}ms"`
-    : "";
+  const style = playedCardStyle(index, pileCount, { animate: played && enter, dealt });
   return `
-    <button class="${classes}" type="button" ${played ? "disabled" : ""} ${delay}
+    <button class="${classes}" type="button" ${played ? "disabled" : ""} ${style}
       ${played ? "" : `data-game-card="${escapeHtml(card.id)}" data-card-index="${index}" tabindex="${selectable ? "0" : "-1"}"`}
       aria-label="${escapeHtml(standard52.cardLong(card))}" aria-pressed="${selected}">
       <span class="card-corner"><strong>${escapeHtml(card.rank)}</strong><i>${suit}</i></span>
@@ -667,14 +699,14 @@ function renderStandardGame() {
       <div class="game-opponents">
         ${opponents.map((player) => `
           <article class="game-seat ${match.activeSeat === player.seat ? "active" : ""}">
-            <span class="player-avatar">${escapeHtml(player.avatar)}</span>
+            ${renderSeatLastCard(player, game.gameId)}
             <span><strong>${escapeHtml(player.name)}</strong><small>${player.finished ? `${placeLabel(player.place)} place` : `${player.cardCount} cards${player.passed ? " · passed" : ""}`}</small></span>
             <span class="mini-deck" aria-hidden="true">${Math.min(player.cardCount, 7)}</span>
           </article>`).join("")}
       </div>
       <section class="game-table">
         <div class="game-status"><span><strong>${match.roundOver ? "Round complete" : isYourTurn ? `${escapeHtml(yourPlayer?.name || "You")}, your turn` : `${escapeHtml(activePlayer?.name || "Player")} is thinking`}</strong><small>${tableCount} · ${lead ? `${escapeHtml(lead.playerName)} controls the pile` : "open lead"}</small></span><span class="badge">${lead ? escapeHtml(lead.label) : "Open lead"}</span></div>
-        <div class="active-pile">${lead ? lead.cards.map((card, index) => renderPlayingCard(card, index, { played: true, enter: pileIsNew })).join("") : `<div class="empty-pile"><strong>No active pile</strong><span>${match.openingRequired ? `Lead must include ${standardCardLabel(match.openingCardId)}.` : "Lead with any legal combination."}</span></div>`}</div>
+        <div class="active-pile ${lead ? "cards-pile" : ""}" ${lead ? activePileStyle(lead.cards.length) : ""}>${lead ? lead.cards.map((card, index) => renderPlayingCard(card, index, { played: true, enter: pileIsNew, pileCount: lead.cards.length })).join("") : `<div class="empty-pile"><strong>No active pile</strong><span>${match.openingRequired ? `Lead must include ${standardCardLabel(match.openingCardId)}.` : "Lead with any legal combination."}</span></div>`}</div>
       </section>
       <section class="physical-hand ${isYourTurn ? "your-turn" : ""}">
         <div class="hand-heading"><span><strong>Your hand</strong><small>${view.hand.length} cards · ${escapeHtml(state.gameSort)} sort</small></span><span class="selection-status ${evaluation.ok ? "valid" : state.selectedCards.size ? "invalid" : ""}">${escapeHtml(evaluation.reason)}</span></div>
@@ -718,7 +750,7 @@ function juanSelection() {
   return { ok: true, reason: `${juanDeck.cardLong(card)}${color}`, card };
 }
 
-function renderJuanCard(card, index, { played = false, enter = false, selectable = false, dealt = false, turnDrawn = false } = {}) {
+function renderJuanCard(card, index, { played = false, enter = false, selectable = false, dealt = false, turnDrawn = false, pileCount = null } = {}) {
   const selected = !played && state.selectedCards.has(card.id);
   const action = juanDeck.ACTION_FACE[card.kind];
   const isNumber = card.kind === "number";
@@ -738,12 +770,10 @@ function renderJuanCard(card, index, { played = false, enter = false, selectable
     selectable && !played ? "selectable" : "",
     dealt && !played ? "dealt" : ""
   ].filter(Boolean).join(" ");
-  const delay = (played && enter) || dealt
-    ? `style="animation-delay:${Math.min(index, dealt ? 12 : 5) * (dealt ? 24 : 35)}ms"`
-    : "";
+  const style = playedCardStyle(index, pileCount, { animate: played && enter, dealt });
   return `
-    <button class="${classes}" type="button" ${played ? "disabled" : ""} ${delay}
-      ${played ? "" : `data-game-card="${escapeHtml(card.id)}" data-card-index="${index}" tabindex="${selectable ? "0" : "-1"}`}
+    <button class="${classes}" type="button" ${played ? "disabled" : ""} ${style}
+      ${played ? "" : `data-game-card="${escapeHtml(card.id)}" data-card-index="${index}" tabindex="${selectable ? "0" : "-1"}"`}
       aria-label="${escapeHtml(juanDeck.cardLong(card))}" aria-pressed="${selected}">
       <span class="juan-card-ink" aria-hidden="true"></span>
       <span class="card-corner juan-corner"><strong class="${isNumber ? "juan-rank-glyph" : ""}">${escapeHtml(short)}</strong><i class="juan-lane-pip" aria-hidden="true"></i></span>
@@ -754,15 +784,68 @@ function renderJuanCard(card, index, { played = false, enter = false, selectable
 }
 
 function juanColorChooser(selectedCard) {
-  if (!selectedCard || !["prism", "prism-burst"].includes(selectedCard.kind)) return "";
+  if (!selectedCard || !["prism", "prism-burst"].includes(selectedCard.kind) || state.juanChosenColor) return "";
   return `
-    <div class="juan-color-chooser" role="group" aria-label="Choose the Prism's next color">
-      <span>Prism lane</span>
-      ${juanDeck.COLORS.map((color) => `
-        <button type="button" class="juan-color-choice juan-${color} ${state.juanChosenColor === color ? "active" : ""}" data-action="choose-juan-color" data-color="${color}" aria-pressed="${state.juanChosenColor === color}">
-          <i aria-hidden="true"></i>${escapeHtml(juanDeck.COLOR_NAME[color])}
-        </button>`).join("")}
+    <div class="juan-prism-dialog" role="dialog" aria-modal="true" aria-labelledby="juan-prism-title">
+      <div class="juan-prism-picker">
+        <span class="family-kicker">Prism in hand</span>
+        <h3 id="juan-prism-title">Choose the next color</h3>
+        <p>Set the lane every player must follow.</p>
+        <div class="juan-prism-stage-card">${renderJuanCard(selectedCard, 0, { played: true })}</div>
+        <div class="juan-color-chooser" role="group" aria-label="Choose the Prism's next color">
+          ${juanDeck.COLORS.map((color, index) => `
+            <button type="button" class="juan-color-choice juan-${color}" style="--choice-delay:${120 + (index * 55)}ms" data-action="choose-juan-color" data-color="${color}">
+              <i aria-hidden="true"></i><strong>${escapeHtml(juanDeck.COLOR_NAME[color])}</strong>
+            </button>`).join("")}
+        </div>
+        <button type="button" class="juan-prism-cancel" data-action="cancel-juan-color">Put card back</button>
+      </div>
     </div>`;
+}
+
+function renderJuanPrismReveal() {
+  const reveal = state.juanPrismReveal;
+  if (!reveal?.card || !juanDeck.COLORS.includes(reveal.color)) return "";
+  return `
+    <div class="juan-prism-reveal juan-${reveal.color}" role="status" aria-live="assertive">
+      <div class="juan-prism-reveal-burst" aria-hidden="true"></div>
+      <div class="juan-prism-reveal-card">${renderJuanCard(reveal.card, 0, { played: true })}</div>
+      <div class="juan-prism-reveal-copy">
+        <span>${escapeHtml(reveal.playerName)} played a Prism</span>
+        <strong><i aria-hidden="true"></i>${escapeHtml(juanDeck.COLOR_NAME[reveal.color])}</strong>
+        <small>is now the active color</small>
+      </div>
+    </div>`;
+}
+
+function clearJuanPrismReveal() {
+  clearTimeout(state.juanPrismRevealTimer);
+  state.juanPrismRevealTimer = null;
+  state.juanPrismReveal = null;
+}
+
+function queueJuanPrismReveal(gameId, previousView, nextView) {
+  if (gameId !== "juan") return;
+  const previousCard = previousView?.state?.topCard;
+  const nextCard = nextView?.state?.topCard;
+  if (!previousCard || !nextCard || previousCard.id === nextCard.id) return;
+  if (!["prism", "prism-burst"].includes(nextCard.kind)) return;
+  const color = nextView.state.activeColor;
+  if (!juanDeck.COLORS.includes(color)) return;
+  const player = nextView.state.players.find((candidate) => candidate.lastPlayedCard?.id === nextCard.id);
+  clearTimeout(state.juanPrismRevealTimer);
+  state.juanPrismReveal = {
+    card: { ...nextCard },
+    color,
+    playerName: player?.name || "A player"
+  };
+  const reducedMotion = localStorage.getItem(storageKeys.reducedMotion) === "true"
+    || matchMedia("(prefers-reduced-motion: reduce)").matches;
+  state.juanPrismRevealTimer = setTimeout(() => {
+    state.juanPrismReveal = null;
+    state.juanPrismRevealTimer = null;
+    if (["game", "hot-seat-handoff"].includes(state.screen)) render();
+  }, reducedMotion ? 900 : 1_900);
 }
 
 function renderJuanGame() {
@@ -803,7 +886,7 @@ function renderJuanGame() {
       <div class="game-opponents ${opponents.length <= 3 ? "fit-opponents" : ""}">
         ${opponents.map((player) => `
           <article class="game-seat ${match.activeSeat === player.seat ? "active" : ""} ${player.juan ? "juan-alert" : ""}">
-            <span class="player-avatar">${escapeHtml(player.avatar)}</span>
+            ${renderSeatLastCard(player, "juan")}
             <span><strong>${escapeHtml(player.name)}</strong><small>${player.juan ? "JUAN! · 1 card" : `${player.cardCount} cards`}</small></span>
             <span class="mini-deck" aria-hidden="true">${Math.min(player.cardCount, 7)}</span>
           </article>`).join("")}
@@ -812,7 +895,7 @@ function renderJuanGame() {
         <div class="game-status"><span><strong>${match.roundOver ? "Match complete" : isYourTurn ? `${escapeHtml(yourPlayer?.name || "You")}, your turn` : `${escapeHtml(activePlayer?.name || "Player")} is thinking`}</strong><small>Stock ${match.stockCount} · match color or face</small></span><span class="badge">${escapeHtml(juanDeck.COLOR_NAME[match.activeColor])}</span></div>
         <div class="juan-pile-zone">
           <div class="juan-stock" aria-label="${match.stockCount} cards in stock"><span>JUAN</span><b>${match.stockCount}</b></div>
-          <div class="active-pile">${renderJuanCard(match.topCard, 0, { played: true, enter: pileIsNew })}</div>
+          <div class="active-pile cards-pile" ${activePileStyle(1)}>${renderJuanCard(match.topCard, 0, { played: true, enter: pileIsNew, pileCount: 1 })}</div>
         </div>
       </section>
       <section class="physical-hand ${isYourTurn ? "your-turn" : ""}">
@@ -917,10 +1000,14 @@ function render() {
   };
   document.body.classList.toggle("playing-game", ["game", "hot-seat-handoff"].includes(state.screen));
   document.body.classList.toggle("home-screen", state.screen === "home");
-  app.innerHTML = (screens[state.screen] || renderHome)();
+  const screen = (screens[state.screen] || renderHome)();
+  const prismReveal = ["game", "hot-seat-handoff"].includes(state.screen) ? renderJuanPrismReveal() : "";
+  app.innerHTML = `${screen}${prismReveal}`;
   if (state.screen === "game") {
     layoutStandardHand();
     animateStandardHandReflow(previousHand);
+    const firstColor = app.querySelector(".juan-prism-dialog .juan-color-choice");
+    if (firstColor) requestAnimationFrame(() => firstColor.focus({ preventScroll: true }));
   }
 }
 
@@ -1189,6 +1276,7 @@ function queueHotSeatHandoff(seatNumber, { room = state.room, view = state.gameV
 }
 
 function beginHotSeatSession(session) {
+  clearJuanPrismReveal();
   state.gameMode = "hot-seat";
   state.hotSeatSeats = session.hotSeat?.seats || [];
   state.session = { code: session.code, token: session.token, playerId: session.playerId, mode: "hot-seat" };
@@ -1224,6 +1312,7 @@ async function revealHotSeatHand() {
   state.hotSeatWaitingForCpu = false;
   state.selectedCards = new Set();
   state.juanChosenColor = null;
+  clearJuanPrismReveal();
   state.gameActionLock = false;
   state.dealtHandOwners = new Set();
   state.lastPileSignature = null;
@@ -1328,12 +1417,14 @@ function connectRoom(session) {
         state.gameView = null;
         state.selectedCards = new Set();
         state.juanChosenColor = null;
+        clearJuanPrismReveal();
         state.gameActionLock = false;
         state.dealtHandOwners = new Set();
         state.lastPileSignature = null;
         navigate("room");
       } else if (state.screen === "room") render();
     } else if (message.type === "game_state" && supportsGame(message.gameId)) {
+      queueJuanPrismReveal(message.gameId, state.gameView, message.view);
       if (state.gameMode === "hot-seat" && state.hotSeatPendingPlayerId) return;
       if (state.gameMode === "hot-seat") {
         const viewer = message.room.players.find((player) => player.isYou);
@@ -1397,6 +1488,7 @@ function enterRoom(session) {
 }
 
 function enterGameSession(session, mode) {
+  clearJuanPrismReveal();
   state.session = { code: session.code, token: session.token, playerId: session.playerId, mode };
   state.room = session.room;
   state.gameView = session.game?.view || null;
@@ -1612,6 +1704,11 @@ document.addEventListener("click", async (event) => {
     state.juanChosenColor = button.dataset.color;
     render();
   }
+  if (action === "cancel-juan-color") {
+    state.selectedCards.clear();
+    state.juanChosenColor = null;
+    render();
+  }
   if (action === "game-sort") {
     if (state.gameActionLock) return;
     const modes = state.room?.gameId === "juan" ? juanGameAdapter.sortModes : ["rank", "combo", "suit"];
@@ -1630,9 +1727,9 @@ document.addEventListener("click", async (event) => {
       else {
         const choice = legal.slice().sort((left, right) => juanRules.moveCost(left, state.gameView.hand) - juanRules.moveCost(right, state.gameView.hand))[0];
         state.selectedCards = new Set([choice.id]);
-        state.juanChosenColor = choice.kind === "prism" || choice.kind === "prism-burst"
-          ? juanRules.chooseColor(state.gameView.hand.filter((card) => card.id !== choice.id))
-          : null;
+        // A hinted Prism still belongs to the player: open the same color
+        // picker instead of silently choosing a lane for them.
+        state.juanChosenColor = null;
         render();
       }
       return;
@@ -1729,6 +1826,13 @@ document.addEventListener("click", async (event) => {
 });
 
 document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && app.querySelector(".juan-prism-dialog")) {
+    event.preventDefault();
+    state.selectedCards.clear();
+    state.juanChosenColor = null;
+    render();
+    return;
+  }
   const card = event.target.closest?.("[data-game-card]");
   if (!card || !["Enter", " "].includes(event.key)) return;
   event.preventDefault();

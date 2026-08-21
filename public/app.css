@@ -26,8 +26,16 @@
 
 @font-face {
   font-family: "Cardcade Pixel";
+  src: url("/assets/fonts/cardcade-pixel-ranks.woff2") format("woff2");
+  font-display: swap;
+  unicode-range: U+0032, U+0035;
+}
+
+@font-face {
+  font-family: "Cardcade Pixel";
   src: url("/assets/fonts/pixelify-sans-latin.woff2") format("woff2");
   font-display: swap;
+  unicode-range: U+0000-0031, U+0033-0034, U+0036-10FFFF;
 }
 
 @font-face {
@@ -464,6 +472,35 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 .game-seat strong, .game-seat small { display: block; }
 .game-seat small { margin-top: 3px; color: var(--muted); font-size: .7rem; }
 .mini-deck { width: 36px; height: 48px; display: grid; place-items: center; border: 2px solid #46688c; border-radius: 5px; color: #cbe4ff; background: repeating-linear-gradient(45deg, #112948 0 4px, #1b3b62 4px 7px); box-shadow: 3px 3px 0 #020710; font: 800 .72rem "Cardcade Pixel", monospace; }
+.seat-last-card {
+  position: relative;
+  width: 34px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 2px solid #e9e1d3;
+  border-radius: 5px;
+  background: #f5eedf;
+  box-shadow: 3px 4px 0 rgba(1, 6, 13, .52);
+  transform: rotate(-2deg);
+}
+.seat-last-card.empty {
+  border-color: #46688c;
+  background:
+    repeating-linear-gradient(45deg, transparent 0 4px, rgba(105,174,242,.17) 4px 6px),
+    repeating-linear-gradient(-45deg, transparent 0 4px, rgba(105,174,242,.11) 4px 6px),
+    #112948;
+}
+.seat-last-card.empty i { width: 15px; height: 20px; border: 1px solid rgba(203,228,255,.5); border-radius: 2px; }
+.standard-seat-card { align-content: center; gap: 1px; color: #294f7b; }
+.standard-seat-card.red { color: #bd2936; }
+.standard-seat-card strong { font: 400 1rem/.82 "Cardcade Ranks", "Courier New", monospace; }
+.standard-seat-card i { font: normal .72rem Georgia, serif; }
+.juan-seat-card { color: #fffaf0; border-color: #fff8e9; background: var(--juan-face); text-shadow: 1px 2px 0 rgba(5,13,26,.72); }
+.juan-seat-card::before { content: ""; position: absolute; width: 150%; height: 35%; border-block: 1px solid rgba(255,255,255,.55); background: rgba(255,255,255,.13); transform: rotate(-28deg); }
+.juan-seat-card.juan-prism { background: conic-gradient(from 45deg, #ef4d54 0 25%, #f2bf3d 0 50%, #43b66b 0 75%, #2d7dd2 0); }
+.juan-seat-card strong { position: relative; z-index: 1; max-width: 30px; font: 900 .78rem/.9 "Cardcade Pixel", monospace; text-align: center; }
 
 .game-table {
   min-height: 225px;
@@ -482,7 +519,14 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 .game-status { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; }
 .game-status strong, .game-status small { display: block; }
 .game-status small { margin-top: 3px; color: #b2c5bb; font-size: .75rem; }
-.active-pile { min-height: 150px; display: flex; align-items: center; justify-content: center; gap: -10px; }
+.active-pile { min-height: 150px; display: flex; align-items: center; justify-content: center; }
+.active-pile.cards-pile {
+  --pile-card-half: 43px;
+  position: relative;
+  width: min(100%, var(--pile-ideal-width, 100%));
+  max-width: 100%;
+  overflow: hidden;
+}
 .active-pile .empty-pile { min-width: min(500px, 90%); padding: 24px; border: 2px dashed rgba(237,229,207,.28); border-radius: 14px; text-align: center; background: rgba(3,13,11,.24); }
 .empty-pile strong, .empty-pile span { display: block; }
 .empty-pile span { margin-top: 6px; color: #b3c6bc; font-size: .78rem; }
@@ -579,11 +623,7 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 .card-center { position: absolute; inset: 0; display: grid; place-items: center; font: 4.1rem Georgia, serif; filter: drop-shadow(2px 3px 0 rgba(0,0,0,.09)); }
 .card-center.court { inset: 22% 13% 8%; filter: drop-shadow(2px 3px 0 rgba(0,0,0,.12)); }
 .card-center.court svg { width: 100%; height: 100%; overflow: visible; }
-.playing-card.played { position: relative; left: auto; top: auto; flex: 0 0 86px; width: 86px; height: 122px; transform: rotate(var(--pile-rotate, 0deg)); opacity: 1; cursor: default; margin-left: -16px; }
-.playing-card.played:first-child { margin-left: 0; --pile-rotate: -3deg; }
-.playing-card.played:nth-child(2) { --pile-rotate: 2deg; }
-.playing-card.played:nth-child(3) { --pile-rotate: -1deg; }
-.playing-card.played:nth-child(4) { --pile-rotate: 4deg; }
+.playing-card.played { position: absolute; z-index: var(--pile-z, 1); left: clamp(var(--pile-card-half, 43px), var(--pile-left, 50%), calc(100% - var(--pile-card-half, 43px))); top: 50%; flex: 0 0 86px; width: 86px; height: 122px; transform: translate(-50%, -50%) rotate(var(--pile-rotate, 0deg)); opacity: 1; cursor: default; margin: 0; }
 .playing-card.played .card-center { font-size: 2.8rem; }
 .playing-card.played.enter { animation: cardPileIn .22s cubic-bezier(.2,.8,.3,1.1) both; }
 .playing-card.dealt { animation: cardFanDeal .38s cubic-bezier(.18,.82,.25,1.05) both; }
@@ -592,8 +632,8 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 .playing-card.card-departing { opacity: 0; }
 
 @keyframes cardPileIn {
-  from { transform: translateY(14px) rotate(var(--pile-rotate, 0deg)) scale(.9); opacity: 0; }
-  to { transform: translateY(0) rotate(var(--pile-rotate, 0deg)) scale(1); opacity: 1; }
+  from { transform: translate(-50%, calc(-50% + 14px)) rotate(var(--pile-rotate, 0deg)) scale(.9); opacity: 0; }
+  to { transform: translate(-50%, -50%) rotate(var(--pile-rotate, 0deg)) scale(1); opacity: 1; }
 }
 @keyframes cardFanDeal {
   from {
@@ -936,26 +976,112 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   pointer-events: none;
 }
 
-.juan-color-chooser {
-  position: relative;
-  z-index: 260;
-  min-height: 39px;
-  margin: 0 0 4px;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 6px;
-  color: var(--muted);
-  font: 800 .63rem "Cardcade Pixel", monospace;
-  text-transform: uppercase;
+.juan-prism-dialog {
+  position: fixed;
+  z-index: 1700;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: max(18px, var(--safe-top)) max(14px, var(--safe-right)) max(18px, var(--safe-bottom)) max(14px, var(--safe-left));
+  background: radial-gradient(circle at 50% 45%, rgba(59,96,151,.32), rgba(1,6,13,.86) 58%);
+  backdrop-filter: blur(7px);
+  animation: prismBackdropIn 180ms ease-out both;
 }
-.juan-color-choice { min-height: 32px; padding: 4px 7px; display: inline-flex; gap: 5px; align-items: center; border: 2px solid transparent; border-radius: 6px; color: var(--ink); background: #11243e; font-size: .6rem; opacity: .72; }
-.juan-color-choice i { width: 11px; height: 11px; border-radius: 3px; background: var(--juan-choice); }
+.juan-prism-picker {
+  width: min(460px, 100%);
+  padding: 22px;
+  overflow: hidden;
+  border: 3px solid #f4eddf;
+  border-radius: 18px;
+  background:
+    linear-gradient(rgba(89,169,255,.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(89,169,255,.035) 1px, transparent 1px),
+    radial-gradient(circle at 50% 25%, #183455, #09182d 65%);
+  background-size: 4px 4px, 4px 4px, auto;
+  box-shadow: 10px 12px 0 rgba(0,0,0,.58), 0 0 42px rgba(79,167,255,.2);
+  text-align: center;
+  animation: prismPickerIn 360ms cubic-bezier(.16,.84,.26,1.08) both;
+}
+.juan-prism-picker h3 { margin: 4px 0 2px; font-size: 1.35rem; }
+.juan-prism-picker > p { margin: 0; color: var(--muted); font-size: .78rem; }
+.juan-prism-stage-card { height: 190px; margin: 12px auto 8px; display: grid; place-items: center; perspective: 700px; }
+.juan-prism-stage-card .playing-card.played,
+.juan-prism-reveal-card .playing-card.played {
+  position: relative;
+  left: auto;
+  top: auto;
+  width: 116px;
+  height: 165px;
+  transform: rotate(-2deg);
+  animation: prismCardPresent 520ms cubic-bezier(.16,.84,.26,1.08) both;
+}
+.juan-prism-stage-card .juan-card.played .juan-card-emblem b,
+.juan-prism-reveal-card .juan-card.played .juan-card-emblem b { font-size: 2.9rem; }
+.juan-color-chooser { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+.juan-color-choice {
+  --juan-choice: #fff;
+  min-height: 52px;
+  padding: 8px 12px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid color-mix(in srgb, var(--juan-choice) 70%, white);
+  border-radius: 9px;
+  color: #fffaf0;
+  background: linear-gradient(145deg, color-mix(in srgb, var(--juan-choice) 72%, #13223a), color-mix(in srgb, var(--juan-choice) 42%, #07101d));
+  box-shadow: 4px 5px 0 rgba(0,0,0,.42), inset 0 0 0 1px rgba(255,255,255,.13);
+  font: 900 .78rem "Cardcade Pixel", monospace;
+  text-transform: uppercase;
+  cursor: pointer;
+  animation: prismChoiceIn 280ms var(--choice-delay, 120ms) ease-out both;
+}
+.juan-color-choice:hover, .juan-color-choice:focus-visible { filter: brightness(1.14); transform: translateY(-2px); }
+.juan-color-choice i { width: 17px; height: 17px; flex: 0 0 auto; border: 2px solid rgba(255,255,255,.72); border-radius: 4px; background: var(--juan-choice); box-shadow: 0 0 13px var(--juan-choice); transform: rotate(45deg); }
 .juan-color-choice.juan-blaze { --juan-choice: #ef4d54; }
 .juan-color-choice.juan-tide { --juan-choice: #2d7dd2; }
 .juan-color-choice.juan-grove { --juan-choice: #43b66b; }
 .juan-color-choice.juan-spark { --juan-choice: #f2bf3d; }
-.juan-color-choice.active { border-color: #fff4da; opacity: 1; box-shadow: 0 0 0 2px rgba(255,255,255,.13); }
+.juan-prism-cancel { margin-top: 14px; padding: 7px 12px; border: 0; color: var(--muted); background: transparent; font: 800 .68rem "Cardcade Pixel", monospace; text-decoration: underline; text-underline-offset: 4px; cursor: pointer; }
+
+.juan-prism-reveal {
+  --reveal-color: #fff;
+  position: fixed;
+  z-index: 1650;
+  inset: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 220px);
+  place-content: center;
+  align-items: center;
+  gap: clamp(20px, 6vw, 56px);
+  padding: max(24px, var(--safe-top)) max(18px, var(--safe-right)) max(24px, var(--safe-bottom)) max(18px, var(--safe-left));
+  overflow: hidden;
+  background: radial-gradient(circle at 43% 50%, color-mix(in srgb, var(--reveal-color) 28%, transparent), rgba(1,6,13,.91) 55%);
+  backdrop-filter: blur(8px);
+  animation: prismRevealScene 1.9s ease both;
+}
+.juan-prism-reveal.juan-blaze { --reveal-color: #ef4d54; }
+.juan-prism-reveal.juan-tide { --reveal-color: #2d7dd2; }
+.juan-prism-reveal.juan-grove { --reveal-color: #43b66b; }
+.juan-prism-reveal.juan-spark { --reveal-color: #f2bf3d; }
+.juan-prism-reveal-burst { position: absolute; left: 43%; top: 50%; width: 110vmax; height: 110vmax; border: 3px solid color-mix(in srgb, var(--reveal-color) 55%, transparent); border-radius: 50%; box-shadow: inset 0 0 80px color-mix(in srgb, var(--reveal-color) 20%, transparent), 0 0 80px color-mix(in srgb, var(--reveal-color) 20%, transparent); transform: translate(-50%, -50%); animation: prismBurst 1.7s ease-out both; }
+.juan-prism-reveal-card { position: relative; z-index: 1; filter: drop-shadow(0 0 22px color-mix(in srgb, var(--reveal-color) 48%, transparent)); }
+.juan-prism-reveal-card .playing-card.played { width: 132px; height: 188px; animation: prismRevealCard 1.65s cubic-bezier(.16,.84,.26,1.05) both; }
+.juan-prism-reveal-copy { position: relative; z-index: 1; text-align: left; animation: prismRevealCopy 1.55s 160ms ease both; }
+.juan-prism-reveal-copy span, .juan-prism-reveal-copy small { display: block; color: #c5d0df; }
+.juan-prism-reveal-copy span { font: 800 .72rem "Cardcade Pixel", monospace; text-transform: uppercase; }
+.juan-prism-reveal-copy strong { margin: 7px 0 5px; display: flex; gap: 12px; align-items: center; color: #fffaf0; font: 900 clamp(1.7rem, 8vw, 3.2rem)/1 "Cardcade Pixel", monospace; text-transform: uppercase; text-shadow: 3px 4px 0 rgba(0,0,0,.55); }
+.juan-prism-reveal-copy strong i { width: 27px; height: 27px; flex: 0 0 auto; border: 3px solid #fffaf0; border-radius: 6px; background: var(--reveal-color); box-shadow: 0 0 24px var(--reveal-color); transform: rotate(45deg); }
+.juan-prism-reveal-copy small { font-size: .75rem; text-transform: uppercase; letter-spacing: .08em; }
+
+@keyframes prismBackdropIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes prismPickerIn { from { opacity: 0; transform: translateY(30px) scale(.94); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes prismCardPresent { from { opacity: 0; transform: translateY(46px) rotate(-12deg) scale(.72); } to { opacity: 1; transform: translateY(0) rotate(-2deg) scale(1); } }
+@keyframes prismChoiceIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes prismRevealScene { 0% { opacity: 0; } 10%, 84% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes prismBurst { 0% { opacity: 0; transform: translate(-50%, -50%) scale(.05); } 28% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -50%) scale(1); } }
+@keyframes prismRevealCard { 0% { opacity: 0; transform: translateY(80px) rotate(-18deg) scale(.55); } 24%, 78% { opacity: 1; transform: translateY(0) rotate(-3deg) scale(1); } 100% { opacity: 0; transform: translateY(-22px) rotate(3deg) scale(.94); } }
+@keyframes prismRevealCopy { 0% { opacity: 0; transform: translateX(24px); } 18%, 78% { opacity: 1; transform: translateX(0); } 100% { opacity: 0; transform: translateX(-8px); } }
 .juan-result { border-color: #f2bf3d; }
 
 .hot-seat-handoff {
@@ -1103,7 +1229,8 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   .active-pile .empty-pile { padding: 16px 8px; }
   .hand-heading { gap: .35rem; }
   .selection-status { max-width: 48%; font-size: .65rem; }
-  .playing-card.played { flex-basis: 72px; width: 72px !important; height: 102px !important; }
+  .active-pile.cards-pile { --pile-card-half: 36px; }
+  .playing-card.played { flex-basis: 72px; width: 72px; height: 102px; }
   .playing-card.played .card-corner strong { font-size: 1rem; }
   .game-actions button { font-size: .69rem; padding-inline: 4px; }
   .juan-lane-bar { min-height: 44px; gap: 8px; padding-inline: 7px; font-size: .6rem; }
@@ -1112,9 +1239,18 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   .juan-direction { min-width: 25px; font-size: 1.1rem; }
   .juan-stock { width: 72px; height: 102px; }
   .juan-pile-zone { gap: 34px; }
-  .juan-color-chooser { justify-content: space-between; gap: 3px; font-size: .56rem; }
-  .juan-color-choice { min-height: 30px; padding-inline: 5px; font-size: .53rem; }
-  .juan-color-choice i { width: 9px; height: 9px; }
+  .juan-prism-picker { padding: 18px 14px 16px; }
+  .juan-prism-picker h3 { font-size: 1.15rem; }
+  .juan-prism-stage-card { height: 164px; margin-block: 7px 5px; }
+  .juan-prism-stage-card .playing-card.played { width: 98px; height: 139px; }
+  .juan-color-chooser { gap: 7px; }
+  .juan-color-choice { min-height: 48px; padding-inline: 7px; gap: 7px; font-size: .68rem; }
+  .juan-color-choice i { width: 14px; height: 14px; }
+  .juan-prism-reveal { grid-template-columns: 1fr; gap: 12px; place-items: center; text-align: center; }
+  .juan-prism-reveal-burst { left: 50%; top: 42%; }
+  .juan-prism-reveal-card .playing-card.played { width: 112px; height: 159px; }
+  .juan-prism-reveal-copy { text-align: center; }
+  .juan-prism-reveal-copy strong { justify-content: center; }
   .juan-card-emblem small { font-size: .48rem; }
 }
 

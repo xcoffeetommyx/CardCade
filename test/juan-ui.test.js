@@ -26,10 +26,15 @@ test("JUAN has its own renderer while retaining the shared fan and motion path",
   assert.match(app, /choose-juan-color/);
   assert.match(app, /animateStandardHandExit\(cardIds/);
   assert.match(app, /juan-rank-glyph/);
+  assert.match(app, /tabindex="\$\{selectable \? "0" : "-1"\}"/);
   assert.match(css, /\.juan-card-ink/);
   assert.match(css, /\.juan-card-emblem/);
   assert.match(css, /\.juan-card-emblem b\.juan-rank-glyph[\s\S]*Cardcade Ranks/);
   assert.match(css, /\.juan-color-chooser/);
+  assert.match(css, /\.juan-prism-dialog/);
+  assert.match(css, /\.juan-prism-reveal/);
+  assert.match(app, /function queueJuanPrismReveal/);
+  assert.match(app, /candidate\.lastPlayedCard\?\.id === nextCard\.id/);
   assert.match(css, /\.juan-game \.game-opponents/);
   assert.match(worker, /shared\/juan-deck\.js/);
   assert.match(worker, /shared\/juan-rules\.js/);

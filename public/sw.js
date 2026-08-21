@@ -1,9 +1,9 @@
-const CACHE_NAME = "cardcade-shell-v13";
+const CACHE_NAME = "cardcade-shell-v16";
 const APP_SHELL = [
   "/",
   "/api/catalog",
-  "/app.css?v=13",
-  "/app.js?v=14",
+  "/app.css?v=14",
+  "/app.js?v=17",
   "/icon.svg",
   "/manifest.webmanifest",
   "/shared/three-seven-rules.js?v=3",

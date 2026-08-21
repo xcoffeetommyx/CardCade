@@ -164,6 +164,7 @@ export class MatchEngine {
       label: comboShort(combo),
       cards: match.currentLead.cards.map(card => ({ ...card }))
     };
+    player.lastPlayedCard = { ...match.currentLead.cards.at(-1) };
     match.lastMoveText = `${player.name} played ${comboDescription(combo)}.`;
     match.log.unshift(`${player.name}: ${comboShort(combo)}`);
 
@@ -303,6 +304,7 @@ export class MatchEngine {
                 cards: player.lastPlay.cards.map(card => ({ ...card }))
               }
             : null,
+          lastPlayedCard: player.lastPlayedCard ? { ...player.lastPlayedCard } : null,
           score: player.score,
           placementHistory: player.placementHistory.slice(),
           connected: player.type === 'bot' ? true : connections.get(player.seat) === true
@@ -350,6 +352,9 @@ function createMatchPlayer({ seat, name, avatar, type, style, score = 0, placeme
     // resolved into it, so without recording this per seat the intermediate
     // turns are unrecoverable and only the final pile is ever visible.
     lastPlay: null,
+    // Persists through later passes so the table can keep showing the last
+    // public card this seat actually placed on the pile.
+    lastPlayedCard: null,
     score,
     placementHistory
   };

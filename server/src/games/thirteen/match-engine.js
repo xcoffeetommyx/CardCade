@@ -104,6 +104,7 @@ export class MatchEngine {
     };
     match.openingRequired = false;
     player.lastPlay = { kind: "play", label: comboShort(combo), cards: match.currentLead.cards.map((card) => ({ ...card })) };
+    player.lastPlayedCard = { ...match.currentLead.cards.at(-1) };
     match.lastMoveText = `${player.name} played ${comboDescription(combo)}.`;
     match.log.unshift(`${player.name}: ${comboShort(combo)}`);
 
@@ -189,6 +190,7 @@ export class MatchEngine {
             label: player.lastPlay.label,
             cards: player.lastPlay.cards.map((card) => ({ ...card }))
           } : null,
+          lastPlayedCard: player.lastPlayedCard ? { ...player.lastPlayedCard } : null,
           score: player.score,
           connected: player.type === "bot" ? true : connections.get(player.seat) === true
         })),
@@ -212,7 +214,7 @@ export function secureShuffle(deck) {
 }
 
 function createMatchPlayer({ seat, name, avatar, type, style, score = 0 }) {
-  return { seat, name, avatar, type, style, hand: [], passed: false, finished: false, place: null, lastPlay: null, score };
+  return { seat, name, avatar, type, style, hand: [], passed: false, finished: false, place: null, lastPlay: null, lastPlayedCard: null, score };
 }
 
 function validateDeck(deck) {

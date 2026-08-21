@@ -111,7 +111,9 @@ test("Thirteen publishes only each seat's already-played cards", () => {
   const seatZero = view.state.players.find((player) => player.seat === 0);
   const seatOne = view.state.players.find((player) => player.seat === 1);
   assert.deepEqual(seatZero.lastPlay.cards.map((card) => card.id), ["3S"]);
+  assert.equal(seatZero.lastPlayedCard.id, "3S");
   assert.equal(seatOne.lastPlay.kind, "pass");
+  assert.equal(seatOne.lastPlayedCard, null);
   const serialized = JSON.stringify(view);
   for (const card of match.players[1].hand) assert.equal(serialized.includes(`"${card.id}"`), false, `Leaked opponent card ${card.id}`);
   seatZero.lastPlay.cards[0].rank = "TAMPERED";

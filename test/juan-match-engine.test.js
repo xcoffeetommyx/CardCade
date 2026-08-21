@@ -19,6 +19,7 @@ function setTable(match, { hands, top = "blaze-3-a", activeSeat = 0, activeColor
     player.hand = hands[index].map(card);
     player.juan = player.hand.length === 1;
     player.lastPlay = null;
+    player.lastPlayedCard = null;
   });
   match.stock = stock.map(card);
   match.discardPile = [card(top)];
@@ -55,6 +56,8 @@ test("JUAN rejects wrong turns, nonmatching cards, and an uncolored Prism", () =
   engine.play(match, 0, "prism-1", "grove");
   assert.equal(match.activeColor, "grove");
   assert.equal(match.activeSeat, 1);
+  const view = engine.viewFor(match, 0);
+  assert.equal(view.state.players[0].lastPlayedCard.id, "prism-1");
 });
 
 test("JUAN Pause, Turnabout, and Double Draw own their turn effects", () => {

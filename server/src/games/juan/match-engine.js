@@ -77,6 +77,7 @@ export class MatchEngine {
     match.discardPile.push(card);
     match.activeColor = card.kind === "prism" || card.kind === "prism-burst" ? chosenColor : card.color;
     player.lastPlay = { kind: "play", label: juanDeck.cardLabel(card), cards: [{ ...card }] };
+    player.lastPlayedCard = { ...card };
     const juanCall = player.juan ? " JUAN — one card remains!" : "";
     match.lastMoveText = `${player.name} played ${juanDeck.cardLabel(card)}.${juanCall}`;
     match.log.unshift(match.lastMoveText);
@@ -197,6 +198,7 @@ export class MatchEngine {
             label: player.lastPlay.label,
             cards: player.lastPlay.cards.map((card) => ({ ...card }))
           } : null,
+          lastPlayedCard: player.lastPlayedCard ? { ...player.lastPlayedCard } : null,
           score: player.score,
           connected: player.type === "bot" ? true : connections.get(player.seat) === true
         })),
@@ -281,7 +283,7 @@ export function secureShuffle(deck) {
 }
 
 function createMatchPlayer({ seat, name, avatar, type, style }) {
-  return { seat, name, avatar, type, style, hand: [], juan: false, lastPlay: null, score: 0 };
+  return { seat, name, avatar, type, style, hand: [], juan: false, lastPlay: null, lastPlayedCard: null, score: 0 };
 }
 
 function validateDeck(deck) {

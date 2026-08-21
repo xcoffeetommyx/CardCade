@@ -331,7 +331,9 @@ test('last actions remain public while unplayed hands stay private', () => {
   const seatOne = view.state.players.find(player => player.seat === 1);
   const seatTwo = view.state.players.find(player => player.seat === 2);
   assert.deepEqual(seatOne.lastPlay.cards.map(card => card.id), [leadId]);
+  assert.equal(seatOne.lastPlayedCard.id, leadId);
   assert.equal(seatTwo.lastPlay.kind, 'pass');
+  assert.equal(seatTwo.lastPlayedCard, null);
   assert.equal(match.players[1].hand.length, 8);
   assert.equal(view.state.drawCount, 37);
 
