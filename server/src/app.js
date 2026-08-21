@@ -115,7 +115,7 @@ export function createCardcadeServer({
   snapshotStore = null,
   publicRoot = defaultPublicRoot,
   sharedRoot = defaultSharedRoot,
-  botTurnDelayMs = 420
+  botTurnDelayMs = 1_100
 } = {}) {
   const gameRegistry = registry ?? new GameRegistry({ deckFamilies, games });
   const rooms = roomStore ?? new RoomStore({ registry: gameRegistry });
