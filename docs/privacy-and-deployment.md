@@ -31,6 +31,7 @@ This arrangement provides:
 - one same-origin WebSocket connection through the reverse proxy;
 - no need to open Cardcade directly on every network interface;
 - no public address embedded in JavaScript, Compose, documentation, or Git history.
+- restart-safe room and match recovery in the private `cardcade-data` Docker volume.
 
 ## Room security
 

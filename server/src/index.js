@@ -1,15 +1,36 @@
+import { fileURLToPath } from "node:url";
 import { createCardcadeServer } from "./app.js";
+import { deckFamilies, games } from "./game-catalog.js";
+import { GameRegistry } from "./game-registry.js";
+import { ThreeSevenRuntime } from "./games/three-seven/runtime.js";
+import { RoomStore } from "./room-store.js";
+import { SnapshotStore } from "./snapshot-store.js";
 
 const host = process.env.HOST || "0.0.0.0";
 const port = Number.parseInt(process.env.PORT || "4380", 10);
-const app = createCardcadeServer();
+const defaultDatabaseFile = fileURLToPath(new URL("../../data/cardcade.sqlite3", import.meta.url));
+const databaseFile = process.env.DB_FILE || defaultDatabaseFile;
+const snapshotStore = new SnapshotStore({ file: databaseFile });
+const snapshots = snapshotStore.loadAll();
+const registry = new GameRegistry({ deckFamilies, games });
+const rooms = new RoomStore({ registry, restoredRooms: snapshots.map((snapshot) => snapshot.room).filter(Boolean) });
+const threeSevenRuntime = new ThreeSevenRuntime({ restoredMatches: snapshots.map((snapshot) => snapshot.game).filter(Boolean) });
+for (const snapshot of snapshots) {
+  if (!rooms.roomCodes().includes(snapshot.code)) snapshotStore.delete(snapshot.code);
+}
+const app = createCardcadeServer({ registry, roomStore: rooms, threeSevenRuntime, snapshotStore });
 
 await app.listen({ host, port });
 console.log(`Cardcade is listening on http://${host}:${port}`);
+console.log(`Restored ${rooms.roomCodes().length} room(s) from ${databaseFile}.`);
 
+let closing = false;
 async function shutdown(signal) {
+  if (closing) return;
+  closing = true;
   console.log(`Received ${signal}; closing Cardcade.`);
   await app.close();
+  snapshotStore.close();
   process.exit(0);
 }
 

@@ -8,9 +8,9 @@
     "node": ">=22"
   },
   "scripts": {
-    "start": "node server/src/index.js",
-    "dev": "node --watch server/src/index.js",
-    "test": "node --test test/*.test.js"
+    "start": "node --experimental-sqlite server/src/index.js",
+    "dev": "node --experimental-sqlite --watch server/src/index.js",
+    "test": "node --experimental-sqlite --test test/*.test.js"
   },
   "dependencies": {
     "ws": "^8.18.0"

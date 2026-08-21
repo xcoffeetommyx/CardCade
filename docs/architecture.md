@@ -16,8 +16,8 @@ Cardcade server
   ├─ launcher and static assets
   ├─ global room/session service
   ├─ game registry
-  └─ active game runtimes (future milestone)
-         ├─ ThreeSeven adapter
+  └─ active game runtimes
+         ├─ ThreeSeven adapter (playable)
          ├─ Thirteen adapter
          └─ future game adapters
 ```
@@ -50,7 +50,7 @@ Game code will later implement a narrow adapter contract resembling:
 }
 ```
 
-The exact contract should be finalized while migrating ThreeSeven, based on real requirements instead of an invented universal rules engine.
+ThreeSeven now proves this boundary in practice: Cardcade supplies rooms, identity, connections, and persistence, while its runtime owns rules, private views, CPU turns, round transitions, and scoring. The adapter contract will be generalized only when Thirteen provides a second real implementation.
 
 ## Rooms and sessions
 
@@ -84,4 +84,6 @@ These should be extracted and renamed for Cardcade, not imported as game-specifi
 
 ## Persistence
 
-The platform preview keeps rooms in memory. Before server deployment, the existing single-file SQLite snapshot approach should be adapted behind a neutral persistence interface so rooms and active matches survive restarts. This is a required migration milestone, not an optional production detail.
+Cardcade stores private room state and active game snapshots in a single SQLite database. Reconnect tokens themselves are never written; only their SHA-256 hashes are persisted. On restart, live sockets are correctly restored as disconnected while seats, private hands, scores, piles, and rounds remain recoverable.
+
+The Docker deployment mounts `/app/data` through the `cardcade-data` named volume. The persistence interface remains game-neutral: the room snapshot and the selected runtime snapshot share a room code but are restored by their respective owners.

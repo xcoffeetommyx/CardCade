@@ -45,11 +45,11 @@ function nextMessage(socket, predicate = () => true) {
   });
 }
 
-function openSocket(origin, session) {
+function openSocket(origin, session, expectedType = "room_state") {
   return new Promise((resolve, reject) => {
     const socket = new WebSocket(origin.replace("http", "ws") + "/ws");
     socket.once("open", () => {
-      const stateMessage = nextMessage(socket, (message) => message.type === "room_state");
+      const stateMessage = nextMessage(socket, (message) => message.type === expectedType);
       socket.send(JSON.stringify({ type: "authenticate", code: session.code, token: session.token }));
       stateMessage.then(() => resolve(socket), reject);
     });
@@ -106,4 +106,60 @@ test("WebSocket lobby broadcasts host game selection to every player", async (t)
   assert.equal(hostMessage.room.players.find((player) => player.isYou).name, "Host");
   assert.equal(guestMessage.room.players.find((player) => player.isYou).name, "Guest");
   assert.equal(guestMessage.room.game.name, "3s & 7s");
+});
+
+test("Solo starts a private server-authoritative 3s & 7s match", async (t) => {
+  const { origin } = await startServer(t);
+  const result = await jsonRequest(origin, "/api/solo/three-seven", {
+    method: "POST",
+    body: JSON.stringify({ name: "Solo Player", botCount: 3 })
+  });
+
+  assert.equal(result.response.status, 201);
+  assert.equal(result.body.room.phase, "playing");
+  assert.equal(result.body.room.gameId, "three-seven");
+  assert.equal(result.body.game.view.type, "match_state");
+  assert.equal(result.body.game.view.hand.length, 7);
+  assert.equal(result.body.game.view.state.players.length, 4);
+  assert.equal(result.body.game.view.state.players.every((player) => !("hand" in player)), true);
+
+  const reconnect = await jsonRequest(origin, `/api/rooms/${result.body.code}/reconnect`, {
+    method: "POST",
+    body: JSON.stringify({ token: result.body.token })
+  });
+  assert.equal(reconnect.body.game.view.hand.length, 7);
+
+  const socket = await openSocket(origin, result.body, "game_state");
+  t.after(() => socket.terminate());
+});
+
+test("a host starts 3s & 7s from the global Cardcade lobby", async (t) => {
+  const { origin } = await startServer(t);
+  const host = (await jsonRequest(origin, "/api/rooms", {
+    method: "POST",
+    body: JSON.stringify({ name: "Host" })
+  })).body;
+  const socket = await openSocket(origin, host);
+  t.after(() => socket.terminate());
+
+  let update = nextMessage(socket, (message) => message.type === "room_state" && message.room.gameId === "three-seven");
+  socket.send(JSON.stringify({ type: "select_game", gameId: "three-seven" }));
+  await update;
+
+  update = nextMessage(socket, (message) => message.type === "room_state" && message.room.gameSettings.botCount === 1);
+  socket.send(JSON.stringify({ type: "set_bot_count", botCount: 1 }));
+  await update;
+
+  update = nextMessage(socket, (message) => message.type === "room_state" && message.room.canStart === true);
+  socket.send(JSON.stringify({ type: "set_ready", ready: true }));
+  await update;
+
+  const gameState = nextMessage(socket, (message) => message.type === "game_state");
+  socket.send(JSON.stringify({ type: "start_game" }));
+  const message = await gameState;
+
+  assert.equal(message.room.phase, "playing");
+  assert.equal(message.gameId, "three-seven");
+  assert.equal(message.view.hand.length, 7);
+  assert.equal(message.view.state.players.length, 2);
 });

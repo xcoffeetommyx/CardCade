@@ -1,5 +1,16 @@
-const CACHE_NAME = "cardcade-shell-v1";
-const SHELL = ["/", "/app.css", "/app.js", "/icon.svg", "/manifest.webmanifest"];
+const CACHE_NAME = "cardcade-shell-v2";
+const SHELL = [
+  "/",
+  "/app.css?v=3",
+  "/app.js?v=3",
+  "/icon.svg",
+  "/manifest.webmanifest",
+  "/shared/three-seven-rules.js?v=3",
+  "/shared/card-presentation.js?v=3",
+  "/shared/standard-52.js?v=3",
+  "/assets/fonts/pixelify-sans-latin.woff2",
+  "/assets/fonts/cardcade-pixel-ranks.woff2"
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(SHELL)));

@@ -6,10 +6,12 @@ import { WebSocket, WebSocketServer } from "ws";
 import { AppError } from "./errors.js";
 import { deckFamilies, games } from "./game-catalog.js";
 import { GameRegistry } from "./game-registry.js";
+import { ThreeSevenRuntime } from "./games/three-seven/runtime.js";
 import { RoomStore } from "./room-store.js";
 
 const moduleDirectory = path.dirname(fileURLToPath(import.meta.url));
 const defaultPublicRoot = path.resolve(moduleDirectory, "../../public");
+const defaultSharedRoot = path.resolve(moduleDirectory, "../../shared");
 
 const mimeTypes = new Map([
   [".css", "text/css; charset=utf-8"],
@@ -63,7 +65,7 @@ function applySecurityHeaders(response) {
   response.setHeader("X-Frame-Options", "DENY");
 }
 
-function serveStatic(request, response, publicRoot, pathname) {
+function serveStatic(request, response, publicRoot, pathname, { spaFallback = true } = {}) {
   if (request.method !== "GET" && request.method !== "HEAD") return false;
   let decodedPath;
   try {
@@ -80,15 +82,17 @@ function serveStatic(request, response, publicRoot, pathname) {
     filePath = path.join(filePath, "index.html");
   }
   if (!existsSync(filePath) || !statSync(filePath).isFile()) {
+    if (!spaFallback) return false;
     filePath = path.join(publicRoot, "index.html");
   }
 
   const extension = path.extname(filePath).toLowerCase();
   const stat = statSync(filePath);
+  const requiresRevalidation = [".html", ".js", ".css", ".json", ".webmanifest"].includes(extension);
   response.writeHead(200, {
     "Content-Type": mimeTypes.get(extension) ?? "application/octet-stream",
     "Content-Length": stat.size,
-    "Cache-Control": filePath.endsWith("index.html") || filePath.endsWith("sw.js") ? "no-cache" : "public, max-age=3600"
+    "Cache-Control": requiresRevalidation ? "no-cache" : "public, max-age=3600"
   });
   if (request.method === "HEAD") {
     response.end();
@@ -98,10 +102,12 @@ function serveStatic(request, response, publicRoot, pathname) {
   return true;
 }
 
-export function createCardcadeServer({ registry, roomStore, publicRoot = defaultPublicRoot } = {}) {
+export function createCardcadeServer({ registry, roomStore, threeSevenRuntime, snapshotStore = null, publicRoot = defaultPublicRoot, sharedRoot = defaultSharedRoot } = {}) {
   const gameRegistry = registry ?? new GameRegistry({ deckFamilies, games });
   const rooms = roomStore ?? new RoomStore({ registry: gameRegistry });
+  const threeSeven = threeSevenRuntime ?? new ThreeSevenRuntime();
   const roomSockets = new Map();
+  const botTimers = new Map();
   const webSocketServer = new WebSocketServer({ noServer: true });
 
   const httpServer = createServer(async (request, response) => {
@@ -121,26 +127,64 @@ export function createCardcadeServer({ registry, roomStore, publicRoot = default
 
       if (request.method === "POST" && url.pathname === "/api/rooms") {
         const body = await readJson(request);
-        sendJson(response, 201, rooms.createRoom({ name: body.name }));
+        const session = rooms.createRoom({ name: body.name });
+        persistRoom(session.code);
+        sendJson(response, 201, session);
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/solo/three-seven") {
+        const body = await readJson(request);
+        const session = rooms.createRoom({ name: body.name });
+        rooms.selectGame(session.code, session.token, "three-seven");
+        const requestedBots = Number.isInteger(body.botCount) ? body.botCount : 3;
+        rooms.setBotCount(session.code, session.token, requestedBots);
+        rooms.setReady(session.code, session.token, true);
+        threeSeven.start(rooms.publicRoom(session.code, session.token));
+        rooms.markPlaying(session.code, session.token);
+        const room = rooms.publicRoom(session.code, session.token);
+        persistRoom(session.code);
+        scheduleBotTurns(session.code);
+        sendJson(response, 201, {
+          ...session,
+          room,
+          game: { gameId: "three-seven", view: threeSeven.view(room) }
+        });
         return;
       }
 
       const joinMatch = url.pathname.match(/^\/api\/rooms\/([A-Z0-9]+)\/join$/i);
       if (request.method === "POST" && joinMatch) {
         const body = await readJson(request);
-        sendJson(response, 200, rooms.joinRoom(joinMatch[1], { name: body.name }));
+        const session = rooms.joinRoom(joinMatch[1], { name: body.name });
+        persistRoom(session.code);
+        sendJson(response, 200, session);
         return;
       }
 
       const reconnectMatch = url.pathname.match(/^\/api\/rooms\/([A-Z0-9]+)\/reconnect$/i);
       if (request.method === "POST" && reconnectMatch) {
         const body = await readJson(request);
-        sendJson(response, 200, rooms.reconnect(reconnectMatch[1], body.token));
+        const session = rooms.reconnect(reconnectMatch[1], body.token);
+        persistRoom(session.code);
+        const payload = session.room.phase === "playing" && session.room.gameId === "three-seven" && threeSeven.has(session.code)
+          ? { ...session, game: { gameId: "three-seven", view: threeSeven.view(session.room) } }
+          : session;
+        sendJson(response, 200, payload);
         return;
       }
 
       if (url.pathname.startsWith("/api/")) {
         sendJson(response, 404, { error: { code: "NOT_FOUND", message: "That Cardcade API route does not exist." } });
+        return;
+      }
+
+      if (url.pathname.startsWith("/shared/")) {
+        const sharedPath = url.pathname.slice("/shared".length) || "/";
+        if (!serveStatic(request, response, sharedRoot, sharedPath, { spaFallback: false })) {
+          response.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
+          response.end("Not found");
+        }
         return;
       }
 
@@ -160,6 +204,25 @@ export function createCardcadeServer({ registry, roomStore, publicRoot = default
     }
   }
 
+  function persistRoom(code) {
+    if (!snapshotStore) return;
+    try {
+      snapshotStore.save({
+        code,
+        room: rooms.privateSnapshot(code),
+        game: threeSeven.has(code)
+          ? { gameId: "three-seven", code, state: threeSeven.snapshot(code) }
+          : null
+      });
+    } catch (error) {
+      if (error instanceof AppError && error.code === "ROOM_NOT_FOUND") {
+        snapshotStore.delete(code);
+        return;
+      }
+      console.error("Could not persist Cardcade room snapshot.", error);
+    }
+  }
+
   function removeSocket(socket) {
     if (!socket.cardcade) return;
     const sockets = roomSockets.get(socket.cardcade.code);
@@ -173,7 +236,11 @@ export function createCardcadeServer({ registry, roomStore, publicRoot = default
     for (const socket of sockets) {
       try {
         const room = rooms.publicRoom(code, socket.cardcade.token);
-        send(socket, { type: "room_state", room });
+        if (room.phase === "playing" && room.gameId === "three-seven" && threeSeven.has(code)) {
+          send(socket, { type: "game_state", gameId: "three-seven", room, view: threeSeven.view(room) });
+        } else {
+          send(socket, { type: "room_state", room });
+        }
       } catch (error) {
         const payload = errorPayload(error);
         send(socket, { type: "error", error: payload.body.error });
@@ -182,8 +249,53 @@ export function createCardcadeServer({ registry, roomStore, publicRoot = default
     }
   }
 
+  function scheduleBotTurns(code) {
+    if (botTimers.has(code)) return;
+    const tick = () => {
+      botTimers.delete(code);
+      try {
+        if (!threeSeven.has(code)) return;
+        const played = threeSeven.runBotTurn(code);
+        if (!played) return;
+        persistRoom(code);
+        broadcastRoom(code);
+        botTimers.set(code, setTimeout(tick, 420));
+      } catch (error) {
+        const payload = errorPayload(error);
+        for (const socket of roomSockets.get(code) ?? []) {
+          send(socket, { type: "error", error: payload.body.error });
+        }
+      }
+    };
+    botTimers.set(code, setTimeout(tick, 420));
+  }
+
+  function startRoomGame(code, token) {
+    const room = rooms.publicRoom(code, token);
+    if (room.gameId !== "three-seven") {
+      throw new AppError("GAME_NOT_AVAILABLE", "That game has not been migrated into Cardcade yet.", 409);
+    }
+    threeSeven.start(room);
+    rooms.markPlaying(code, token);
+    persistRoom(code);
+    broadcastRoom(code);
+    scheduleBotTurns(code);
+  }
+
   function handleAction(socket, message) {
     const { code, token } = socket.cardcade;
+    if (["play", "pass", "next_round", "mercy_choice"].includes(message.type)) {
+      const room = rooms.publicRoom(code, token);
+      if (room.phase !== "playing" || room.gameId !== "three-seven") {
+        throw new AppError("MATCH_NOT_ACTIVE", "No playable game is active in this room.", 409);
+      }
+      threeSeven.act(room, message);
+      persistRoom(code);
+      // Show the human move before the first CPU answer.
+      broadcastRoom(code);
+      scheduleBotTurns(code);
+      return;
+    }
     switch (message.type) {
       case "select_game":
         rooms.selectGame(code, token, message.gameId);
@@ -194,18 +306,31 @@ export function createCardcadeServer({ registry, roomStore, publicRoot = default
       case "set_ready":
         rooms.setReady(code, token, message.ready);
         break;
+      case "start_game":
+        startRoomGame(code, token);
+        return;
       case "rename_player":
         rooms.renamePlayer(code, token, message.name);
         break;
       case "leave_room":
+        {
+          const room = rooms.publicRoom(code, token);
+          const leavingPlayer = room.players.find((player) => player.isYou);
+          if (room.phase === "playing" && leavingPlayer) {
+            threeSeven.replaceHumanWithBot(code, leavingPlayer.seat);
+          }
+        }
         rooms.leaveRoom(code, token);
+        persistRoom(code);
         socket.cardcade.left = true;
         socket.close(1000, "Left room");
         broadcastRoom(code);
+        scheduleBotTurns(code);
         return;
       default:
         throw new AppError("UNKNOWN_MESSAGE", "That lobby action is not supported.");
     }
+    persistRoom(code);
     broadcastRoom(code);
   }
 
@@ -233,7 +358,9 @@ export function createCardcadeServer({ registry, roomStore, publicRoot = default
           const sockets = roomSockets.get(session.code) ?? new Set();
           sockets.add(socket);
           roomSockets.set(session.code, sockets);
+          persistRoom(session.code);
           broadcastRoom(session.code);
+          if (session.room.phase === "playing") scheduleBotTurns(session.code);
           return;
         }
         handleAction(socket, message);
@@ -253,6 +380,7 @@ export function createCardcadeServer({ registry, roomStore, publicRoot = default
       if (!otherConnection) {
         try {
           rooms.setConnected(connection.code, connection.token, false);
+          persistRoom(connection.code);
           broadcastRoom(connection.code);
         } catch {
           // The room may have expired while the socket was open.
@@ -273,7 +401,7 @@ export function createCardcadeServer({ registry, roomStore, publicRoot = default
   });
 
   const heartbeat = setInterval(() => {
-    rooms.cleanupExpired();
+    rooms.cleanupExpired((code) => snapshotStore?.delete(code));
     for (const socket of webSocketServer.clients) {
       if (!socket.isAlive) {
         socket.terminate();
@@ -301,6 +429,8 @@ export function createCardcadeServer({ registry, roomStore, publicRoot = default
     },
     close() {
       clearInterval(heartbeat);
+      for (const timer of botTimers.values()) clearTimeout(timer);
+      botTimers.clear();
       for (const socket of webSocketServer.clients) socket.terminate();
       return new Promise((resolve, reject) => {
         webSocketServer.close(() => {

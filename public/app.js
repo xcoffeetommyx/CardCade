@@ -17,8 +17,16 @@ const state = {
   session: null,
   room: null,
   socket: null,
-  socketIntentionalClose: false
+  socketIntentionalClose: false,
+  gameView: null,
+  gameMode: null,
+  gameSort: "rank",
+  selectedCards: new Set()
 };
+
+const threeSevenRules = globalThis.ThreeSevenRules;
+const cardPresentation = globalThis.CardcadePresentation;
+const standard52 = globalThis.CardcadeStandard52;
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -156,7 +164,8 @@ function renderLocalLobby() {
   const game = selectedGame();
   if (!game) return renderLibrary();
   const maxBots = Math.max(0, game.players.max - 1);
-  state.localBots = Math.min(state.localBots, maxBots);
+  const minBots = Math.max(0, game.players.min - 1);
+  state.localBots = Math.max(minBots, Math.min(state.localBots, maxBots));
   const modeLabel = state.mode === "hot-seat" ? "Hot Seat" : "Solo";
   return `
     ${screenHeader(`${game.name} lobby`, `${modeLabel} setup stays local to this device.`, "back-to-library")}
@@ -172,15 +181,17 @@ function renderLocalLobby() {
       ${state.mode === "solo" ? `
         <label><strong>CPU players</strong></label>
         <div class="stepper">
-          <button type="button" data-action="local-bot-down" aria-label="Remove CPU player">−</button>
+          <button type="button" data-action="local-bot-down" aria-label="Remove CPU player" ${state.localBots <= minBots ? "disabled" : ""}>−</button>
           <output>${state.localBots} CPU${state.localBots === 1 ? "" : "s"}</output>
           <button type="button" data-action="local-bot-up" aria-label="Add CPU player" ${state.localBots >= maxBots ? "disabled" : ""}>+</button>
         </div>` : `
         <div class="callout">Hot Seat seat naming and pass-the-device privacy will be connected when this game's rules module is migrated.</div>`}
-      <div class="callout coral">${escapeHtml(game.name)} is the next playable-game migration. This platform milestone proves the launcher, catalog, and shared lobby without duplicating its rules.</div>
+      <div class="callout coral">${game.status === "available" && state.mode === "solo"
+        ? `${escapeHtml(game.name)} is ready. Cardcade will create a private local table and fill the open seats with CPUs.`
+        : `${escapeHtml(game.name)} support for this mode is a later migration step.`}</div>
       <div class="button-row" style="margin-top: 1rem">
         <button class="action-button" type="button" data-action="back-to-library">Choose another game</button>
-        <button class="action-button primary" type="button" data-action="not-playable-yet" disabled>Start game</button>
+        <button class="action-button primary" type="button" data-action="${game.status === "available" && state.mode === "solo" ? "start-local-game" : "not-playable-yet"}" ${game.status === "available" && state.mode === "solo" ? "" : "disabled"}>Start game</button>
       </div>
     </div>`;
 }
@@ -287,6 +298,102 @@ function renderRoom() {
     </div>`;
 }
 
+function threeSevenSelection() {
+  const view = state.gameView;
+  if (!view || !threeSevenRules) return { ok: false, reason: "Game unavailable" };
+  const match = view.state;
+  const cards = view.hand.filter((card) => state.selectedCards.has(card.id));
+  if (!cards.length) return { ok: false, reason: "Select cards to play" };
+  const combo = threeSevenRules.detectCombo(cards, match.round);
+  if (!combo) return { ok: false, reason: "Not a legal combination" };
+  if (match.openingRequired && !state.selectedCards.has(match.openingCardId)) {
+    return { ok: false, reason: `Opening play needs ${threeSevenCardLabel(match.openingCardId)}` };
+  }
+  if (!threeSevenRules.canBeat(combo, match.currentLead?.combo || null)) {
+    return { ok: false, reason: "Does not beat the active pile" };
+  }
+  return { ok: true, reason: threeSevenRules.comboDescription(combo), combo };
+}
+
+function threeSevenCardLabel(cardId) {
+  return standard52.cardLabel(cardId);
+}
+
+function renderPlayingCard(card, index, { played = false } = {}) {
+  const suit = standard52.SUIT_SYMBOL[card.suit];
+  const red = card.suit === "H" || card.suit === "D";
+  const selected = state.selectedCards.has(card.id);
+  const faceId = { J: "card-face-jack", Q: "card-face-queen", K: "card-face-king" }[card.rank];
+  const center = faceId
+    ? `<span class="card-center court"><svg viewBox="0 0 100 140" aria-hidden="true"><use href="#${faceId}"></use></svg></span>`
+    : `<span class="card-center">${suit}</span>`;
+  return `
+    <button class="playing-card ${red ? "red" : "black"} ${selected ? "selected" : ""} ${played ? "played" : ""}"
+      type="button" ${played ? "disabled" : ""} data-game-card="${escapeHtml(card.id)}" data-card-index="${index}"
+      aria-label="${escapeHtml(standard52.cardLong(card))}" aria-pressed="${selected}">
+      <span class="card-corner"><strong>${escapeHtml(card.rank)}</strong><i>${suit}</i></span>
+      ${center}
+      <span class="card-corner bottom"><strong>${escapeHtml(card.rank)}</strong><i>${suit}</i></span>
+    </button>`;
+}
+
+function renderThreeSevenGame() {
+  const view = state.gameView;
+  if (!view) return `<div class="empty-state">Dealing the cards…</div>`;
+  const match = view.state;
+  const viewer = state.room?.players.find((player) => player.isYou);
+  const viewerSeat = viewer?.seat;
+  const yourPlayer = match.players.find((player) => player.seat === viewerSeat);
+  const opponents = match.players.filter((player) => player.seat !== viewerSeat);
+  const isYourTurn = match.activeSeat === viewerSeat && !match.roundOver;
+  const evaluation = threeSevenSelection();
+  const sortedHand = threeSevenRules.sortCards(view.hand, state.gameSort, match.round);
+  const activePlayer = match.players.find((player) => player.seat === match.activeSeat);
+  const orderedSuits = match.suitOrder.map((suit, index) => `<span class="suit-rank ${index === match.suitOrder.length - 1 ? "high" : ""}"><b>${index + 1}</b>${standard52.SUIT_SYMBOL[suit]}</span>`).join("<i>›</i>");
+  const lead = match.currentLead;
+  const canPass = isYourTurn && Boolean(lead) && state.selectedCards.size === 0;
+  const isHost = viewer?.role === "host";
+
+  return `
+    <section class="three-seven-game">
+      <header class="game-topbar">
+        <button class="back-button" type="button" data-action="leave-game" aria-label="Leave game">←</button>
+        <div><span class="family-kicker">${state.gameMode === "solo" ? "Solo table" : `Room ${escapeHtml(state.room.code)}`}</span><h2>3s & 7s</h2><p>Round ${match.round}/${match.totalRounds} · ${escapeHtml(match.lastMoveText)}</p></div>
+        <button class="game-score" type="button" disabled><span>Score</span><strong>${yourPlayer?.score ?? 0}</strong></button>
+      </header>
+      <div class="suit-ladder"><span>Low</span>${orderedSuits}<span>High</span></div>
+      <div class="game-opponents">
+        ${opponents.map((player) => `
+          <article class="game-seat ${match.activeSeat === player.seat ? "active" : ""}">
+            <span class="player-avatar">${escapeHtml(player.avatar)}</span>
+            <span><strong>${escapeHtml(player.name)}</strong><small>${player.finished ? `${player.place}${player.place === 1 ? "st" : player.place === 2 ? "nd" : player.place === 3 ? "rd" : "th"} place` : `${player.cardCount} cards${player.passed ? " · passed" : ""}`}</small></span>
+            <span class="mini-deck" aria-hidden="true">${Math.min(player.cardCount, 7)}</span>
+          </article>`).join("")}
+      </div>
+      <section class="game-table">
+        <div class="game-status"><span><strong>${match.roundOver ? "Round complete" : isYourTurn ? `${escapeHtml(yourPlayer?.name || "You")}, your turn` : `${escapeHtml(activePlayer?.name || "Player")} is thinking`}</strong><small>Stock ${match.drawCount} · ${lead ? `${escapeHtml(lead.playerName)} controls the pile` : "open lead"}</small></span><span class="badge">${lead ? escapeHtml(lead.label) : "Open lead"}</span></div>
+        <div class="active-pile">${lead ? lead.cards.map((card, index) => renderPlayingCard(card, index, { played: true })).join("") : `<div class="empty-pile"><strong>No active pile</strong><span>${match.openingRequired ? `Lead must include ${threeSevenCardLabel(match.openingCardId)}.` : "Lead with any legal combination."}</span></div>`}</div>
+      </section>
+      <section class="physical-hand ${isYourTurn ? "your-turn" : ""}">
+        <div class="hand-heading"><span><strong>Your hand</strong><small>${view.hand.length} cards · ${escapeHtml(state.gameSort)} sort</small></span><span class="selection-status ${evaluation.ok ? "valid" : state.selectedCards.size ? "invalid" : ""}">${escapeHtml(evaluation.reason)}</span></div>
+        <div class="game-hand" aria-label="Your fanned hand">${sortedHand.map((card, index) => renderPlayingCard(card, index)).join("")}</div>
+      </section>
+      <nav class="game-actions">
+        <button type="button" data-action="game-hint" ${isYourTurn ? "" : "disabled"}>Hint</button>
+        <button type="button" data-action="game-sort">Sort</button>
+        <button type="button" data-action="game-pass" ${canPass ? "" : "disabled"}>Pass + Draw</button>
+        <button class="primary" type="button" data-action="game-play" ${isYourTurn && evaluation.ok ? "" : "disabled"}>▶ Play</button>
+      </nav>
+      ${match.roundOver ? `
+        <div class="round-result">
+          <div><span class="family-kicker">${match.matchOver ? "Final standings" : `Round ${match.round} complete`}</span><h3>${escapeHtml(match.lastMoveText)}</h3><p>${match.placements.map((seat, index) => `${index + 1}. ${escapeHtml(match.players.find((player) => player.seat === seat)?.name || "Player")}`).join(" · ")}</p></div>
+          ${!match.matchOver && match.mercyOfferPending && match.mercyLeaderSeat === viewerSeat ? `<div class="button-row"><button class="action-button" data-action="mercy-take-win">Take the win</button><button class="action-button primary" data-action="mercy-double">Double or nothing</button></div>` : ""}
+          ${!match.matchOver && !match.mercyOfferPending ? `<button class="action-button primary" type="button" data-action="next-round" ${isHost ? "" : "disabled"}>${isHost ? "Deal next round" : "Waiting for host"}</button>` : ""}
+          ${match.matchOver ? `<button class="action-button" type="button" data-action="leave-game">Return to Cardcade</button>` : ""}
+        </div>` : ""}
+    </section>`;
+}
+
 function renderSettings() {
   const reducedMotion = localStorage.getItem(storageKeys.reducedMotion) === "true";
   return `
@@ -310,9 +417,61 @@ function render() {
     "local-lobby": renderLocalLobby,
     multiplayer: renderMultiplayer,
     room: renderRoom,
+    game: renderThreeSevenGame,
     settings: renderSettings
   };
+  document.body.classList.toggle("playing-game", state.screen === "game");
   app.innerHTML = (screens[state.screen] || renderHome)();
+  if (state.screen === "game") requestAnimationFrame(layoutThreeSevenHand);
+}
+
+function layoutThreeSevenHand() {
+  const hand = app.querySelector(".game-hand");
+  if (!hand || !cardPresentation) return;
+  const cards = [...hand.querySelectorAll("[data-game-card]")];
+  if (!cards.length) return;
+  const containerWidth = hand.clientWidth;
+  const cardWidth = Math.min(132, Math.max(96, containerWidth * 0.29));
+  const cardHeight = cardWidth * 1.42;
+  const layout = cardPresentation.calculateFanLayout({
+    count: cards.length,
+    containerWidth,
+    cardWidth,
+    cardHeight,
+    sidePadding: 3,
+    minimumVisibleIndex: 22,
+    maximumRotation: 10,
+    curveRatio: 0.1,
+    selectedLiftRatio: 0.31
+  });
+  hand.style.height = `${layout.rowHeight}px`;
+  hand.dataset.density = layout.density;
+  cards.forEach((card, index) => {
+    const position = layout.cards[index];
+    const raised = state.selectedCards.has(card.dataset.gameCard);
+    card.style.width = `${cardWidth}px`;
+    card.style.height = `${cardHeight}px`;
+    card.style.zIndex = String(raised ? 100 + index : position.zIndex);
+    card.style.transform = `translate(calc(-50% + ${position.x}px), ${position.y - (raised ? layout.selectedLift : 0)}px) rotate(${position.rotation}deg)`;
+  });
+
+  hand.onclick = (event) => {
+    const rects = cards.map((card) => card.getBoundingClientRect());
+    const raised = cards.flatMap((card, index) => state.selectedCards.has(card.dataset.gameCard) ? [index] : []);
+    const index = cardPresentation.fanIndexAtPoint(rects, event.clientX, event.clientY, raised);
+    if (index < 0 || !cards[index]) return;
+    event.preventDefault();
+    toggleThreeSevenCard(cards[index].dataset.gameCard);
+  };
+}
+
+function toggleThreeSevenCard(cardId) {
+  const match = state.gameView?.state;
+  const viewer = state.room?.players.find((player) => player.isYou);
+  if (!match || match.roundOver || match.activeSeat !== viewer?.seat) return;
+  if (state.selectedCards.has(cardId)) state.selectedCards.delete(cardId);
+  else state.selectedCards.add(cardId);
+  render();
 }
 
 function navigate(screen) {
@@ -347,21 +506,40 @@ function connectRoom(session) {
     if (message.type === "room_state") {
       state.room = message.room;
       if (state.screen === "room") render();
+    } else if (message.type === "game_state" && message.gameId === "three-seven") {
+      state.room = message.room;
+      state.gameView = message.view;
+      const handIds = new Set(message.view.hand.map((card) => card.id));
+      state.selectedCards = new Set([...state.selectedCards].filter((cardId) => handIds.has(cardId)));
+      state.screen = "game";
+      render();
     } else if (message.type === "error") {
       showToast(message.error?.message || "The room rejected that action.");
     }
   });
   socket.addEventListener("close", () => {
-    if (!state.socketIntentionalClose && state.screen === "room") showToast("Room connection closed. Use Resume to reconnect.");
+    if (!state.socketIntentionalClose && ["room", "game"].includes(state.screen)) showToast("Room connection closed. Use Resume to reconnect.");
   });
 }
 
 function enterRoom(session) {
-  state.session = { code: session.code, token: session.token, playerId: session.playerId };
+  state.gameMode = session.mode || "multiplayer";
+  state.session = { code: session.code, token: session.token, playerId: session.playerId, mode: state.gameMode };
   state.room = session.room;
   localStorage.setItem(storageKeys.room, JSON.stringify(state.session));
   connectRoom(state.session);
   navigate("room");
+}
+
+function enterGameSession(session, mode) {
+  state.session = { code: session.code, token: session.token, playerId: session.playerId, mode };
+  state.room = session.room;
+  state.gameView = session.game?.view || null;
+  state.gameMode = mode;
+  state.selectedCards = new Set();
+  localStorage.setItem(storageKeys.room, JSON.stringify(state.session));
+  connectRoom(state.session);
+  navigate("game");
 }
 
 async function resumeRoom() {
@@ -369,7 +547,8 @@ async function resumeRoom() {
   if (!saved) return;
   try {
     const session = await api(`/api/rooms/${encodeURIComponent(saved.code)}/reconnect`, { method: "POST", body: JSON.stringify({ token: saved.token }) });
-    enterRoom({ ...session, token: saved.token });
+    if (session.game?.gameId === "three-seven") enterGameSession({ ...session, token: saved.token }, saved.mode || "multiplayer");
+    else enterRoom({ ...session, token: saved.token, mode: saved.mode });
   } catch (error) {
     localStorage.removeItem(storageKeys.room);
     showToast(error.message);
@@ -392,6 +571,17 @@ document.addEventListener("click", async (event) => {
   if (action === "select-local-game") { state.selectedGameId = button.dataset.gameId; navigate("local-lobby"); }
   if (action === "local-bot-down") { state.localBots = Math.max(0, state.localBots - 1); render(); }
   if (action === "local-bot-up") { state.localBots += 1; render(); }
+  if (action === "start-local-game") {
+    const name = savePlayerName(document.querySelector("#local-name")?.value || playerName());
+    button.disabled = true;
+    try {
+      const session = await api("/api/solo/three-seven", { method: "POST", body: JSON.stringify({ name, botCount: state.localBots }) });
+      enterGameSession(session, "solo");
+    } catch (error) {
+      showToast(error.message);
+      button.disabled = false;
+    }
+  }
   if (action === "select-room-game") sendRoom({ type: "select_game", gameId: button.dataset.gameId });
   if (action === "room-bot-down") sendRoom({ type: "set_bot_count", botCount: Math.max(0, state.room.gameSettings.botCount - 1) });
   if (action === "room-bot-up") sendRoom({ type: "set_bot_count", botCount: state.room.gameSettings.botCount + 1 });
@@ -399,7 +589,8 @@ document.addEventListener("click", async (event) => {
     const you = state.room.players.find((player) => player.isYou);
     sendRoom({ type: "set_ready", ready: !you?.ready });
   }
-  if (action === "start-room" || action === "not-playable-yet") showToast(state.room?.startBlocker || "The first game migration is the next milestone.");
+  if (action === "start-room") sendRoom({ type: "start_game" });
+  if (action === "not-playable-yet") showToast("That game mode has not been migrated yet.");
   if (action === "resume-room") resumeRoom();
   if (action === "copy-code") {
     await navigator.clipboard.writeText(state.room.code);
@@ -418,6 +609,60 @@ document.addEventListener("click", async (event) => {
     state.room = null;
     navigate("multiplayer");
   }
+  if (action === "game-sort") {
+    const modes = ["rank", "suit", "combo"];
+    state.gameSort = modes[(modes.indexOf(state.gameSort) + 1) % modes.length];
+    render();
+  }
+  if (action === "game-hint") {
+    const match = state.gameView.state;
+    const moves = threeSevenRules.getLegalMoves(
+      state.gameView.hand,
+      match.currentLead?.combo || null,
+      match.openingRequired ? match.openingCardId : null,
+      match.round
+    );
+    if (!moves.length) showToast("No legal play. Pass and draw.");
+    else {
+      const hintPlayer = { hand: state.gameView.hand, style: "human" };
+      const move = moves.slice().sort((left, right) => left.count - right.count || threeSevenRules.moveCost(left, hintPlayer) - threeSevenRules.moveCost(right, hintPlayer))[0];
+      state.selectedCards = new Set(move.cards.map((card) => card.id));
+      render();
+    }
+  }
+  if (action === "game-play") {
+    const cardIds = [...state.selectedCards];
+    state.selectedCards.clear();
+    sendRoom({ type: "play", cardIds });
+    render();
+  }
+  if (action === "game-pass") sendRoom({ type: "pass" });
+  if (action === "next-round") { state.selectedCards.clear(); sendRoom({ type: "next_round" }); }
+  if (action === "mercy-take-win") sendRoom({ type: "mercy_choice", accept: false });
+  if (action === "mercy-double") sendRoom({ type: "mercy_choice", accept: true });
+  if (action === "leave-game") {
+    sendRoom({ type: "leave_room" });
+    state.socketIntentionalClose = true;
+    state.socket?.close();
+    localStorage.removeItem(storageKeys.room);
+    const destination = state.gameMode === "solo" ? "home" : "multiplayer";
+    state.session = null;
+    state.room = null;
+    state.gameView = null;
+    state.selectedCards = new Set();
+    navigate(destination);
+  }
+});
+
+document.addEventListener("keydown", (event) => {
+  const card = event.target.closest?.("[data-game-card]");
+  if (!card || !["Enter", " "].includes(event.key)) return;
+  event.preventDefault();
+  toggleThreeSevenCard(card.dataset.gameCard);
+});
+
+window.addEventListener("resize", () => {
+  if (state.screen === "game") requestAnimationFrame(layoutThreeSevenHand);
 });
 
 document.addEventListener("submit", async (event) => {

@@ -65,7 +65,7 @@ test("CPU count respects the selected game's capacity", () => {
   assert.throws(() => store.setBotCount(host.code, host.token, 3), { code: "TOO_MANY_PLAYERS" });
 });
 
-test("migration-ready games explain why the match cannot start", () => {
+test("available games can start when the table is ready", () => {
   const { store } = setup();
   const host = store.createRoom({ name: "Host" });
   store.selectGame(host.code, host.token, "three-seven");
@@ -73,8 +73,8 @@ test("migration-ready games explain why the match cannot start", () => {
   store.setReady(host.code, host.token, true);
 
   const room = store.publicRoom(host.code, host.token);
-  assert.equal(room.canStart, false);
-  assert.match(room.startBlocker, /ready to migrate/i);
+  assert.equal(room.canStart, true);
+  assert.equal(room.startBlocker, null);
 });
 
 test("leaving host promotes the oldest remaining guest", () => {

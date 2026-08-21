@@ -52,12 +52,18 @@ export class RoomStore {
   #generateCode;
   #ttlMs;
 
-  constructor({ registry, now = () => Date.now(), generateCode = randomCode, roomTtlMs = DEFAULT_ROOM_TTL_MS } = {}) {
+  constructor({ registry, now = () => Date.now(), generateCode = randomCode, roomTtlMs = DEFAULT_ROOM_TTL_MS, restoredRooms = [] } = {}) {
     assert(registry, "REGISTRY_REQUIRED", "RoomStore requires a game registry.", 500);
     this.#registry = registry;
     this.#now = now;
     this.#generateCode = generateCode;
     this.#ttlMs = roomTtlMs;
+    const cutoff = this.#now() - this.#ttlMs;
+    for (const snapshot of restoredRooms) {
+      const room = hydrateRoom(snapshot, this.#now());
+      if (!room || room.lastActivityAt < cutoff || this.#rooms.has(room.code)) continue;
+      this.#rooms.set(room.code, room);
+    }
   }
 
   createRoom({ name }) {
@@ -161,8 +167,21 @@ export class RoomStore {
   setReady(code, token, ready) {
     const room = this.#getRoom(code);
     const player = this.#authenticatePlayer(room, token);
+    assert(room.phase === "configuring", "ROOM_IN_PROGRESS", "Readiness is locked after play begins.", 409);
     assert(room.gameId, "GAME_REQUIRED", "Wait for the host to choose a game.");
     player.ready = Boolean(ready);
+    touch(room, this.#now());
+    return this.project(room, player.id);
+  }
+
+  markPlaying(code, token) {
+    const room = this.#getRoom(code);
+    const player = this.#authenticatePlayer(room, token);
+    this.#assertHost(player);
+    assert(room.phase === "configuring", "ROOM_IN_PROGRESS", "That room has already started.", 409);
+    const projection = this.project(room, player.id);
+    assert(projection.canStart, "ROOM_NOT_READY", projection.startBlocker || "That room is not ready to start.", 409);
+    room.phase = "playing";
     touch(room, this.#now());
     return this.project(room, player.id);
   }
@@ -179,7 +198,7 @@ export class RoomStore {
       room.players[0].role = "host";
     }
     room.players.forEach((candidate, index) => {
-      candidate.seat = index;
+      if (room.phase === "configuring") candidate.seat = index;
       candidate.ready = false;
     });
     touch(room, this.#now());
@@ -192,13 +211,40 @@ export class RoomStore {
     return this.project(room, player.id);
   }
 
+  privateSnapshot(code) {
+    const room = this.#getRoom(code);
+    return {
+      code: room.code,
+      phase: room.phase,
+      gameId: room.gameId,
+      gameSettings: { ...room.gameSettings },
+      createdAt: room.createdAt,
+      lastActivityAt: room.lastActivityAt,
+      version: room.version,
+      players: room.players.map((player) => ({
+        id: player.id,
+        name: player.name,
+        seat: player.seat,
+        role: player.role,
+        ready: player.ready,
+        joinedAt: player.joinedAt,
+        tokenHash: player.tokenHash.toString("base64")
+      }))
+    };
+  }
+
+  roomCodes() {
+    this.cleanupExpired();
+    return [...this.#rooms.keys()];
+  }
+
   project(roomOrCode, viewerId = null) {
     const room = typeof roomOrCode === "string" ? this.#getRoom(roomOrCode) : roomOrCode;
     const game = room.gameId ? this.#registry.getGame(room.gameId) : null;
     const humanCount = room.players.length;
     const botCount = room.gameSettings.botCount;
     const totalPlayers = humanCount + botCount;
-    const everyoneReady = humanCount > 0 && room.players.every((player) => player.ready);
+    const everyoneReady = humanCount > 0 && room.players.every((player) => player.ready && player.connected);
     const enoughPlayers = game ? totalPlayers >= game.players.min : false;
 
     return {
@@ -218,17 +264,18 @@ export class RoomStore {
       })),
       capacity: this.#capacity(room),
       version: room.version,
-      canStart: Boolean(game && game.status === "available" && enoughPlayers && everyoneReady),
+      canStart: Boolean(room.phase === "configuring" && game && game.status === "available" && enoughPlayers && everyoneReady),
       startBlocker: this.#startBlocker(game, enoughPlayers, everyoneReady)
     };
   }
 
-  cleanupExpired() {
+  cleanupExpired(onRemove = null) {
     const cutoff = this.#now() - this.#ttlMs;
     let removed = 0;
     for (const [code, room] of this.#rooms) {
       if (room.lastActivityAt < cutoff) {
         this.#rooms.delete(code);
+        onRemove?.(code);
         removed += 1;
       }
     }
@@ -292,4 +339,39 @@ export class RoomStore {
     if (!everyoneReady) return "Every human player must be ready.";
     return null;
   }
+}
+
+function hydrateRoom(snapshot, now) {
+  if (!snapshot || typeof snapshot !== "object") return null;
+  const code = normalizeCode(snapshot.code);
+  if (!code || !Array.isArray(snapshot.players) || snapshot.players.length === 0) return null;
+  const players = snapshot.players.flatMap((player) => {
+    try {
+      const tokenHash = Buffer.from(String(player.tokenHash || ""), "base64");
+      if (tokenHash.length !== 32) return [];
+      return [{
+        id: String(player.id),
+        name: normalizeName(player.name),
+        seat: Number(player.seat),
+        role: player.role === "host" ? "host" : "guest",
+        ready: Boolean(player.ready),
+        connected: false,
+        joinedAt: Number(player.joinedAt) || now,
+        tokenHash
+      }];
+    } catch {
+      return [];
+    }
+  });
+  if (!players.length || !players.some((player) => player.role === "host")) return null;
+  return {
+    code,
+    phase: snapshot.phase === "playing" ? "playing" : "configuring",
+    gameId: typeof snapshot.gameId === "string" ? snapshot.gameId : null,
+    gameSettings: { botCount: Math.max(0, Number(snapshot.gameSettings?.botCount) || 0) },
+    players,
+    createdAt: Number(snapshot.createdAt) || now,
+    lastActivityAt: Number(snapshot.lastActivityAt) || now,
+    version: Number(snapshot.version) || 0
+  };
 }

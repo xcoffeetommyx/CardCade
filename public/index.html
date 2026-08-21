@@ -7,7 +7,7 @@
     <meta name="description" content="Cardcade brings physical-feeling card games into one shared arcade.">
     <link rel="manifest" href="/manifest.webmanifest">
     <link rel="icon" href="/icon.svg" type="image/svg+xml">
-    <link rel="stylesheet" href="/app.css">
+    <link rel="stylesheet" href="/app.css?v=3">
     <title>Cardcade</title>
   </head>
   <body>
@@ -24,6 +24,39 @@
       <footer><span>Cardcade platform preview</span><span>One room · many games</span></footer>
     </div>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script type="module" src="/app.js"></script>
+    <svg aria-hidden="true" focusable="false" class="card-art-defs">
+      <defs>
+        <g id="card-face-jack">
+          <path fill="currentColor" d="M18 140 C18 112 30 99 50 99 C70 99 82 112 82 140 Z"/>
+          <path fill="none" stroke="#f5eedf" stroke-width="3" opacity=".45" d="M37 103 L50 118 L63 103"/>
+          <circle fill="currentColor" cx="50" cy="72" r="20"/>
+          <path fill="currentColor" d="M28 62 C28 42 40 32 50 32 C60 32 72 42 72 62 C62 53 38 53 28 62 Z"/>
+          <path fill="currentColor" d="M68 42 C76 37 82 29 85 20 C77 23 70 30 65 38 Z"/>
+          <circle fill="#f5eedf" opacity=".5" cx="50" cy="47" r="2.6"/>
+        </g>
+        <g id="card-face-queen">
+          <path fill="currentColor" d="M14 140 C14 110 30 97 50 97 C70 97 86 110 86 140 Z"/>
+          <path fill="currentColor" opacity=".5" d="M25 70 C18 97 22 113 31 121 C25 101 27 84 31 74 Z"/>
+          <path fill="currentColor" opacity=".5" d="M75 70 C82 97 78 113 69 121 C75 101 73 84 69 74 Z"/>
+          <circle fill="currentColor" cx="50" cy="70" r="20"/>
+          <path fill="currentColor" d="M28 52 L28 33 L38 42 L44 25 L50 38 L56 25 L62 42 L72 33 L72 52 Z"/>
+          <circle fill="#f5eedf" opacity=".55" cx="50" cy="45" r="3"/>
+          <path fill="none" stroke="#f5eedf" stroke-width="2.6" opacity=".4" d="M40 110 L50 121 L60 110"/>
+        </g>
+        <g id="card-face-king">
+          <path fill="currentColor" d="M12 140 C12 108 30 95 50 95 C70 95 88 108 88 140 Z"/>
+          <path fill="currentColor" d="M33 73 C33 95 40 105 50 105 C60 105 67 95 67 73 Z"/>
+          <circle fill="currentColor" cx="50" cy="65" r="20"/>
+          <rect fill="currentColor" x="26" y="39" width="48" height="9" rx="2"/>
+          <path fill="currentColor" d="M26 39 L32 22 L40 37 L50 18 L60 37 L68 22 L74 39 Z"/>
+          <circle fill="#f5eedf" opacity=".5" cx="50" cy="44" r="3"/>
+          <path fill="none" stroke="#f5eedf" stroke-width="2.6" opacity=".4" d="M39 112 L50 124 L61 112"/>
+        </g>
+      </defs>
+    </svg>
+    <script src="/shared/three-seven-rules.js?v=3"></script>
+    <script src="/shared/card-presentation.js?v=3"></script>
+    <script src="/shared/standard-52.js?v=3"></script>
+    <script type="module" src="/app.js?v=3"></script>
   </body>
 </html>

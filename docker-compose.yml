@@ -5,6 +5,7 @@ services:
     environment:
       HOST: 0.0.0.0
       PORT: 4380
+      DB_FILE: /app/data/cardcade.sqlite3
     ports:
       - "127.0.0.1:${CARDCADE_PORT:-4380}:4380"
     healthcheck:
@@ -13,3 +14,8 @@ services:
       timeout: 5s
       retries: 3
       start_period: 5s
+    volumes:
+      - cardcade-data:/app/data
+
+volumes:
+  cardcade-data:
