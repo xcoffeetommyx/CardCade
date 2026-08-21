@@ -21,7 +21,10 @@ const state = {
   gameView: null,
   gameMode: null,
   gameSort: "rank",
-  selectedCards: new Set()
+  selectedCards: new Set(),
+  gameActionLock: false,
+  dealtHandOwners: new Set(),
+  lastPileSignature: null
 };
 
 const threeSevenRules = globalThis.ThreeSevenRules;
@@ -319,17 +322,29 @@ function threeSevenCardLabel(cardId) {
   return standard52.cardLabel(cardId);
 }
 
-function renderPlayingCard(card, index, { played = false } = {}) {
+function renderPlayingCard(card, index, { played = false, enter = false, selectable = false, dealt = false } = {}) {
   const suit = standard52.SUIT_SYMBOL[card.suit];
   const red = card.suit === "H" || card.suit === "D";
-  const selected = state.selectedCards.has(card.id);
+  const selected = !played && state.selectedCards.has(card.id);
   const faceId = { J: "card-face-jack", Q: "card-face-queen", K: "card-face-king" }[card.rank];
   const center = faceId
     ? `<span class="card-center court"><svg viewBox="0 0 100 140" aria-hidden="true"><use href="#${faceId}"></use></svg></span>`
     : `<span class="card-center">${suit}</span>`;
+  const classes = [
+    "playing-card",
+    red ? "red" : "black",
+    selected ? "selected" : "",
+    played ? "played" : "",
+    played && enter ? "enter" : "",
+    selectable && !played ? "selectable" : "",
+    dealt && !played ? "dealt" : ""
+  ].filter(Boolean).join(" ");
+  const delay = (played && enter) || dealt
+    ? `style="animation-delay:${Math.min(index, dealt ? 12 : 5) * (dealt ? 24 : 35)}ms"`
+    : "";
   return `
-    <button class="playing-card ${red ? "red" : "black"} ${selected ? "selected" : ""} ${played ? "played" : ""}"
-      type="button" ${played ? "disabled" : ""} data-game-card="${escapeHtml(card.id)}" data-card-index="${index}"
+    <button class="${classes}" type="button" ${played ? "disabled" : ""} ${delay}
+      ${played ? "" : `data-game-card="${escapeHtml(card.id)}" data-card-index="${index}" tabindex="${selectable ? "0" : "-1"}"`}
       aria-label="${escapeHtml(standard52.cardLong(card))}" aria-pressed="${selected}">
       <span class="card-corner"><strong>${escapeHtml(card.rank)}</strong><i>${suit}</i></span>
       ${center}
@@ -351,8 +366,14 @@ function renderThreeSevenGame() {
   const activePlayer = match.players.find((player) => player.seat === match.activeSeat);
   const orderedSuits = match.suitOrder.map((suit, index) => `<span class="suit-rank ${index === match.suitOrder.length - 1 ? "high" : ""}"><b>${index + 1}</b>${standard52.SUIT_SYMBOL[suit]}</span>`).join("<i>›</i>");
   const lead = match.currentLead;
-  const canPass = isYourTurn && Boolean(lead) && state.selectedCards.size === 0;
+  const canPass = isYourTurn && Boolean(lead) && state.selectedCards.size === 0 && !state.gameActionLock;
   const isHost = viewer?.role === "host";
+  const pileSignature = lead ? lead.cards.map((card) => card.id).sort().join(",") : "";
+  const pileIsNew = Boolean(lead) && pileSignature !== state.lastPileSignature;
+  state.lastPileSignature = pileSignature;
+  const handOwner = `${state.room?.code || "table"}:${viewerSeat || "viewer"}:round-${match.round}`;
+  const isDealing = !state.dealtHandOwners.has(handOwner);
+  state.dealtHandOwners.add(handOwner);
 
   return `
     <section class="three-seven-game">
@@ -372,17 +393,17 @@ function renderThreeSevenGame() {
       </div>
       <section class="game-table">
         <div class="game-status"><span><strong>${match.roundOver ? "Round complete" : isYourTurn ? `${escapeHtml(yourPlayer?.name || "You")}, your turn` : `${escapeHtml(activePlayer?.name || "Player")} is thinking`}</strong><small>Stock ${match.drawCount} · ${lead ? `${escapeHtml(lead.playerName)} controls the pile` : "open lead"}</small></span><span class="badge">${lead ? escapeHtml(lead.label) : "Open lead"}</span></div>
-        <div class="active-pile">${lead ? lead.cards.map((card, index) => renderPlayingCard(card, index, { played: true })).join("") : `<div class="empty-pile"><strong>No active pile</strong><span>${match.openingRequired ? `Lead must include ${threeSevenCardLabel(match.openingCardId)}.` : "Lead with any legal combination."}</span></div>`}</div>
+        <div class="active-pile">${lead ? lead.cards.map((card, index) => renderPlayingCard(card, index, { played: true, enter: pileIsNew })).join("") : `<div class="empty-pile"><strong>No active pile</strong><span>${match.openingRequired ? `Lead must include ${threeSevenCardLabel(match.openingCardId)}.` : "Lead with any legal combination."}</span></div>`}</div>
       </section>
       <section class="physical-hand ${isYourTurn ? "your-turn" : ""}">
         <div class="hand-heading"><span><strong>Your hand</strong><small>${view.hand.length} cards · ${escapeHtml(state.gameSort)} sort</small></span><span class="selection-status ${evaluation.ok ? "valid" : state.selectedCards.size ? "invalid" : ""}">${escapeHtml(evaluation.reason)}</span></div>
-        <div class="game-hand" aria-label="Your fanned hand">${sortedHand.map((card, index) => renderPlayingCard(card, index)).join("")}</div>
+        <div class="game-hand" data-hand-owner="${escapeHtml(handOwner)}" aria-label="Your fanned hand">${sortedHand.map((card, index) => renderPlayingCard(card, index, { selectable: isYourTurn && !state.gameActionLock, dealt: isDealing })).join("")}</div>
       </section>
       <nav class="game-actions">
-        <button type="button" data-action="game-hint" ${isYourTurn ? "" : "disabled"}>Hint</button>
-        <button type="button" data-action="game-sort">Sort</button>
+        <button type="button" data-action="game-hint" ${isYourTurn && !state.gameActionLock ? "" : "disabled"}>Hint</button>
+        <button type="button" data-action="game-sort" ${state.gameActionLock ? "disabled" : ""}>Sort</button>
         <button type="button" data-action="game-pass" ${canPass ? "" : "disabled"}>Pass + Draw</button>
-        <button class="primary" type="button" data-action="game-play" ${isYourTurn && evaluation.ok ? "" : "disabled"}>▶ Play</button>
+        <button class="primary" type="button" data-action="game-play" ${isYourTurn && evaluation.ok && !state.gameActionLock ? "" : "disabled"}>▶ Play</button>
       </nav>
       ${match.roundOver ? `
         <div class="round-result">
@@ -411,6 +432,7 @@ function renderSettings() {
 }
 
 function render() {
+  const previousHand = captureThreeSevenHandSnapshot();
   const screens = {
     home: renderHome,
     library: renderLibrary,
@@ -422,7 +444,57 @@ function render() {
   };
   document.body.classList.toggle("playing-game", state.screen === "game");
   app.innerHTML = (screens[state.screen] || renderHome)();
-  if (state.screen === "game") requestAnimationFrame(layoutThreeSevenHand);
+  if (state.screen === "game") {
+    layoutThreeSevenHand();
+    animateThreeSevenHandReflow(previousHand);
+  }
+}
+
+function captureThreeSevenHandSnapshot() {
+  const hand = app.querySelector(".game-hand");
+  if (!hand) return null;
+  const cards = [...hand.querySelectorAll("[data-game-card]")];
+  return {
+    owner: hand.dataset.handOwner || "",
+    signature: cards.map((card) => [
+      card.dataset.gameCard,
+      card.classList.contains("selected") ? "selected" : ""
+    ].join(":")).join("|"),
+    cards: new Map(cards.map((card) => [card.dataset.gameCard, card.getBoundingClientRect()]))
+  };
+}
+
+function animateThreeSevenHandReflow(previousHand) {
+  const hand = app.querySelector(".game-hand");
+  if (!hand || !previousHand || previousHand.owner !== (hand.dataset.handOwner || "")) return;
+  const cards = [...hand.querySelectorAll("[data-game-card]")];
+  const currentSignature = cards.map((card) => [
+    card.dataset.gameCard,
+    card.classList.contains("selected") ? "selected" : ""
+  ].join(":")).join("|");
+
+  // This is the continuity guard from ThreeSeven: opponent/server updates
+  // may move the surrounding table, but an unchanged hand must stay still.
+  if (currentSignature === previousHand.signature) return;
+
+  const reduceMotion = localStorage.getItem(storageKeys.reducedMotion) === "true"
+    || matchMedia("(prefers-reduced-motion: reduce)").matches;
+  for (const card of cards) {
+    const previousRect = previousHand.cards.get(card.dataset.gameCard);
+    if (!previousRect) {
+      if (!card.classList.contains("dealt")) card.classList.add("drawn");
+      continue;
+    }
+    if (reduceMotion || typeof card.animate !== "function") continue;
+    const nextRect = card.getBoundingClientRect();
+    const deltaX = previousRect.left - nextRect.left;
+    const deltaY = previousRect.top - nextRect.top;
+    if (Math.abs(deltaX) < 0.5 && Math.abs(deltaY) < 0.5) continue;
+    card.animate(
+      [{ translate: `${deltaX}px ${deltaY}px` }, { translate: "0 0" }],
+      { duration: 300, easing: "cubic-bezier(.2,.82,.2,1)" }
+    );
+  }
 }
 
 function layoutThreeSevenHand() {
@@ -431,31 +503,46 @@ function layoutThreeSevenHand() {
   const cards = [...hand.querySelectorAll("[data-game-card]")];
   if (!cards.length) return;
   const containerWidth = hand.clientWidth;
-  const cardWidth = Math.min(132, Math.max(96, containerWidth * 0.29));
-  const cardHeight = cardWidth * 1.42;
+  const cardWidth = cards[0].offsetWidth;
+  const cardHeight = cards[0].offsetHeight || cardWidth * 1.42;
+  if (!containerWidth || !cardWidth) return;
+  const compactLandscape = innerWidth > innerHeight && innerHeight <= 640;
   const layout = cardPresentation.calculateFanLayout({
     count: cards.length,
     containerWidth,
     cardWidth,
     cardHeight,
-    sidePadding: 3,
-    minimumVisibleIndex: 22,
-    maximumRotation: 10,
-    curveRatio: 0.1,
-    selectedLiftRatio: 0.31
+    sidePadding: 8,
+    minimumVisibleIndex: Math.max(16, cardWidth * 0.2),
+    maximumRotation: compactLandscape ? 8 : 11,
+    curveRatio: compactLandscape ? 0.06 : 0.12,
+    focusLiftRatio: compactLandscape ? 0.22 : 0.48,
+    selectedLiftRatio: compactLandscape ? 0.14 : 0.28
   });
   hand.style.height = `${layout.rowHeight}px`;
   hand.dataset.density = layout.density;
+  hand.style.setProperty("--fan-selected-lift", `${layout.selectedLift}px`);
+  hand.style.setProperty("--fan-hover-lift", `${Math.max(12, Math.round(cardHeight * 0.13))}px`);
   cards.forEach((card, index) => {
     const position = layout.cards[index];
-    const raised = state.selectedCards.has(card.dataset.gameCard);
-    card.style.width = `${cardWidth}px`;
-    card.style.height = `${cardHeight}px`;
-    card.style.zIndex = String(raised ? 100 + index : position.zIndex);
-    card.style.transform = `translate(calc(-50% + ${position.x}px), ${position.y - (raised ? layout.selectedLift : 0)}px) rotate(${position.rotation}deg)`;
+    card.style.setProperty("--fan-x", `${position.x}px`);
+    card.style.setProperty("--fan-y", `${layout.focusLift + position.y}px`);
+    card.style.setProperty("--fan-rotation", `${position.rotation}deg`);
+    card.style.zIndex = String(position.zIndex);
+    card.dataset.fanIndex = String(index);
   });
 
+  // Settle a replacement row without transitions. Subsequent selection and
+  // sort changes are animated by the FLIP pass above, exactly as ThreeSeven.
+  if (!hand.classList.contains("fan-ready")) {
+    void hand.offsetWidth;
+    hand.classList.add("fan-ready");
+  }
+
   hand.onclick = (event) => {
+    const match = state.gameView?.state;
+    const viewer = state.room?.players.find((player) => player.isYou);
+    if (state.gameActionLock || !match || match.roundOver || match.activeSeat !== viewer?.seat) return;
     const rects = cards.map((card) => card.getBoundingClientRect());
     const raised = cards.flatMap((card, index) => state.selectedCards.has(card.dataset.gameCard) ? [index] : []);
     const index = cardPresentation.fanIndexAtPoint(rects, event.clientX, event.clientY, raised);
@@ -468,10 +555,69 @@ function layoutThreeSevenHand() {
 function toggleThreeSevenCard(cardId) {
   const match = state.gameView?.state;
   const viewer = state.room?.players.find((player) => player.isYou);
-  if (!match || match.roundOver || match.activeSeat !== viewer?.seat) return;
+  if (state.gameActionLock || !match || match.roundOver || match.activeSeat !== viewer?.seat) return;
   if (state.selectedCards.has(cardId)) state.selectedCards.delete(cardId);
   else state.selectedCards.add(cardId);
   render();
+}
+
+function animateThreeSevenHandExit(cardIds, onComplete) {
+  const nodes = cardIds
+    .map((id) => app.querySelector(`[data-game-card="${CSS.escape(id)}"]`))
+    .filter(Boolean);
+  if (!nodes.length) { onComplete(); return; }
+
+  app.querySelectorAll('[data-action="game-play"], [data-action="game-pass"]')
+    .forEach((button) => { button.disabled = true; });
+  const reduceMotion = localStorage.getItem(storageKeys.reducedMotion) === "true"
+    || matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const pile = app.querySelector(".active-pile");
+  const pileRect = pile?.getBoundingClientRect();
+  if (reduceMotion || !pileRect || typeof nodes[0].animate !== "function") {
+    nodes.forEach((node) => node.classList.add("card-exit"));
+    setTimeout(onComplete, 170);
+    return;
+  }
+
+  nodes.forEach((node, index) => {
+    const rect = node.getBoundingClientRect();
+    const width = node.offsetWidth || rect.width;
+    const height = node.offsetHeight || rect.height;
+    const startLeft = rect.left + (rect.width - width) / 2;
+    const startTop = rect.top + (rect.height - height) / 2;
+    const targetLeft = pileRect.left + pileRect.width / 2 - width / 2
+      + (index - (nodes.length - 1) / 2) * Math.min(30, width * 0.28);
+    const targetTop = pileRect.top + pileRect.height / 2 - height / 2;
+    const startRotation = parseFloat(node.style.getPropertyValue("--fan-rotation")) || 0;
+    const endRotation = (index - (nodes.length - 1) / 2) * 5;
+    const clone = node.cloneNode(true);
+    clone.className = `${clone.className.replace(/\b(selected|dealt|drawn|selectable)\b/g, "").replace(/\s+/g, " ").trim()} card-flight`;
+    clone.removeAttribute("data-game-card");
+    clone.removeAttribute("data-card-index");
+    clone.removeAttribute("aria-pressed");
+    clone.style.width = `${width}px`;
+    clone.style.height = `${height}px`;
+    document.body.appendChild(clone);
+    node.classList.add("card-departing");
+
+    const flight = clone.animate([
+      { transform: `translate3d(${startLeft}px, ${startTop}px, 0) rotate(${startRotation}deg) scale(1)`, opacity: 1 },
+      { offset: 0.72, transform: `translate3d(${targetLeft}px, ${targetTop - 18}px, 0) rotate(${endRotation}deg) scale(.82)`, opacity: 1 },
+      { transform: `translate3d(${targetLeft}px, ${targetTop}px, 0) rotate(${endRotation}deg) scale(.7)`, opacity: 0.08 }
+    ], {
+      duration: 430,
+      delay: index * 34,
+      easing: "cubic-bezier(.2,.78,.22,1)",
+      fill: "forwards"
+    });
+    if (flight.finished && typeof flight.finished.finally === "function") {
+      flight.finished.catch(() => {}).finally(() => clone.remove());
+    } else {
+      setTimeout(() => clone.remove(), 500 + index * 34);
+    }
+  });
+
+  setTimeout(onComplete, 430 + Math.max(0, nodes.length - 1) * 34);
 }
 
 function navigate(screen) {
@@ -484,9 +630,10 @@ function navigate(screen) {
 function sendRoom(message) {
   if (!state.socket || state.socket.readyState !== WebSocket.OPEN) {
     showToast("The room is reconnecting. Try again in a moment.");
-    return;
+    return false;
   }
   state.socket.send(JSON.stringify(message));
+  return true;
 }
 
 function connectRoom(session) {
@@ -507,14 +654,23 @@ function connectRoom(session) {
       state.room = message.room;
       if (state.screen === "room") render();
     } else if (message.type === "game_state" && message.gameId === "three-seven") {
+      const previousRound = state.gameView?.state?.round;
+      const incomingRound = message.view?.state?.round;
+      if (previousRound !== incomingRound) {
+        state.dealtHandOwners = new Set();
+        state.lastPileSignature = null;
+      }
       state.room = message.room;
       state.gameView = message.view;
+      state.gameActionLock = false;
       const handIds = new Set(message.view.hand.map((card) => card.id));
       state.selectedCards = new Set([...state.selectedCards].filter((cardId) => handIds.has(cardId)));
       state.screen = "game";
       render();
     } else if (message.type === "error") {
+      state.gameActionLock = false;
       showToast(message.error?.message || "The room rejected that action.");
+      if (state.screen === "game") render();
     }
   });
   socket.addEventListener("close", () => {
@@ -537,6 +693,9 @@ function enterGameSession(session, mode) {
   state.gameView = session.game?.view || null;
   state.gameMode = mode;
   state.selectedCards = new Set();
+  state.gameActionLock = false;
+  state.dealtHandOwners = new Set();
+  state.lastPileSignature = null;
   localStorage.setItem(storageKeys.room, JSON.stringify(state.session));
   connectRoom(state.session);
   navigate("game");
@@ -610,11 +769,13 @@ document.addEventListener("click", async (event) => {
     navigate("multiplayer");
   }
   if (action === "game-sort") {
-    const modes = ["rank", "suit", "combo"];
+    if (state.gameActionLock) return;
+    const modes = ["rank", "combo", "suit"];
     state.gameSort = modes[(modes.indexOf(state.gameSort) + 1) % modes.length];
     render();
   }
   if (action === "game-hint") {
+    if (state.gameActionLock) return;
     const match = state.gameView.state;
     const moves = threeSevenRules.getLegalMoves(
       state.gameView.hand,
@@ -625,18 +786,32 @@ document.addEventListener("click", async (event) => {
     if (!moves.length) showToast("No legal play. Pass and draw.");
     else {
       const hintPlayer = { hand: state.gameView.hand, style: "human" };
-      const move = moves.slice().sort((left, right) => left.count - right.count || threeSevenRules.moveCost(left, hintPlayer) - threeSevenRules.moveCost(right, hintPlayer))[0];
+      const move = moves.slice().sort((left, right) => threeSevenRules.moveCost(left, hintPlayer) - threeSevenRules.moveCost(right, hintPlayer))[0];
       state.selectedCards = new Set(move.cards.map((card) => card.id));
       render();
     }
   }
   if (action === "game-play") {
+    if (state.gameActionLock) return;
     const cardIds = [...state.selectedCards];
-    state.selectedCards.clear();
-    sendRoom({ type: "play", cardIds });
-    render();
+    if (!cardIds.length || !threeSevenSelection().ok) return;
+    state.gameActionLock = true;
+    animateThreeSevenHandExit(cardIds, () => {
+      state.selectedCards.clear();
+      if (!sendRoom({ type: "play", cardIds })) {
+        state.gameActionLock = false;
+        render();
+      }
+    });
   }
-  if (action === "game-pass") sendRoom({ type: "pass" });
+  if (action === "game-pass") {
+    if (state.gameActionLock) return;
+    state.gameActionLock = true;
+    if (!sendRoom({ type: "pass" })) {
+      state.gameActionLock = false;
+      render();
+    }
+  }
   if (action === "next-round") { state.selectedCards.clear(); sendRoom({ type: "next_round" }); }
   if (action === "mercy-take-win") sendRoom({ type: "mercy_choice", accept: false });
   if (action === "mercy-double") sendRoom({ type: "mercy_choice", accept: true });
@@ -650,6 +825,9 @@ document.addEventListener("click", async (event) => {
     state.room = null;
     state.gameView = null;
     state.selectedCards = new Set();
+    state.gameActionLock = false;
+    state.dealtHandOwners = new Set();
+    state.lastPileSignature = null;
     navigate(destination);
   }
 });
