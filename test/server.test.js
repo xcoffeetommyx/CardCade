@@ -71,10 +71,15 @@ test("health, catalog, and launcher are served from one process", async (t) => {
   const launcherBody = await launcher.text();
   assert.match(launcherBody, /<title>Cardcade<\/title>/);
   assert.match(launcherBody, /shared\/thirteen-rules\.js/);
+  assert.match(launcherBody, /shared\/hot-seat-flow\.js/);
 
   const thirteenRules = await fetch(`${origin}/shared/thirteen-rules.js`);
   assert.equal(thirteenRules.status, 200);
   assert.match(await thirteenRules.text(), /ThirteenRules/);
+
+  const hotSeatFlow = await fetch(`${origin}/shared/hot-seat-flow.js`);
+  assert.equal(hotSeatFlow.status, 200);
+  assert.match(await hotSeatFlow.text(), /CardcadeHotSeat/);
 });
 
 test("HTTP room creation and joining return private sessions", async (t) => {

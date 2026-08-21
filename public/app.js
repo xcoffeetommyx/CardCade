@@ -14,6 +14,11 @@ const state = {
   multiplayerTab: "host",
   selectedGameId: null,
   localBots: 3,
+  hotSeatPlayerCount: 2,
+  hotSeatNames: [],
+  hotSeatSeats: [],
+  hotSeatPendingPlayerId: null,
+  hotSeatForceHandoff: false,
   session: null,
   room: null,
   socket: null,
@@ -31,6 +36,7 @@ const threeSevenRules = globalThis.ThreeSevenRules;
 const thirteenRules = globalThis.ThirteenRules;
 const cardPresentation = globalThis.CardcadePresentation;
 const standard52 = globalThis.CardcadeStandard52;
+const hotSeatFlow = globalThis.CardcadeHotSeat;
 
 const standardGameAdapters = {
   "three-seven": {
@@ -177,9 +183,27 @@ function selectedGame() {
   return null;
 }
 
+function ensureHotSeatSetup(game) {
+  const count = Math.max(game.players.min, Math.min(state.hotSeatPlayerCount, game.players.max));
+  state.hotSeatPlayerCount = count;
+  while (state.hotSeatNames.length < count) {
+    const index = state.hotSeatNames.length;
+    state.hotSeatNames.push(index === 0 ? playerName() : `Player ${index + 1}`);
+  }
+  state.hotSeatNames = state.hotSeatNames.slice(0, count);
+}
+
+function captureHotSeatNames() {
+  const inputs = [...document.querySelectorAll("[data-hot-seat-name]")];
+  if (!inputs.length) return;
+  state.hotSeatNames = inputs.map((input, index) => String(input.value || `Player ${index + 1}`).trim());
+}
+
 function renderLocalLobby() {
   const game = selectedGame();
   if (!game) return renderLibrary();
+  const isHotSeat = state.mode === "hot-seat";
+  if (isHotSeat) ensureHotSeatSetup(game);
   const maxBots = Math.max(0, game.players.max - 1);
   const minBots = Math.max(0, game.players.min - 1);
   state.localBots = Math.max(minBots, Math.min(state.localBots, maxBots));
@@ -191,24 +215,35 @@ function renderLocalLobby() {
         <div><span class="family-kicker">${escapeHtml(game.eyebrow)}</span><h3>${escapeHtml(game.name)}</h3></div>
         <span class="badge">${escapeHtml(statusLabel(game.status))}</span>
       </div>
-      <div class="field">
-        <label for="local-name">Your name</label>
-        <input id="local-name" maxlength="24" value="${escapeHtml(playerName())}" autocomplete="nickname">
-      </div>
       ${state.mode === "solo" ? `
+        <div class="field">
+          <label for="local-name">Your name</label>
+          <input id="local-name" maxlength="24" value="${escapeHtml(playerName())}" autocomplete="nickname">
+        </div>
         <label><strong>CPU players</strong></label>
         <div class="stepper">
           <button type="button" data-action="local-bot-down" aria-label="Remove CPU player" ${state.localBots <= minBots ? "disabled" : ""}>−</button>
           <output>${state.localBots} CPU${state.localBots === 1 ? "" : "s"}</output>
           <button type="button" data-action="local-bot-up" aria-label="Add CPU player" ${state.localBots >= maxBots ? "disabled" : ""}>+</button>
-        </div>` : `
-        <div class="callout">Hot Seat seat naming and pass-the-device privacy will be connected when this game's rules module is migrated.</div>`}
-      <div class="callout coral">${game.status === "available" && state.mode === "solo"
-        ? `${escapeHtml(game.name)} is ready. Cardcade will create a private local table and fill the open seats with CPUs.`
-        : `${escapeHtml(game.name)} support for this mode is a later migration step.`}</div>
+        </div>
+        <div class="callout coral">${escapeHtml(game.name)} is ready. Cardcade will create a private local table and fill the open seats with CPUs.</div>` : `
+        <label><strong>Human players</strong></label>
+        <div class="stepper">
+          <button type="button" data-action="hot-seat-player-down" aria-label="Remove Hot Seat player" ${state.hotSeatPlayerCount <= game.players.min ? "disabled" : ""}>−</button>
+          <output>${state.hotSeatPlayerCount} players</output>
+          <button type="button" data-action="hot-seat-player-up" aria-label="Add Hot Seat player" ${state.hotSeatPlayerCount >= game.players.max ? "disabled" : ""}>+</button>
+        </div>
+        <div class="hot-seat-names">
+          ${state.hotSeatNames.map((name, index) => `
+            <div class="field">
+              <label for="hot-seat-name-${index}">Seat ${index + 1}${index === 0 ? " · table host" : ""}</label>
+              <input id="hot-seat-name-${index}" data-hot-seat-name maxlength="24" value="${escapeHtml(name)}" autocomplete="off" required>
+            </div>`).join("")}
+        </div>
+        <div class="callout coral">Cardcade hides every hand between turns. Pass the device, then let only the named player reveal their cards.</div>`}
       <div class="button-row" style="margin-top: 1rem">
         <button class="action-button" type="button" data-action="back-to-library">Choose another game</button>
-        <button class="action-button primary" type="button" data-action="${game.status === "available" && state.mode === "solo" ? "start-local-game" : "not-playable-yet"}" ${game.status === "available" && state.mode === "solo" ? "" : "disabled"}>Start game</button>
+        <button class="action-button primary" type="button" data-action="${game.status === "available" ? (isHotSeat ? "start-hot-seat" : "start-local-game") : "not-playable-yet"}" ${game.status === "available" ? "" : "disabled"}>Start game</button>
       </div>
     </div>`;
 }
@@ -440,7 +475,7 @@ function renderStandardGame() {
     <section class="standard-card-game" data-game-id="${escapeHtml(game.gameId)}">
       <header class="game-topbar">
         <button class="back-button" type="button" data-action="leave-game" aria-label="Leave game">←</button>
-        <div><span class="family-kicker">${state.gameMode === "solo" ? "Solo table" : `Room ${escapeHtml(state.room.code)}`}</span><h2>${escapeHtml(title)}</h2><p>${roundLabel} · ${escapeHtml(match.lastMoveText)}</p></div>
+        <div><span class="family-kicker">${state.gameMode === "solo" ? "Solo table" : state.gameMode === "hot-seat" ? "Hot Seat table" : `Room ${escapeHtml(state.room.code)}`}</span><h2>${escapeHtml(title)}</h2><p>${roundLabel} · ${escapeHtml(match.lastMoveText)}</p></div>
         <button class="game-score" type="button" disabled><span>Score</span><strong>${yourPlayer?.score ?? 0}</strong></button>
       </header>
       ${gameLadder(game.gameId, match)}
@@ -476,6 +511,40 @@ function renderStandardGame() {
     </section>`;
 }
 
+function renderHotSeatHandoff() {
+  const nextSeat = state.hotSeatSeats.find((seat) => seat.playerId === state.hotSeatPendingPlayerId);
+  const match = state.gameView?.state;
+  const gameName = state.room?.game?.name || "Cardcade";
+  const round = match?.round ? `Round ${match.round}` : "Private table";
+
+  if (!nextSeat) {
+    return `
+      <section class="hot-seat-handoff">
+        <div class="handoff-panel">
+          <span class="family-kicker">Hot Seat · ${escapeHtml(gameName)}</span>
+          <h1>Private seat unavailable.</h1>
+          <p>Return to Cardcade and start a new shared-device table.</p>
+          <button class="action-button primary" type="button" data-action="close-hot-seat">Return to Cardcade</button>
+        </div>
+      </section>`;
+  }
+
+  return `
+    <section class="hot-seat-handoff">
+      <div class="handoff-panel">
+        <span class="family-kicker">Hot Seat · ${escapeHtml(gameName)} · ${escapeHtml(round)}</span>
+        <div class="handoff-card-back" aria-hidden="true"><span>CC</span></div>
+        <p class="handoff-instruction">Pass the device to</p>
+        <h1>${escapeHtml(nextSeat.name)}</h1>
+        <p class="handoff-privacy">Everyone else: look away. The previous hand has been hidden and only ${escapeHtml(nextSeat.name)}'s private seat will reconnect.</p>
+        <div class="button-row handoff-actions">
+          <button class="action-button" type="button" data-action="close-hot-seat">End table</button>
+          <button class="action-button primary" type="button" data-action="reveal-hot-seat">Reveal ${escapeHtml(nextSeat.name)}'s hand</button>
+        </div>
+      </div>
+    </section>`;
+}
+
 function renderSettings() {
   const reducedMotion = localStorage.getItem(storageKeys.reducedMotion) === "true";
   return `
@@ -501,9 +570,10 @@ function render() {
     multiplayer: renderMultiplayer,
     room: renderRoom,
     game: renderStandardGame,
+    "hot-seat-handoff": renderHotSeatHandoff,
     settings: renderSettings
   };
-  document.body.classList.toggle("playing-game", state.screen === "game");
+  document.body.classList.toggle("playing-game", ["game", "hot-seat-handoff"].includes(state.screen));
   app.innerHTML = (screens[state.screen] || renderHome)();
   if (state.screen === "game") {
     layoutStandardHand();
@@ -690,6 +760,120 @@ function navigate(screen) {
   app.focus({ preventScroll: true });
 }
 
+function hotSeatSessionForSeat(seatNumber) {
+  return state.hotSeatSeats.find((seat) => Number(seat.seat) === Number(seatNumber)) || null;
+}
+
+function saveHotSeatSession() {
+  if (state.gameMode !== "hot-seat" || !state.room?.code || !state.hotSeatSeats.length) return;
+  const fallback = state.hotSeatSeats.find((seat) => seat.role === "host") || state.hotSeatSeats[0];
+  const active = state.session?.token ? state.session : fallback;
+  localStorage.setItem(storageKeys.room, JSON.stringify({
+    code: state.room.code,
+    token: active.token,
+    playerId: active.playerId,
+    mode: "hot-seat",
+    hotSeatSeats: state.hotSeatSeats,
+    hotSeatPendingPlayerId: state.hotSeatPendingPlayerId
+  }));
+}
+
+function disconnectRoomSocket() {
+  const socket = state.socket;
+  if (!socket) return;
+  socket.cardcadeIntentionalClose = true;
+  state.socketIntentionalClose = true;
+  state.socket = null;
+  socket.close();
+}
+
+function hiddenPrivateView(view) {
+  return view ? { ...view, hand: [] } : null;
+}
+
+function queueHotSeatHandoff(seatNumber, { room = state.room, view = state.gameView } = {}) {
+  const nextSeat = hotSeatSessionForSeat(seatNumber);
+  if (!nextSeat) return false;
+  disconnectRoomSocket();
+  state.room = room;
+  state.gameView = hiddenPrivateView(view);
+  state.hotSeatPendingPlayerId = nextSeat.playerId;
+  state.selectedCards = new Set();
+  state.gameActionLock = false;
+  state.dealtHandOwners = new Set();
+  state.lastPileSignature = null;
+  saveHotSeatSession();
+  navigate("hot-seat-handoff");
+  return true;
+}
+
+function beginHotSeatSession(session) {
+  state.gameMode = "hot-seat";
+  state.hotSeatSeats = session.hotSeat?.seats || [];
+  state.session = { code: session.code, token: session.token, playerId: session.playerId, mode: "hot-seat" };
+  state.room = session.room;
+  state.gameView = hiddenPrivateView(session.game?.view);
+  state.hotSeatForceHandoff = false;
+  const targetSeat = hotSeatFlow?.requiredSeat(session.game?.view?.state, state.hotSeatSeats);
+  if (!queueHotSeatHandoff(targetSeat, { room: session.room, view: session.game?.view })) {
+    throw new Error("Cardcade could not identify the first private Hot Seat turn.");
+  }
+}
+
+async function revealHotSeatHand() {
+  const nextSeat = state.hotSeatSeats.find((seat) => seat.playerId === state.hotSeatPendingPlayerId);
+  if (!nextSeat || !state.room?.code) throw new Error("That private Hot Seat session is unavailable.");
+  const session = await api(`/api/rooms/${encodeURIComponent(state.room.code)}/reconnect`, {
+    method: "POST",
+    body: JSON.stringify({ token: nextSeat.token })
+  });
+  if (!session.game?.view) throw new Error("That Hot Seat table is no longer in play.");
+
+  state.session = { code: session.code, token: nextSeat.token, playerId: nextSeat.playerId, mode: "hot-seat" };
+  state.room = session.room;
+  state.gameView = session.game.view;
+  state.hotSeatPendingPlayerId = null;
+  state.selectedCards = new Set();
+  state.gameActionLock = false;
+  state.dealtHandOwners = new Set();
+  state.lastPileSignature = null;
+  saveHotSeatSession();
+  connectRoom(state.session);
+  navigate("game");
+}
+
+function clearGameSession() {
+  disconnectRoomSocket();
+  localStorage.removeItem(storageKeys.room);
+  state.session = null;
+  state.room = null;
+  state.gameView = null;
+  state.gameMode = null;
+  state.hotSeatSeats = [];
+  state.hotSeatPendingPlayerId = null;
+  state.hotSeatForceHandoff = false;
+  state.selectedCards = new Set();
+  state.gameActionLock = false;
+  state.dealtHandOwners = new Set();
+  state.lastPileSignature = null;
+}
+
+async function closeHotSeatTable() {
+  const roomCode = state.room?.code || state.session?.code;
+  const host = state.hotSeatSeats.find((seat) => seat.role === "host");
+  if (roomCode && host?.token) {
+    disconnectRoomSocket();
+    await api(`/api/hot-seat/${encodeURIComponent(roomCode)}/close`, {
+      method: "POST",
+      body: JSON.stringify({ token: host.token })
+    });
+  }
+  clearGameSession();
+  state.mode = null;
+  state.selectedGameId = null;
+  navigate("home");
+}
+
 function sendRoom(message) {
   if (!state.socket || state.socket.readyState !== WebSocket.OPEN) {
     showToast("The room is reconnecting. Try again in a moment.");
@@ -701,6 +885,7 @@ function sendRoom(message) {
 
 function connectRoom(session) {
   if (state.socket) {
+    state.socket.cardcadeIntentionalClose = true;
     state.socketIntentionalClose = true;
     state.socket.close();
   }
@@ -717,6 +902,17 @@ function connectRoom(session) {
       state.room = message.room;
       if (state.screen === "room") render();
     } else if (message.type === "game_state" && standardGameAdapters[message.gameId]) {
+      if (state.gameMode === "hot-seat" && state.hotSeatPendingPlayerId) return;
+      if (state.gameMode === "hot-seat") {
+        const viewer = message.room.players.find((player) => player.isYou);
+        const requiredSeat = hotSeatFlow?.requiredSeat(message.view?.state, state.hotSeatSeats);
+        const forceHandoff = state.hotSeatForceHandoff;
+        state.hotSeatForceHandoff = false;
+        if (Number.isInteger(requiredSeat) && (Number(viewer?.seat) !== requiredSeat || forceHandoff)) {
+          queueHotSeatHandoff(requiredSeat, { room: message.room, view: message.view });
+          return;
+        }
+      }
       const previousGameId = state.room?.gameId;
       const previousRound = state.gameView?.state?.round;
       const incomingRound = message.view?.state?.round;
@@ -731,14 +927,19 @@ function connectRoom(session) {
       state.selectedCards = new Set([...state.selectedCards].filter((cardId) => handIds.has(cardId)));
       state.screen = "game";
       render();
+    } else if (message.type === "table_closed") {
+      clearGameSession();
+      navigate("home");
+      showToast("The Hot Seat table was closed.");
     } else if (message.type === "error") {
       state.gameActionLock = false;
+      state.hotSeatForceHandoff = false;
       showToast(message.error?.message || "The room rejected that action.");
       if (state.screen === "game") render();
     }
   });
   socket.addEventListener("close", () => {
-    if (!state.socketIntentionalClose && ["room", "game"].includes(state.screen)) showToast("Room connection closed. Use Resume to reconnect.");
+    if (!socket.cardcadeIntentionalClose && !state.socketIntentionalClose && ["room", "game"].includes(state.screen)) showToast("Room connection closed. Use Resume to reconnect.");
   });
 }
 
@@ -769,6 +970,28 @@ async function resumeRoom() {
   const saved = JSON.parse(localStorage.getItem(storageKeys.room) || "null");
   if (!saved) return;
   try {
+    if (saved.mode === "hot-seat" && Array.isArray(saved.hotSeatSeats) && saved.hotSeatSeats.length) {
+      state.gameMode = "hot-seat";
+      state.hotSeatSeats = saved.hotSeatSeats;
+      const requested = saved.hotSeatSeats.find((seat) => seat.playerId === saved.hotSeatPendingPlayerId)
+        || saved.hotSeatSeats.find((seat) => seat.playerId === saved.playerId)
+        || saved.hotSeatSeats.find((seat) => seat.role === "host")
+        || saved.hotSeatSeats[0];
+      const session = await api(`/api/rooms/${encodeURIComponent(saved.code)}/reconnect`, {
+        method: "POST",
+        body: JSON.stringify({ token: requested.token })
+      });
+      if (!session.game?.view) throw new Error("That Hot Seat table is no longer in play.");
+      state.session = { code: saved.code, token: requested.token, playerId: requested.playerId, mode: "hot-seat" };
+      state.room = session.room;
+      state.gameView = hiddenPrivateView(session.game.view);
+      const requiredSeat = hotSeatFlow?.requiredSeat(session.game.view.state, state.hotSeatSeats);
+      if (!queueHotSeatHandoff(requiredSeat ?? requested.seat, { room: session.room, view: session.game.view })) {
+        throw new Error("Cardcade could not restore the next private Hot Seat turn.");
+      }
+      return;
+    }
+
     const session = await api(`/api/rooms/${encodeURIComponent(saved.code)}/reconnect`, { method: "POST", body: JSON.stringify({ token: saved.token }) });
     if (standardGameAdapters[session.game?.gameId]) enterGameSession({ ...session, token: saved.token }, saved.mode || "multiplayer");
     else enterRoom({ ...session, token: saved.token, mode: saved.mode });
@@ -786,7 +1009,13 @@ document.addEventListener("click", async (event) => {
 
   if (action === "home") navigate("home");
   if (action === "open-solo") { state.mode = "solo"; state.selectedGameId = null; navigate("library"); }
-  if (action === "open-hot-seat") { state.mode = "hot-seat"; state.selectedGameId = null; navigate("library"); }
+  if (action === "open-hot-seat") {
+    state.mode = "hot-seat";
+    state.selectedGameId = null;
+    state.hotSeatPlayerCount = 2;
+    state.hotSeatNames = [];
+    navigate("library");
+  }
   if (action === "open-multiplayer") navigate("multiplayer");
   if (action === "open-settings") navigate("settings");
   if (action === "back-to-library") navigate("library");
@@ -794,12 +1023,66 @@ document.addEventListener("click", async (event) => {
   if (action === "select-local-game") { state.selectedGameId = button.dataset.gameId; navigate("local-lobby"); }
   if (action === "local-bot-down") { state.localBots = Math.max(0, state.localBots - 1); render(); }
   if (action === "local-bot-up") { state.localBots += 1; render(); }
+  if (action === "hot-seat-player-down") {
+    captureHotSeatNames();
+    const game = selectedGame();
+    state.hotSeatPlayerCount = Math.max(game?.players.min || 2, state.hotSeatPlayerCount - 1);
+    render();
+  }
+  if (action === "hot-seat-player-up") {
+    captureHotSeatNames();
+    const game = selectedGame();
+    state.hotSeatPlayerCount = Math.min(game?.players.max || 4, state.hotSeatPlayerCount + 1);
+    render();
+  }
   if (action === "start-local-game") {
     const name = savePlayerName(document.querySelector("#local-name")?.value || playerName());
     button.disabled = true;
     try {
       const session = await api(`/api/solo/${encodeURIComponent(state.selectedGameId)}`, { method: "POST", body: JSON.stringify({ name, botCount: state.localBots }) });
       enterGameSession(session, "solo");
+    } catch (error) {
+      showToast(error.message);
+      button.disabled = false;
+    }
+  }
+  if (action === "start-hot-seat") {
+    captureHotSeatNames();
+    const names = state.hotSeatNames.map((name) => String(name || "").trim());
+    if (names.some((name) => !name)) {
+      showToast("Give every Hot Seat player a name.");
+      return;
+    }
+    if (new Set(names.map((name) => name.toLocaleLowerCase())).size !== names.length) {
+      showToast("Each Hot Seat player needs a different name.");
+      return;
+    }
+    savePlayerName(names[0]);
+    button.disabled = true;
+    try {
+      const session = await api(`/api/hot-seat/${encodeURIComponent(state.selectedGameId)}`, {
+        method: "POST",
+        body: JSON.stringify({ players: names })
+      });
+      beginHotSeatSession(session);
+    } catch (error) {
+      showToast(error.message);
+      button.disabled = false;
+    }
+  }
+  if (action === "reveal-hot-seat") {
+    button.disabled = true;
+    try {
+      await revealHotSeatHand();
+    } catch (error) {
+      showToast(error.message);
+      button.disabled = false;
+    }
+  }
+  if (action === "close-hot-seat") {
+    button.disabled = true;
+    try {
+      await closeHotSeatTable();
     } catch (error) {
       showToast(error.message);
       button.disabled = false;
@@ -873,10 +1156,22 @@ document.addEventListener("click", async (event) => {
       render();
     }
   }
-  if (action === "next-round") { state.selectedCards.clear(); sendRoom({ type: "next_round" }); }
+  if (action === "next-round") {
+    state.selectedCards.clear();
+    if (state.gameMode === "hot-seat") state.hotSeatForceHandoff = true;
+    if (!sendRoom({ type: "next_round" })) state.hotSeatForceHandoff = false;
+  }
   if (action === "mercy-take-win") sendRoom({ type: "mercy_choice", accept: false });
   if (action === "mercy-double") sendRoom({ type: "mercy_choice", accept: true });
   if (action === "leave-game") {
+    if (state.gameMode === "hot-seat") {
+      try {
+        await closeHotSeatTable();
+      } catch (error) {
+        showToast(error.message);
+      }
+      return;
+    }
     sendRoom({ type: "leave_room" });
     state.socketIntentionalClose = true;
     state.socket?.close();
