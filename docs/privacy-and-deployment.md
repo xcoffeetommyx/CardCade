@@ -17,19 +17,19 @@ The Git ignore rules exclude `.env`, `.env.*`, `data/`, and log files. `.env.exa
 
 ## Docker and Tailscale
 
-The Compose service publishes Cardcade only on host loopback:
+The Compose service publishes Cardcade on the host's network interfaces for trusted-LAN and Tailscale access:
 
 ```text
-127.0.0.1:4380 → container:4380
+0.0.0.0:4380 → container:4380
 ```
 
-Configure Tailscale Serve or Funnel on the server itself to proxy to that loopback address. Keep that machine-specific command and hostname in a private server runbook outside this repository.
+Configure Tailscale Serve or Funnel on the server itself and keep that machine-specific command and hostname in a private server runbook outside this repository. Host firewall rules and network trust determine who can reach the direct LAN port.
 
 This arrangement provides:
 
 - one Docker instance for the launcher, rooms, and all game modules;
 - one same-origin WebSocket connection through the reverse proxy;
-- no need to open Cardcade directly on every network interface;
+- direct testing from phones on the same trusted LAN;
 - no public address embedded in JavaScript, Compose, documentation, or Git history.
 - restart-safe room and match recovery in the private `cardcade-data` Docker volume.
 

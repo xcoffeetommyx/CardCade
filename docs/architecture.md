@@ -17,8 +17,8 @@ Cardcade server
   ├─ global room/session service
   ├─ game registry
   └─ active game runtimes
-         ├─ ThreeSeven adapter (playable)
-         ├─ Thirteen adapter
+         ├─ 3s & 7s adapter (playable)
+         ├─ Thirteen adapter (playable)
          └─ future game adapters
 ```
 
@@ -37,7 +37,7 @@ Every game registry entry declares:
 - whether CPU players are supported;
 - migration/availability status.
 
-Game code will later implement a narrow adapter contract resembling:
+The two current games implement a narrow runtime boundary resembling:
 
 ```js
 {
@@ -50,7 +50,7 @@ Game code will later implement a narrow adapter contract resembling:
 }
 ```
 
-ThreeSeven now proves this boundary in practice: Cardcade supplies rooms, identity, connections, and persistence, while its runtime owns rules, private views, CPU turns, round transitions, and scoring. The adapter contract will be generalized only when Thirteen provides a second real implementation.
+3s & 7s and Thirteen now prove this boundary in practice: Cardcade supplies rooms, identity, connections, persistence, the standard deck presentation, and private Hot Seat handoffs. Each runtime owns its rules, private views, CPU turns, round transitions, and scoring. Shared behavior should be generalized only when both implementations actually need it.
 
 ## Rooms and sessions
 
@@ -66,7 +66,9 @@ The platform lobby supports these game-neutral actions:
 - rename a player;
 - leave or reconnect.
 
-Game actions will travel through a separate game-runtime boundary after a match starts.
+Game actions travel through the selected game-runtime boundary after a match starts.
+
+Hot Seat creates a normal server-authoritative room with one private session per human seat. Only the current seat is connected to the shared device. Between turns, the client removes the prior hand from its render state, disconnects that session, and shows a covered pass-the-device screen before reconnecting the named next seat. Round transitions return to the host, while 3s & 7s mercy decisions return to the guaranteed leader.
 
 ## What to reuse from ThreeSeven
 
@@ -80,7 +82,7 @@ ThreeSeven currently has the strongest version of these pieces:
 - reconnect and match lifecycle patterns;
 - broader automated coverage.
 
-These should be extracted and renamed for Cardcade, not imported as game-specific globals. Thirteen keeps its own ranks, legal combinations, turn rules, scoring, and CPU decisions.
+These are now shared Cardcade presentation modules rather than imported game-specific assets. Thirteen keeps its own ranks, legal combinations, turn rules, scoring, and CPU decisions.
 
 ## Persistence
 
