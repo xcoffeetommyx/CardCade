@@ -3,8 +3,8 @@ import test from "node:test";
 import { WebSocket } from "ws";
 import { createCardcadeServer } from "../server/src/app.js";
 
-async function startServer(t) {
-  const app = createCardcadeServer();
+async function startServer(t, options = {}) {
+  const app = createCardcadeServer(options);
   const address = await app.listen({ host: "127.0.0.1", port: 0 });
   const origin = `http://127.0.0.1:${address.port}`;
   t.after(() => app.close());
@@ -162,4 +162,64 @@ test("a host starts 3s & 7s from the global Cardcade lobby", async (t) => {
   assert.equal(message.gameId, "three-seven");
   assert.equal(message.view.hand.length, 7);
   assert.equal(message.view.state.players.length, 2);
+});
+
+test("Solo starts Thirteen with four players and private 13-card hands", async (t) => {
+  const { origin } = await startServer(t, { botTurnDelayMs: 10_000 });
+  const result = await jsonRequest(origin, "/api/solo/thirteen", {
+    method: "POST",
+    body: JSON.stringify({ name: "Thirteen Player", botCount: 3 })
+  });
+
+  assert.equal(result.response.status, 201);
+  assert.equal(result.body.room.phase, "playing");
+  assert.equal(result.body.room.gameId, "thirteen");
+  assert.equal(result.body.game.view.type, "match_state");
+  assert.equal(result.body.game.view.hand.length, 13);
+  assert.equal(result.body.game.view.state.players.length, 4);
+  assert.equal(result.body.game.view.state.players.every((player) => !Object.hasOwn(player, "hand")), true);
+
+  const reconnect = await jsonRequest(origin, `/api/rooms/${result.body.code}/reconnect`, {
+    method: "POST",
+    body: JSON.stringify({ token: result.body.token })
+  });
+  assert.equal(reconnect.body.game.gameId, "thirteen");
+  assert.equal(reconnect.body.game.view.hand.length, 13);
+  assert.deepEqual(
+    reconnect.body.game.view.hand.map((card) => Object.keys(card).sort()),
+    Array.from({ length: 13 }, () => ["id", "rank", "suit"]),
+    "Thirteen receives the rules-neutral shared standard deck"
+  );
+});
+
+test("a host starts Thirteen from the shared global room", async (t) => {
+  const { origin } = await startServer(t, { botTurnDelayMs: 10_000 });
+  const host = (await jsonRequest(origin, "/api/rooms", {
+    method: "POST",
+    body: JSON.stringify({ name: "Host" })
+  })).body;
+  const socket = await openSocket(origin, host);
+  t.after(() => socket.terminate());
+
+  let update = nextMessage(socket, (message) => message.type === "room_state" && message.room.gameId === "thirteen");
+  socket.send(JSON.stringify({ type: "select_game", gameId: "thirteen" }));
+  await update;
+
+  update = nextMessage(socket, (message) => message.type === "room_state" && message.room.gameSettings.botCount === 3);
+  socket.send(JSON.stringify({ type: "set_bot_count", botCount: 3 }));
+  await update;
+
+  update = nextMessage(socket, (message) => message.type === "room_state" && message.room.canStart === true);
+  socket.send(JSON.stringify({ type: "set_ready", ready: true }));
+  await update;
+
+  const gameState = nextMessage(socket, (message) => message.type === "game_state" && message.gameId === "thirteen");
+  socket.send(JSON.stringify({ type: "start_game" }));
+  const message = await gameState;
+
+  assert.equal(message.room.phase, "playing");
+  assert.equal(message.room.game.name, "Thirteen");
+  assert.equal(message.view.hand.length, 13);
+  assert.equal(message.view.state.players.length, 4);
+  assert.equal(message.view.state.players.filter((player) => player.type === "bot").length, 3);
 });

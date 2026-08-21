@@ -37,9 +37,9 @@ export const games = [
     deckFamilyId: "standard-52",
     genres: ["climbing", "shedding"],
     modes: ["solo", "multiplayer", "hot-seat"],
-    players: { min: 2, max: 4, recommended: 4 },
+    players: { min: 4, max: 4, recommended: 4 },
     supportsBots: true,
-    status: "migration-ready",
+    status: "available",
     accent: "blue"
   },
   {

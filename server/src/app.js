@@ -7,6 +7,7 @@ import { AppError } from "./errors.js";
 import { deckFamilies, games } from "./game-catalog.js";
 import { GameRegistry } from "./game-registry.js";
 import { ThreeSevenRuntime } from "./games/three-seven/runtime.js";
+import { ThirteenRuntime } from "./games/thirteen/runtime.js";
 import { RoomStore } from "./room-store.js";
 
 const moduleDirectory = path.dirname(fileURLToPath(import.meta.url));
@@ -102,10 +103,24 @@ function serveStatic(request, response, publicRoot, pathname, { spaFallback = tr
   return true;
 }
 
-export function createCardcadeServer({ registry, roomStore, threeSevenRuntime, snapshotStore = null, publicRoot = defaultPublicRoot, sharedRoot = defaultSharedRoot } = {}) {
+export function createCardcadeServer({
+  registry,
+  roomStore,
+  threeSevenRuntime,
+  thirteenRuntime,
+  snapshotStore = null,
+  publicRoot = defaultPublicRoot,
+  sharedRoot = defaultSharedRoot,
+  botTurnDelayMs = 420
+} = {}) {
   const gameRegistry = registry ?? new GameRegistry({ deckFamilies, games });
   const rooms = roomStore ?? new RoomStore({ registry: gameRegistry });
   const threeSeven = threeSevenRuntime ?? new ThreeSevenRuntime();
+  const thirteen = thirteenRuntime ?? new ThirteenRuntime();
+  const gameRuntimes = new Map([
+    ["three-seven", threeSeven],
+    ["thirteen", thirteen]
+  ]);
   const roomSockets = new Map();
   const botTimers = new Map();
   const webSocketServer = new WebSocketServer({ noServer: true });
@@ -133,14 +148,21 @@ export function createCardcadeServer({ registry, roomStore, threeSevenRuntime, s
         return;
       }
 
-      if (request.method === "POST" && url.pathname === "/api/solo/three-seven") {
+      const soloMatch = url.pathname.match(/^\/api\/solo\/([a-z0-9-]+)$/i);
+      if (request.method === "POST" && soloMatch) {
         const body = await readJson(request);
+        const gameId = soloMatch[1].toLowerCase();
+        const game = gameRegistry.getGame(gameId);
+        const runtime = requireRuntime(gameId);
+        if (game.status !== "available" || !game.modes.includes("solo") || !game.supportsBots) {
+          throw new AppError("MODE_NOT_SUPPORTED", `${game.name} is not available for Solo play.`, 409);
+        }
         const session = rooms.createRoom({ name: body.name });
-        rooms.selectGame(session.code, session.token, "three-seven");
-        const requestedBots = Number.isInteger(body.botCount) ? body.botCount : 3;
+        rooms.selectGame(session.code, session.token, gameId);
+        const requestedBots = Number.isInteger(body.botCount) ? body.botCount : game.players.max - 1;
         rooms.setBotCount(session.code, session.token, requestedBots);
         rooms.setReady(session.code, session.token, true);
-        threeSeven.start(rooms.publicRoom(session.code, session.token));
+        runtime.start(rooms.publicRoom(session.code, session.token));
         rooms.markPlaying(session.code, session.token);
         const room = rooms.publicRoom(session.code, session.token);
         persistRoom(session.code);
@@ -148,7 +170,7 @@ export function createCardcadeServer({ registry, roomStore, threeSevenRuntime, s
         sendJson(response, 201, {
           ...session,
           room,
-          game: { gameId: "three-seven", view: threeSeven.view(room) }
+          game: { gameId, view: runtime.view(room) }
         });
         return;
       }
@@ -167,8 +189,9 @@ export function createCardcadeServer({ registry, roomStore, threeSevenRuntime, s
         const body = await readJson(request);
         const session = rooms.reconnect(reconnectMatch[1], body.token);
         persistRoom(session.code);
-        const payload = session.room.phase === "playing" && session.room.gameId === "three-seven" && threeSeven.has(session.code)
-          ? { ...session, game: { gameId: "three-seven", view: threeSeven.view(session.room) } }
+        const runtime = gameRuntimes.get(session.room.gameId);
+        const payload = session.room.phase === "playing" && runtime?.has(session.code)
+          ? { ...session, game: { gameId: session.room.gameId, view: runtime.view(session.room) } }
           : session;
         sendJson(response, 200, payload);
         return;
@@ -204,14 +227,22 @@ export function createCardcadeServer({ registry, roomStore, threeSevenRuntime, s
     }
   }
 
+  function requireRuntime(gameId) {
+    const runtime = gameRuntimes.get(gameId);
+    if (!runtime) throw new AppError("GAME_NOT_AVAILABLE", "That game has not been migrated into Cardcade yet.", 409);
+    return runtime;
+  }
+
   function persistRoom(code) {
     if (!snapshotStore) return;
     try {
+      const room = rooms.privateSnapshot(code);
+      const runtime = gameRuntimes.get(room.gameId);
       snapshotStore.save({
         code,
-        room: rooms.privateSnapshot(code),
-        game: threeSeven.has(code)
-          ? { gameId: "three-seven", code, state: threeSeven.snapshot(code) }
+        room,
+        game: runtime?.has(code)
+          ? { gameId: room.gameId, code, state: runtime.snapshot(code) }
           : null
       });
     } catch (error) {
@@ -236,8 +267,9 @@ export function createCardcadeServer({ registry, roomStore, threeSevenRuntime, s
     for (const socket of sockets) {
       try {
         const room = rooms.publicRoom(code, socket.cardcade.token);
-        if (room.phase === "playing" && room.gameId === "three-seven" && threeSeven.has(code)) {
-          send(socket, { type: "game_state", gameId: "three-seven", room, view: threeSeven.view(room) });
+        const runtime = gameRuntimes.get(room.gameId);
+        if (room.phase === "playing" && runtime?.has(code)) {
+          send(socket, { type: "game_state", gameId: room.gameId, room, view: runtime.view(room) });
         } else {
           send(socket, { type: "room_state", room });
         }
@@ -254,12 +286,14 @@ export function createCardcadeServer({ registry, roomStore, threeSevenRuntime, s
     const tick = () => {
       botTimers.delete(code);
       try {
-        if (!threeSeven.has(code)) return;
-        const played = threeSeven.runBotTurn(code);
+        const room = rooms.privateSnapshot(code);
+        const runtime = gameRuntimes.get(room.gameId);
+        if (!runtime?.has(code)) return;
+        const played = runtime.runBotTurn(code);
         if (!played) return;
         persistRoom(code);
         broadcastRoom(code);
-        botTimers.set(code, setTimeout(tick, 420));
+        botTimers.set(code, setTimeout(tick, botTurnDelayMs));
       } catch (error) {
         const payload = errorPayload(error);
         for (const socket of roomSockets.get(code) ?? []) {
@@ -267,15 +301,13 @@ export function createCardcadeServer({ registry, roomStore, threeSevenRuntime, s
         }
       }
     };
-    botTimers.set(code, setTimeout(tick, 420));
+    botTimers.set(code, setTimeout(tick, botTurnDelayMs));
   }
 
   function startRoomGame(code, token) {
     const room = rooms.publicRoom(code, token);
-    if (room.gameId !== "three-seven") {
-      throw new AppError("GAME_NOT_AVAILABLE", "That game has not been migrated into Cardcade yet.", 409);
-    }
-    threeSeven.start(room);
+    const runtime = requireRuntime(room.gameId);
+    runtime.start(room);
     rooms.markPlaying(code, token);
     persistRoom(code);
     broadcastRoom(code);
@@ -284,18 +316,6 @@ export function createCardcadeServer({ registry, roomStore, threeSevenRuntime, s
 
   function handleAction(socket, message) {
     const { code, token } = socket.cardcade;
-    if (["play", "pass", "next_round", "mercy_choice"].includes(message.type)) {
-      const room = rooms.publicRoom(code, token);
-      if (room.phase !== "playing" || room.gameId !== "three-seven") {
-        throw new AppError("MATCH_NOT_ACTIVE", "No playable game is active in this room.", 409);
-      }
-      threeSeven.act(room, message);
-      persistRoom(code);
-      // Show the human move before the first CPU answer.
-      broadcastRoom(code);
-      scheduleBotTurns(code);
-      return;
-    }
     switch (message.type) {
       case "select_game":
         rooms.selectGame(code, token, message.gameId);
@@ -317,7 +337,7 @@ export function createCardcadeServer({ registry, roomStore, threeSevenRuntime, s
           const room = rooms.publicRoom(code, token);
           const leavingPlayer = room.players.find((player) => player.isYou);
           if (room.phase === "playing" && leavingPlayer) {
-            threeSeven.replaceHumanWithBot(code, leavingPlayer.seat);
+            gameRuntimes.get(room.gameId)?.replaceHumanWithBot(code, leavingPlayer.seat);
           }
         }
         rooms.leaveRoom(code, token);
@@ -328,7 +348,17 @@ export function createCardcadeServer({ registry, roomStore, threeSevenRuntime, s
         scheduleBotTurns(code);
         return;
       default:
-        throw new AppError("UNKNOWN_MESSAGE", "That lobby action is not supported.");
+        {
+          const room = rooms.publicRoom(code, token);
+          if (room.phase !== "playing") throw new AppError("UNKNOWN_MESSAGE", "That lobby action is not supported.");
+          const runtime = requireRuntime(room.gameId);
+          runtime.act(room, message);
+          persistRoom(code);
+          // Broadcast the human action before any paced CPU response.
+          broadcastRoom(code);
+          scheduleBotTurns(code);
+          return;
+        }
     }
     persistRoom(code);
     broadcastRoom(code);

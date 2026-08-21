@@ -3,6 +3,7 @@ import test from "node:test";
 import { deckFamilies, games } from "../server/src/game-catalog.js";
 import { GameRegistry } from "../server/src/game-registry.js";
 import { ThreeSevenRuntime } from "../server/src/games/three-seven/runtime.js";
+import { ThirteenRuntime } from "../server/src/games/thirteen/runtime.js";
 import { RoomStore } from "../server/src/room-store.js";
 import { SnapshotStore } from "../server/src/snapshot-store.js";
 
@@ -45,5 +46,36 @@ test("deleting a room also deletes its durable snapshot", () => {
   assert.equal(snapshots.loadAll().length, 1);
   snapshots.delete("DELETE");
   assert.equal(snapshots.loadAll().length, 0);
+  snapshots.close();
+});
+
+test("restores Thirteen through the same room and persistence layer", () => {
+  const snapshots = new SnapshotStore();
+  const registry = new GameRegistry({ deckFamilies, games });
+  const rooms = new RoomStore({ registry, generateCode: () => "SAVE13" });
+  const runtime = new ThirteenRuntime();
+  const host = rooms.createRoom({ name: "Host" });
+  rooms.selectGame(host.code, host.token, "thirteen");
+  rooms.setBotCount(host.code, host.token, 3);
+  rooms.setReady(host.code, host.token, true);
+  runtime.start(rooms.publicRoom(host.code, host.token));
+  rooms.markPlaying(host.code, host.token);
+  snapshots.save({
+    code: host.code,
+    room: rooms.privateSnapshot(host.code),
+    game: { gameId: "thirteen", code: host.code, state: runtime.snapshot(host.code) }
+  });
+
+  const [stored] = snapshots.loadAll();
+  const restoredRooms = new RoomStore({ registry, restoredRooms: [stored.room] });
+  const restoredRuntime = new ThirteenRuntime({ restoredMatches: [stored.game] });
+  const session = restoredRooms.reconnect(host.code, host.token);
+  const view = restoredRuntime.view(session.room);
+
+  assert.equal(session.room.gameId, "thirteen");
+  assert.equal(session.room.phase, "playing");
+  assert.equal(view.hand.length, 13);
+  assert.equal(view.state.players.length, 4);
+  assert.equal(view.state.players.every((player) => !Object.hasOwn(player, "hand")), true);
   snapshots.close();
 });
