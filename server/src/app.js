@@ -175,6 +175,73 @@ export function createCardcadeServer({
         return;
       }
 
+      const hotSeatMatch = url.pathname.match(/^\/api\/hot-seat\/([a-z0-9-]+)$/i);
+      if (request.method === "POST" && hotSeatMatch) {
+        const body = await readJson(request);
+        const gameId = hotSeatMatch[1].toLowerCase();
+        const game = gameRegistry.getGame(gameId);
+        const runtime = requireRuntime(gameId);
+        if (game.status !== "available" || !game.modes.includes("hot-seat")) {
+          throw new AppError("MODE_NOT_SUPPORTED", `${game.name} is not available for Hot Seat play.`, 409);
+        }
+        const names = Array.isArray(body.players) ? body.players : [];
+        if (names.length < game.players.min || names.length > game.players.max) {
+          throw new AppError(
+            "INVALID_PLAYER_COUNT",
+            `${game.name} Hot Seat requires ${game.players.min === game.players.max ? game.players.min : `${game.players.min}–${game.players.max}`} players.`
+          );
+        }
+
+        let hostSession = null;
+        try {
+          hostSession = rooms.createRoom({ name: names[0] });
+          const sessions = [hostSession];
+          for (const name of names.slice(1)) {
+            sessions.push(rooms.joinRoom(hostSession.code, { name }));
+          }
+          rooms.selectGame(hostSession.code, hostSession.token, gameId);
+          rooms.setSharedDevice(hostSession.code, hostSession.token, true);
+          for (const session of sessions) rooms.setReady(hostSession.code, session.token, true);
+          runtime.start(rooms.publicRoom(hostSession.code, hostSession.token));
+          rooms.markPlaying(hostSession.code, hostSession.token);
+          const room = rooms.publicRoom(hostSession.code, hostSession.token);
+          const seats = sessions.map((session) => {
+            const privateRoom = rooms.publicRoom(hostSession.code, session.token);
+            const player = privateRoom.players.find((candidate) => candidate.isYou);
+            return {
+              playerId: session.playerId,
+              token: session.token,
+              seat: player.seat,
+              name: player.name,
+              role: player.role
+            };
+          });
+          persistRoom(hostSession.code);
+          sendJson(response, 201, {
+            code: hostSession.code,
+            playerId: hostSession.playerId,
+            token: hostSession.token,
+            mode: "hot-seat",
+            room,
+            hotSeat: { seats },
+            game: { gameId, view: runtime.view(room) }
+          });
+        } catch (error) {
+          if (hostSession) {
+            try {
+              const room = rooms.privateSnapshot(hostSession.code);
+              gameRuntimes.get(room.gameId)?.remove?.(hostSession.code);
+              rooms.closeRoom(hostSession.code, hostSession.token);
+              snapshotStore?.delete(hostSession.code);
+            } catch {
+              // Preserve the original setup error.
+            }
+          }
+          throw error;
+        }
+        return;
+      }
+
       const joinMatch = url.pathname.match(/^\/api\/rooms\/([A-Z0-9]+)\/join$/i);
       if (request.method === "POST" && joinMatch) {
         const body = await readJson(request);
@@ -194,6 +261,14 @@ export function createCardcadeServer({
           ? { ...session, game: { gameId: session.room.gameId, view: runtime.view(session.room) } }
           : session;
         sendJson(response, 200, payload);
+        return;
+      }
+
+      const closeHotSeatMatch = url.pathname.match(/^\/api\/hot-seat\/([A-Z0-9]+)\/close$/i);
+      if (request.method === "POST" && closeHotSeatMatch) {
+        const body = await readJson(request);
+        closeSharedDeviceRoom(closeHotSeatMatch[1], body.token);
+        sendJson(response, 200, { closed: true });
         return;
       }
 
@@ -252,6 +327,25 @@ export function createCardcadeServer({
       }
       console.error("Could not persist Cardcade room snapshot.", error);
     }
+  }
+
+  function closeSharedDeviceRoom(code, token) {
+    const room = rooms.privateSnapshot(code);
+    if (!room.gameSettings.sharedDevice) {
+      throw new AppError("MODE_NOT_SUPPORTED", "That room is not a Hot Seat table.", 409);
+    }
+    rooms.closeRoom(code, token);
+    gameRuntimes.get(room.gameId)?.remove?.(room.code);
+    const timer = botTimers.get(room.code);
+    if (timer) clearTimeout(timer);
+    botTimers.delete(room.code);
+    snapshotStore?.delete(room.code);
+    for (const socket of roomSockets.get(room.code) ?? []) {
+      socket.cardcade.left = true;
+      send(socket, { type: "table_closed" });
+      socket.close(1000, "Hot Seat table closed");
+    }
+    roomSockets.delete(room.code);
   }
 
   function removeSocket(socket) {

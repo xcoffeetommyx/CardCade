@@ -20,6 +20,10 @@ export class ThreeSevenRuntime {
     return this.#matches.has(roomCode);
   }
 
+  remove(roomCode) {
+    return this.#matches.delete(roomCode);
+  }
+
   start(room) {
     if (room.gameId !== "three-seven") {
       throw new GameError("That room is not configured for 3s & 7s.", "WRONG_GAME", 409);

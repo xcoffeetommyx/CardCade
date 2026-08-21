@@ -56,6 +56,7 @@ test("restores Thirteen through the same room and persistence layer", () => {
   const runtime = new ThirteenRuntime();
   const host = rooms.createRoom({ name: "Host" });
   rooms.selectGame(host.code, host.token, "thirteen");
+  rooms.setSharedDevice(host.code, host.token, true);
   rooms.setBotCount(host.code, host.token, 3);
   rooms.setReady(host.code, host.token, true);
   runtime.start(rooms.publicRoom(host.code, host.token));
@@ -74,6 +75,7 @@ test("restores Thirteen through the same room and persistence layer", () => {
 
   assert.equal(session.room.gameId, "thirteen");
   assert.equal(session.room.phase, "playing");
+  assert.equal(session.room.gameSettings.sharedDevice, true);
   assert.equal(view.hand.length, 13);
   assert.equal(view.state.players.length, 4);
   assert.equal(view.state.players.every((player) => !Object.hasOwn(player, "hand")), true);

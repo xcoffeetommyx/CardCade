@@ -229,3 +229,68 @@ test("a host starts Thirteen from the shared global room", async (t) => {
   assert.equal(message.view.state.players.length, 4);
   assert.equal(message.view.state.players.filter((player) => player.type === "bot").length, 3);
 });
+
+test("Hot Seat creates private human seats on the shared 3s & 7s runtime", async (t) => {
+  const { origin } = await startServer(t);
+  const result = await jsonRequest(origin, "/api/hot-seat/three-seven", {
+    method: "POST",
+    body: JSON.stringify({ players: ["Tommy", "Alex"] })
+  });
+
+  assert.equal(result.response.status, 201);
+  assert.equal(result.body.mode, "hot-seat");
+  assert.equal(result.body.room.phase, "playing");
+  assert.equal(result.body.room.gameId, "three-seven");
+  assert.equal(result.body.room.gameSettings.sharedDevice, true);
+  assert.equal(result.body.hotSeat.seats.length, 2);
+  assert.equal(new Set(result.body.hotSeat.seats.map((seat) => seat.token)).size, 2);
+  assert.equal(result.body.game.view.hand.length, 7);
+  assert.equal(result.body.game.view.state.players.length, 2);
+  assert.equal(result.body.game.view.state.players.every((player) => player.type === "human"), true);
+
+  const guestSeat = result.body.hotSeat.seats[1];
+  const guest = await jsonRequest(origin, `/api/rooms/${result.body.code}/reconnect`, {
+    method: "POST",
+    body: JSON.stringify({ token: guestSeat.token })
+  });
+  assert.equal(guest.response.status, 200);
+  assert.equal(guest.body.room.players.find((player) => player.isYou).name, "Alex");
+  assert.equal(guest.body.game.view.hand.length, 7);
+  assert.equal(guest.body.game.view.state.players.every((player) => !Object.hasOwn(player, "hand")), true);
+});
+
+test("Hot Seat runs Thirteen with four private human hands and host-controlled closure", async (t) => {
+  const { origin } = await startServer(t);
+  const result = await jsonRequest(origin, "/api/hot-seat/thirteen", {
+    method: "POST",
+    body: JSON.stringify({ players: ["One", "Two", "Three", "Four"] })
+  });
+
+  assert.equal(result.response.status, 201);
+  assert.equal(result.body.room.gameId, "thirteen");
+  assert.equal(result.body.hotSeat.seats.length, 4);
+  assert.equal(result.body.game.view.hand.length, 13);
+  assert.equal(result.body.game.view.state.players.length, 4);
+  assert.equal(result.body.game.view.state.players.every((player) => player.type === "human"), true);
+
+  const denied = await jsonRequest(origin, `/api/hot-seat/${result.body.code}/close`, {
+    method: "POST",
+    body: JSON.stringify({ token: result.body.hotSeat.seats[1].token })
+  });
+  assert.equal(denied.response.status, 403);
+  assert.equal(denied.body.error.code, "HOST_ONLY");
+
+  const closed = await jsonRequest(origin, `/api/hot-seat/${result.body.code}/close`, {
+    method: "POST",
+    body: JSON.stringify({ token: result.body.hotSeat.seats[0].token })
+  });
+  assert.equal(closed.response.status, 200);
+  assert.equal(closed.body.closed, true);
+
+  const reconnect = await jsonRequest(origin, `/api/rooms/${result.body.code}/reconnect`, {
+    method: "POST",
+    body: JSON.stringify({ token: result.body.hotSeat.seats[0].token })
+  });
+  assert.equal(reconnect.response.status, 404);
+  assert.equal(reconnect.body.error.code, "ROOM_NOT_FOUND");
+});

@@ -88,6 +88,16 @@ test("leaving host promotes the oldest remaining guest", () => {
   assert.equal(room.players[0].seat, 0);
 });
 
+test("only the host can close an entire shared-device room", () => {
+  const { store } = setup();
+  const host = store.createRoom({ name: "Host" });
+  const guest = store.joinRoom(host.code, { name: "Guest" });
+
+  assert.throws(() => store.closeRoom(host.code, guest.token), { code: "HOST_ONLY" });
+  assert.equal(store.closeRoom(host.code, host.token), true);
+  assert.throws(() => store.publicRoom(host.code, host.token), { code: "ROOM_NOT_FOUND" });
+});
+
 test("expired rooms are removed", () => {
   let now = 1_000;
   const { store } = setup({ now: () => now, roomTtlMs: 100 });

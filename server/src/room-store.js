@@ -83,7 +83,7 @@ export class RoomStore {
       code,
       phase: "configuring",
       gameId: null,
-      gameSettings: { botCount: 0 },
+      gameSettings: { botCount: 0, sharedDevice: false },
       players: [],
       createdAt: now,
       lastActivityAt: now,
@@ -138,7 +138,7 @@ export class RoomStore {
     assert(room.players.length <= game.players.max, "TOO_MANY_PLAYERS", `${game.name} supports at most ${game.players.max} players.`, 409);
 
     room.gameId = game.id;
-    room.gameSettings = { botCount: 0 };
+    room.gameSettings = { botCount: 0, sharedDevice: false };
     for (const roomPlayer of room.players) {
       roomPlayer.ready = false;
     }
@@ -160,6 +160,16 @@ export class RoomStore {
     for (const roomPlayer of room.players) {
       roomPlayer.ready = false;
     }
+    touch(room, this.#now());
+    return this.project(room, player.id);
+  }
+
+  setSharedDevice(code, token, sharedDevice) {
+    const room = this.#getRoom(code);
+    const player = this.#authenticatePlayer(room, token);
+    this.#assertHost(player);
+    assert(room.phase === "configuring", "ROOM_IN_PROGRESS", "Shared-device mode is locked after play begins.", 409);
+    room.gameSettings.sharedDevice = Boolean(sharedDevice);
     touch(room, this.#now());
     return this.project(room, player.id);
   }
@@ -203,6 +213,14 @@ export class RoomStore {
     });
     touch(room, this.#now());
     return this.project(room);
+  }
+
+  closeRoom(code, token) {
+    const room = this.#getRoom(code);
+    const player = this.#authenticatePlayer(room, token);
+    this.#assertHost(player);
+    this.#rooms.delete(room.code);
+    return true;
   }
 
   publicRoom(code, token) {
@@ -368,7 +386,10 @@ function hydrateRoom(snapshot, now) {
     code,
     phase: snapshot.phase === "playing" ? "playing" : "configuring",
     gameId: typeof snapshot.gameId === "string" ? snapshot.gameId : null,
-    gameSettings: { botCount: Math.max(0, Number(snapshot.gameSettings?.botCount) || 0) },
+    gameSettings: {
+      botCount: Math.max(0, Number(snapshot.gameSettings?.botCount) || 0),
+      sharedDevice: Boolean(snapshot.gameSettings?.sharedDevice)
+    },
     players,
     createdAt: Number(snapshot.createdAt) || now,
     lastActivityAt: Number(snapshot.lastActivityAt) || now,

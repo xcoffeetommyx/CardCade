@@ -20,6 +20,10 @@ export class ThirteenRuntime {
     return this.#matches.has(roomCode);
   }
 
+  remove(roomCode) {
+    return this.#matches.delete(roomCode);
+  }
+
   start(room) {
     if (room.gameId !== "thirteen") throw new GameError("That room is not configured for Thirteen.", "WRONG_GAME", 409);
     if (this.#matches.has(room.code)) throw new GameError("This Thirteen match has already started.", "MATCH_STARTED", 409);
