@@ -68,7 +68,7 @@ The platform lobby supports these game-neutral actions:
 
 Game actions travel through the selected game-runtime boundary after a match starts.
 
-Hot Seat creates a normal server-authoritative room with one private session per human seat. Only the current seat is connected to the shared device. Between turns, the client removes the prior hand from its render state, disconnects that session, and shows a covered pass-the-device screen before reconnecting the named next seat. Round transitions return to the host, while 3s & 7s mercy decisions return to the guaranteed leader.
+Hot Seat creates a normal server-authoritative room with one private session per human seat plus any configured CPU seats. Only the current human seat is connected to the shared device. Between human turns, the client removes the prior hand from its render state, disconnects that session, and shows either a covered pass-the-device screen or a covered automatic CPU turn. Round transitions return to the host, while 3s & 7s mercy decisions return to the guaranteed leader.
 
 ## What to reuse from ThreeSeven
 

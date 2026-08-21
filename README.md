@@ -34,7 +34,7 @@ Compose publishes the configured port on the host's network interfaces so phones
 - Deck families group games in the launcher; they do not impose shared rank strength or rules.
 - The shared standard 52-card presentation uses ThreeSeven's proven adaptive fan geometry, overlap hit testing, readable pixel ranks, and selection motion.
 - Both current games run server-authoritatively in Solo and Multiplayer and keep each hand private.
-- Hot Seat reuses those same runtimes with one private token per human seat. The previous hand is removed before the named next player can reveal theirs.
+- Hot Seat reuses those same runtimes with one private token per human seat and freely configurable CPU seats within each game's player limits. Human hands are removed between turns, and CPU turns run automatically on a covered table.
 - Active rooms and matches are written to a single SQLite snapshot database so Docker restarts can recover them.
 
 See [docs/architecture.md](docs/architecture.md) and [docs/privacy-and-deployment.md](docs/privacy-and-deployment.md).

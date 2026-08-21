@@ -14,11 +14,13 @@ const state = {
   multiplayerTab: "host",
   selectedGameId: null,
   localBots: 3,
-  hotSeatPlayerCount: 2,
+  hotSeatPlayerCount: 1,
+  hotSeatBots: 2,
   hotSeatNames: [],
   hotSeatSeats: [],
   hotSeatPendingPlayerId: null,
   hotSeatForceHandoff: false,
+  hotSeatWaitingForCpu: false,
   session: null,
   room: null,
   socket: null,
@@ -184,8 +186,12 @@ function selectedGame() {
 }
 
 function ensureHotSeatSetup(game) {
-  const count = Math.max(game.players.min, Math.min(state.hotSeatPlayerCount, game.players.max));
+  const count = Math.max(1, Math.min(state.hotSeatPlayerCount, game.players.max));
   state.hotSeatPlayerCount = count;
+  state.hotSeatBots = Math.max(0, Math.min(state.hotSeatBots, game.players.max - count));
+  if (count + state.hotSeatBots < game.players.min) {
+    state.hotSeatBots = game.players.min - count;
+  }
   while (state.hotSeatNames.length < count) {
     const index = state.hotSeatNames.length;
     state.hotSeatNames.push(index === 0 ? playerName() : `Player ${index + 1}`);
@@ -208,6 +214,7 @@ function renderLocalLobby() {
   const minBots = Math.max(0, game.players.min - 1);
   state.localBots = Math.max(minBots, Math.min(state.localBots, maxBots));
   const modeLabel = state.mode === "hot-seat" ? "Hot Seat" : "Solo";
+  const hotSeatTotal = state.hotSeatPlayerCount + state.hotSeatBots;
   return `
     ${screenHeader(`${game.name} lobby`, `${modeLabel} setup stays local to this device.`, "back-to-library")}
     <div class="solo-panel">
@@ -229,9 +236,9 @@ function renderLocalLobby() {
         <div class="callout coral">${escapeHtml(game.name)} is ready. Cardcade will create a private local table and fill the open seats with CPUs.</div>` : `
         <label><strong>Human players</strong></label>
         <div class="stepper">
-          <button type="button" data-action="hot-seat-player-down" aria-label="Remove Hot Seat player" ${state.hotSeatPlayerCount <= game.players.min ? "disabled" : ""}>−</button>
-          <output>${state.hotSeatPlayerCount} players</output>
-          <button type="button" data-action="hot-seat-player-up" aria-label="Add Hot Seat player" ${state.hotSeatPlayerCount >= game.players.max ? "disabled" : ""}>+</button>
+          <button type="button" data-action="hot-seat-player-down" aria-label="Remove Hot Seat player" ${state.hotSeatPlayerCount <= 1 ? "disabled" : ""}>−</button>
+          <output>${state.hotSeatPlayerCount} human${state.hotSeatPlayerCount === 1 ? "" : "s"}</output>
+          <button type="button" data-action="hot-seat-player-up" aria-label="Add Hot Seat player" ${state.hotSeatPlayerCount >= game.players.max || (state.hotSeatBots === 0 && hotSeatTotal >= game.players.max) ? "disabled" : ""}>+</button>
         </div>
         <div class="hot-seat-names">
           ${state.hotSeatNames.map((name, index) => `
@@ -240,10 +247,16 @@ function renderLocalLobby() {
               <input id="hot-seat-name-${index}" data-hot-seat-name maxlength="24" value="${escapeHtml(name)}" autocomplete="off" required>
             </div>`).join("")}
         </div>
-        <div class="callout coral">Cardcade hides every hand between turns. Pass the device, then let only the named player reveal their cards.</div>`}
+        <label><strong>CPU players</strong></label>
+        <div class="stepper">
+          <button type="button" data-action="hot-seat-bot-down" aria-label="Remove Hot Seat CPU" ${state.hotSeatBots <= 0 || hotSeatTotal <= game.players.min ? "disabled" : ""}>−</button>
+          <output>${state.hotSeatBots} CPU${state.hotSeatBots === 1 ? "" : "s"}</output>
+          <button type="button" data-action="hot-seat-bot-up" aria-label="Add Hot Seat CPU" ${hotSeatTotal >= game.players.max ? "disabled" : ""}>+</button>
+        </div>
+        <div class="callout coral">${escapeHtml(game.name)} will use ${hotSeatTotal} total seats. Cardcade hides human hands between turns; CPU turns play automatically on the covered table.</div>`}
       <div class="button-row" style="margin-top: 1rem">
         <button class="action-button" type="button" data-action="back-to-library">Choose another game</button>
-        <button class="action-button primary" type="button" data-action="${game.status === "available" ? (isHotSeat ? "start-hot-seat" : "start-local-game") : "not-playable-yet"}" ${game.status === "available" ? "" : "disabled"}>Start game</button>
+        <button class="action-button primary" type="button" data-action="${game.status === "available" ? (isHotSeat ? "start-hot-seat" : "start-local-game") : "not-playable-yet"}" ${game.status === "available" ? "" : "disabled"}>Start ${isHotSeat ? `${hotSeatTotal}-seat ` : ""}game</button>
       </div>
     </div>`;
 }
@@ -516,6 +529,21 @@ function renderHotSeatHandoff() {
   const match = state.gameView?.state;
   const gameName = state.room?.game?.name || "Cardcade";
   const round = match?.round ? `Round ${match.round}` : "Private table";
+
+  if (state.hotSeatWaitingForCpu) {
+    const cpu = match?.players?.find((player) => player.seat === match.activeSeat);
+    return `
+      <section class="hot-seat-handoff">
+        <div class="handoff-panel">
+          <span class="family-kicker">Hot Seat · ${escapeHtml(gameName)} · ${escapeHtml(round)}</span>
+          <div class="cpu-thinking" aria-hidden="true"><span>CPU</span><i></i><i></i><i></i></div>
+          <p class="handoff-instruction">CPU turn</p>
+          <h1>${escapeHtml(cpu?.name || "Cardcade CPU")}</h1>
+          <p class="handoff-privacy">The human hand is covered while the CPU plays automatically. Cardcade will name the next person when it is time to pass the device.</p>
+          <button class="action-button handoff-end" type="button" data-action="close-hot-seat">End table</button>
+        </div>
+      </section>`;
+  }
 
   if (!nextSeat) {
     return `
@@ -791,6 +819,25 @@ function hiddenPrivateView(view) {
   return view ? { ...view, hand: [] } : null;
 }
 
+function isHotSeatCpuTurn(view) {
+  const match = view?.state;
+  if (!match || match.roundOver) return false;
+  return match.players?.some((player) => player.seat === match.activeSeat && player.type === "bot") === true;
+}
+
+function queueHotSeatCpuTurn({ room = state.room, view = state.gameView } = {}) {
+  state.room = room;
+  state.gameView = hiddenPrivateView(view);
+  state.hotSeatPendingPlayerId = null;
+  state.hotSeatWaitingForCpu = true;
+  state.selectedCards = new Set();
+  state.gameActionLock = false;
+  state.dealtHandOwners = new Set();
+  state.lastPileSignature = null;
+  saveHotSeatSession();
+  navigate("hot-seat-handoff");
+}
+
 function queueHotSeatHandoff(seatNumber, { room = state.room, view = state.gameView } = {}) {
   const nextSeat = hotSeatSessionForSeat(seatNumber);
   if (!nextSeat) return false;
@@ -798,6 +845,7 @@ function queueHotSeatHandoff(seatNumber, { room = state.room, view = state.gameV
   state.room = room;
   state.gameView = hiddenPrivateView(view);
   state.hotSeatPendingPlayerId = nextSeat.playerId;
+  state.hotSeatWaitingForCpu = false;
   state.selectedCards = new Set();
   state.gameActionLock = false;
   state.dealtHandOwners = new Set();
@@ -814,7 +862,13 @@ function beginHotSeatSession(session) {
   state.room = session.room;
   state.gameView = hiddenPrivateView(session.game?.view);
   state.hotSeatForceHandoff = false;
+  state.hotSeatWaitingForCpu = false;
   const targetSeat = hotSeatFlow?.requiredSeat(session.game?.view?.state, state.hotSeatSeats);
+  if (isHotSeatCpuTurn(session.game?.view)) {
+    connectRoom(state.session);
+    queueHotSeatCpuTurn({ room: session.room, view: session.game?.view });
+    return;
+  }
   if (!queueHotSeatHandoff(targetSeat, { room: session.room, view: session.game?.view })) {
     throw new Error("Cardcade could not identify the first private Hot Seat turn.");
   }
@@ -833,6 +887,7 @@ async function revealHotSeatHand() {
   state.room = session.room;
   state.gameView = session.game.view;
   state.hotSeatPendingPlayerId = null;
+  state.hotSeatWaitingForCpu = false;
   state.selectedCards = new Set();
   state.gameActionLock = false;
   state.dealtHandOwners = new Set();
@@ -852,6 +907,7 @@ function clearGameSession() {
   state.hotSeatSeats = [];
   state.hotSeatPendingPlayerId = null;
   state.hotSeatForceHandoff = false;
+  state.hotSeatWaitingForCpu = false;
   state.selectedCards = new Set();
   state.gameActionLock = false;
   state.dealtHandOwners = new Set();
@@ -908,10 +964,15 @@ function connectRoom(session) {
         const requiredSeat = hotSeatFlow?.requiredSeat(message.view?.state, state.hotSeatSeats);
         const forceHandoff = state.hotSeatForceHandoff;
         state.hotSeatForceHandoff = false;
-        if (Number.isInteger(requiredSeat) && (Number(viewer?.seat) !== requiredSeat || forceHandoff)) {
+        if (isHotSeatCpuTurn(message.view)) {
+          queueHotSeatCpuTurn({ room: message.room, view: message.view });
+          return;
+        }
+        if (Number.isInteger(requiredSeat) && (Number(viewer?.seat) !== requiredSeat || forceHandoff || state.hotSeatWaitingForCpu)) {
           queueHotSeatHandoff(requiredSeat, { room: message.room, view: message.view });
           return;
         }
+        state.hotSeatWaitingForCpu = false;
       }
       const previousGameId = state.room?.gameId;
       const previousRound = state.gameView?.state?.round;
@@ -986,6 +1047,11 @@ async function resumeRoom() {
       state.room = session.room;
       state.gameView = hiddenPrivateView(session.game.view);
       const requiredSeat = hotSeatFlow?.requiredSeat(session.game.view.state, state.hotSeatSeats);
+      if (isHotSeatCpuTurn(session.game.view)) {
+        connectRoom(state.session);
+        queueHotSeatCpuTurn({ room: session.room, view: session.game.view });
+        return;
+      }
       if (!queueHotSeatHandoff(requiredSeat ?? requested.seat, { room: session.room, view: session.game.view })) {
         throw new Error("Cardcade could not restore the next private Hot Seat turn.");
       }
@@ -1012,7 +1078,8 @@ document.addEventListener("click", async (event) => {
   if (action === "open-hot-seat") {
     state.mode = "hot-seat";
     state.selectedGameId = null;
-    state.hotSeatPlayerCount = 2;
+    state.hotSeatPlayerCount = 1;
+    state.hotSeatBots = 2;
     state.hotSeatNames = [];
     navigate("library");
   }
@@ -1026,13 +1093,37 @@ document.addEventListener("click", async (event) => {
   if (action === "hot-seat-player-down") {
     captureHotSeatNames();
     const game = selectedGame();
-    state.hotSeatPlayerCount = Math.max(game?.players.min || 2, state.hotSeatPlayerCount - 1);
+    if (state.hotSeatPlayerCount > 1) {
+      state.hotSeatPlayerCount -= 1;
+      state.hotSeatBots += 1;
+    }
+    if (game) ensureHotSeatSetup(game);
     render();
   }
   if (action === "hot-seat-player-up") {
     captureHotSeatNames();
     const game = selectedGame();
-    state.hotSeatPlayerCount = Math.min(game?.players.max || 4, state.hotSeatPlayerCount + 1);
+    if (game && state.hotSeatPlayerCount < game.players.max) {
+      state.hotSeatPlayerCount += 1;
+      if (state.hotSeatBots > 0) state.hotSeatBots -= 1;
+    }
+    if (game) ensureHotSeatSetup(game);
+    render();
+  }
+  if (action === "hot-seat-bot-down") {
+    captureHotSeatNames();
+    const game = selectedGame();
+    if (game && state.hotSeatBots > 0 && state.hotSeatPlayerCount + state.hotSeatBots > game.players.min) {
+      state.hotSeatBots -= 1;
+    }
+    render();
+  }
+  if (action === "hot-seat-bot-up") {
+    captureHotSeatNames();
+    const game = selectedGame();
+    if (game && state.hotSeatPlayerCount + state.hotSeatBots < game.players.max) {
+      state.hotSeatBots += 1;
+    }
     render();
   }
   if (action === "start-local-game") {
@@ -1062,7 +1153,7 @@ document.addEventListener("click", async (event) => {
     try {
       const session = await api(`/api/hot-seat/${encodeURIComponent(state.selectedGameId)}`, {
         method: "POST",
-        body: JSON.stringify({ players: names })
+        body: JSON.stringify({ players: names, botCount: state.hotSeatBots })
       });
       beginHotSeatSession(session);
     } catch (error) {

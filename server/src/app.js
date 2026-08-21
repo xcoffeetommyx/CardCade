@@ -185,11 +185,17 @@ export function createCardcadeServer({
           throw new AppError("MODE_NOT_SUPPORTED", `${game.name} is not available for Hot Seat play.`, 409);
         }
         const names = Array.isArray(body.players) ? body.players : [];
-        if (names.length < game.players.min || names.length > game.players.max) {
+        const botCount = Number.isInteger(body.botCount) ? body.botCount : 0;
+        const totalPlayers = names.length + botCount;
+        if (names.length < 1 || names.length > game.players.max || botCount < 0
+          || totalPlayers < game.players.min || totalPlayers > game.players.max) {
           throw new AppError(
             "INVALID_PLAYER_COUNT",
-            `${game.name} Hot Seat requires ${game.players.min === game.players.max ? game.players.min : `${game.players.min}–${game.players.max}`} players.`
+            `${game.name} Hot Seat requires ${game.players.min === game.players.max ? game.players.min : `${game.players.min}–${game.players.max}`} total human and CPU players, including at least one human.`
           );
+        }
+        if (botCount > 0 && !game.supportsBots) {
+          throw new AppError("BOTS_NOT_SUPPORTED", `${game.name} does not support CPU players.`, 409);
         }
 
         let hostSession = null;
@@ -201,6 +207,7 @@ export function createCardcadeServer({
           }
           rooms.selectGame(hostSession.code, hostSession.token, gameId);
           rooms.setSharedDevice(hostSession.code, hostSession.token, true);
+          rooms.setBotCount(hostSession.code, hostSession.token, botCount);
           for (const session of sessions) rooms.setReady(hostSession.code, session.token, true);
           runtime.start(rooms.publicRoom(hostSession.code, hostSession.token));
           rooms.markPlaying(hostSession.code, hostSession.token);
@@ -217,13 +224,14 @@ export function createCardcadeServer({
             };
           });
           persistRoom(hostSession.code);
+          if (botCount > 0) scheduleBotTurns(hostSession.code);
           sendJson(response, 201, {
             code: hostSession.code,
             playerId: hostSession.playerId,
             token: hostSession.token,
             mode: "hot-seat",
             room,
-            hotSeat: { seats },
+            hotSeat: { seats, botCount },
             game: { gameId, view: runtime.view(room) }
           });
         } catch (error) {

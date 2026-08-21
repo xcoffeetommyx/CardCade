@@ -264,6 +264,44 @@ test("Hot Seat creates private human seats on the shared 3s & 7s runtime", async
   assert.equal(guest.body.game.view.state.players.every((player) => !Object.hasOwn(player, "hand")), true);
 });
 
+test("Hot Seat mixes private human seats with configurable CPU players", async (t) => {
+  const { origin } = await startServer(t, { botTurnDelayMs: 10_000 });
+  const result = await jsonRequest(origin, "/api/hot-seat/three-seven", {
+    method: "POST",
+    body: JSON.stringify({ players: ["Tommy"], botCount: 2 })
+  });
+
+  assert.equal(result.response.status, 201);
+  assert.equal(result.body.hotSeat.seats.length, 1);
+  assert.equal(result.body.hotSeat.botCount, 2);
+  assert.equal(result.body.room.gameSettings.botCount, 2);
+  assert.equal(result.body.game.view.state.players.length, 3);
+  assert.equal(result.body.game.view.state.players.filter((player) => player.type === "human").length, 1);
+  assert.equal(result.body.game.view.state.players.filter((player) => player.type === "bot").length, 2);
+  assert.equal(result.body.game.view.hand.length, 7);
+
+  const invalid = await jsonRequest(origin, "/api/hot-seat/three-seven", {
+    method: "POST",
+    body: JSON.stringify({ players: ["Tommy"], botCount: 4 })
+  });
+  assert.equal(invalid.response.status, 400);
+  assert.equal(invalid.body.error.code, "INVALID_PLAYER_COUNT");
+});
+
+test("Thirteen Hot Seat fills its fixed four seats with humans and CPUs", async (t) => {
+  const { origin } = await startServer(t, { botTurnDelayMs: 10_000 });
+  const result = await jsonRequest(origin, "/api/hot-seat/thirteen", {
+    method: "POST",
+    body: JSON.stringify({ players: ["One", "Two"], botCount: 2 })
+  });
+
+  assert.equal(result.response.status, 201);
+  assert.equal(result.body.hotSeat.seats.length, 2);
+  assert.equal(result.body.room.gameSettings.botCount, 2);
+  assert.equal(result.body.game.view.state.players.length, 4);
+  assert.equal(result.body.game.view.state.players.filter((player) => player.type === "bot").length, 2);
+});
+
 test("Hot Seat runs Thirteen with four private human hands and host-controlled closure", async (t) => {
   const { origin } = await startServer(t);
   const result = await jsonRequest(origin, "/api/hot-seat/thirteen", {

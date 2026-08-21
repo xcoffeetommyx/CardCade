@@ -665,6 +665,13 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 .handoff-panel h1 { margin: .3rem 0 .75rem; font-size: clamp(2.3rem, 9vw, 4.6rem); line-height: .95; }
 .handoff-privacy { max-width: 440px; margin: 0 auto; color: #bdcad9; line-height: 1.55; }
 .handoff-actions { margin-top: 1.5rem; }
+.handoff-end { width: min(260px, 100%); margin-top: 1.5rem; }
+.cpu-thinking { width: 132px; height: 132px; margin: 24px auto 18px; display: grid; grid-template-columns: repeat(3, 10px); place-content: center; gap: 8px; border: 4px solid #e8dfcc; border-radius: 50%; color: #9dcaff; background: #0b2749; box-shadow: 7px 9px 0 rgba(0,0,0,.45); }
+.cpu-thinking span { grid-column: 1 / -1; margin-bottom: 8px; font: 900 1.25rem "Cardcade Pixel", "Courier New", monospace; }
+.cpu-thinking i { width: 10px; height: 10px; background: var(--blue); animation: cpuThinking 900ms steps(2, end) infinite; }
+.cpu-thinking i:nth-of-type(2) { animation-delay: 150ms; }
+.cpu-thinking i:nth-of-type(3) { animation-delay: 300ms; }
+@keyframes cpuThinking { 0%, 35% { opacity: .25; transform: translateY(0); } 55%, 100% { opacity: 1; transform: translateY(-5px); } }
 
 @media (min-width: 900px) {
   .standard-card-game { grid-template-columns: minmax(0, 1fr); }
@@ -740,6 +747,7 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   .hot-seat-names { grid-template-columns: 1fr; }
   .handoff-panel { padding: 24px 18px; }
   .handoff-card-back { width: 92px; margin-block: 18px 14px; }
+  .cpu-thinking { width: 104px; height: 104px; margin-block: 18px 14px; }
   .suit-ladder > span:first-child, .suit-ladder > span:last-child { display: none; }
   .suit-rank { font-size: .95rem; }
   .game-seat strong { font-size: .75rem; }
