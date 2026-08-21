@@ -11,6 +11,8 @@ const APP_SHELL = [
   "/shared/card-presentation.js?v=4",
   "/shared/standard-52.js?v=3",
   "/shared/hot-seat-flow.js?v=1",
+  "/shared/juan-deck.js?v=1",
+  "/shared/juan-rules.js?v=1",
   "/assets/fonts/pixelify-sans-latin.woff2",
   "/assets/fonts/cardcade-pixel-ranks.woff2",
   "/assets/pwa/icon-192.png",

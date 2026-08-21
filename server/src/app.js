@@ -8,6 +8,7 @@ import { deckFamilies, games } from "./game-catalog.js";
 import { GameRegistry } from "./game-registry.js";
 import { ThreeSevenRuntime } from "./games/three-seven/runtime.js";
 import { ThirteenRuntime } from "./games/thirteen/runtime.js";
+import { JuanRuntime } from "./games/juan/runtime.js";
 import { RoomStore } from "./room-store.js";
 
 const moduleDirectory = path.dirname(fileURLToPath(import.meta.url));
@@ -110,6 +111,7 @@ export function createCardcadeServer({
   roomStore,
   threeSevenRuntime,
   thirteenRuntime,
+  juanRuntime,
   snapshotStore = null,
   publicRoot = defaultPublicRoot,
   sharedRoot = defaultSharedRoot,
@@ -119,9 +121,11 @@ export function createCardcadeServer({
   const rooms = roomStore ?? new RoomStore({ registry: gameRegistry });
   const threeSeven = threeSevenRuntime ?? new ThreeSevenRuntime();
   const thirteen = thirteenRuntime ?? new ThirteenRuntime();
+  const juan = juanRuntime ?? new JuanRuntime();
   const gameRuntimes = new Map([
     ["three-seven", threeSeven],
-    ["thirteen", thirteen]
+    ["thirteen", thirteen],
+    ["juan", juan]
   ]);
   const roomSockets = new Map();
   const botTimers = new Map();

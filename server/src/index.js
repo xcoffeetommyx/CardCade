@@ -4,6 +4,7 @@ import { deckFamilies, games } from "./game-catalog.js";
 import { GameRegistry } from "./game-registry.js";
 import { ThreeSevenRuntime } from "./games/three-seven/runtime.js";
 import { ThirteenRuntime } from "./games/thirteen/runtime.js";
+import { JuanRuntime } from "./games/juan/runtime.js";
 import { RoomStore } from "./room-store.js";
 import { SnapshotStore } from "./snapshot-store.js";
 
@@ -17,10 +18,11 @@ const registry = new GameRegistry({ deckFamilies, games });
 const rooms = new RoomStore({ registry, restoredRooms: snapshots.map((snapshot) => snapshot.room).filter(Boolean) });
 const threeSevenRuntime = new ThreeSevenRuntime({ restoredMatches: snapshots.map((snapshot) => snapshot.game).filter(Boolean) });
 const thirteenRuntime = new ThirteenRuntime({ restoredMatches: snapshots.map((snapshot) => snapshot.game).filter(Boolean) });
+const juanRuntime = new JuanRuntime({ restoredMatches: snapshots.map((snapshot) => snapshot.game).filter(Boolean) });
 for (const snapshot of snapshots) {
   if (!rooms.roomCodes().includes(snapshot.code)) snapshotStore.delete(snapshot.code);
 }
-const app = createCardcadeServer({ registry, roomStore: rooms, threeSevenRuntime, thirteenRuntime, snapshotStore });
+const app = createCardcadeServer({ registry, roomStore: rooms, threeSevenRuntime, thirteenRuntime, juanRuntime, snapshotStore });
 
 await app.listen({ host, port });
 console.log(`Cardcade is listening on http://${host}:${port}`);

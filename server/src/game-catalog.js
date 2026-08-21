@@ -43,16 +43,16 @@ export const games = [
     accent: "blue"
   },
   {
-    id: "color-clash",
-    name: "Color Clash",
-    eyebrow: "Original shedding game",
-    description: "A future original game built around colors, actions, and quick reversals.",
+    id: "juan",
+    name: "JUAN",
+    eyebrow: "One card changes everything",
+    description: "Match colors or faces, bend the turn order, and race down to one.",
     deckFamilyId: "color-action",
     genres: ["shedding"],
     modes: ["solo", "multiplayer", "hot-seat"],
     players: { min: 2, max: 8, recommended: 4 },
     supportsBots: true,
-    status: "planned",
-    accent: "violet"
+    status: "available",
+    accent: "spectrum"
   }
 ];

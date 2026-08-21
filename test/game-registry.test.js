@@ -12,7 +12,9 @@ test("catalog groups games under ordered deck families", () => {
   const thirteen = catalog.families[0].games.find((game) => game.id === "thirteen");
   assert.equal(thirteen.status, "available");
   assert.deepEqual(thirteen.players, { min: 4, max: 4, recommended: 4 });
-  assert.equal(catalog.families[1].games[0].id, "color-clash");
+  assert.equal(catalog.families[1].games[0].id, "juan");
+  assert.equal(catalog.families[1].games[0].status, "available");
+  assert.deepEqual(catalog.families[1].games[0].players, { min: 2, max: 8, recommended: 4 });
 });
 
 test("catalog can be filtered by game mode and returns defensive copies", () => {
