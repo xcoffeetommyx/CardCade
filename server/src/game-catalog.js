@@ -69,6 +69,19 @@ export const games = [
     accent: "violet"
   },
   {
+    id: "five-card-draw",
+    name: "Five Card Draw",
+    eyebrow: "Classic single-draw poker",
+    description: "Replace up to five cards, make one final wager, and win with the best private hand.",
+    deckFamilyId: "standard-52",
+    genres: ["poker", "betting"],
+    modes: ["solo", "multiplayer", "hot-seat"],
+    players: { min: 2, max: 4, recommended: 4 },
+    supportsBots: true,
+    status: "available",
+    accent: "violet"
+  },
+  {
     id: "juan",
     name: "JUAN",
     eyebrow: "One card changes everything",

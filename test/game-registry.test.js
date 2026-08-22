@@ -8,7 +8,7 @@ test("catalog groups games under ordered deck families", () => {
   const catalog = registry.catalog();
 
   assert.equal(catalog.families[0].id, "standard-52");
-  assert.deepEqual(catalog.families[0].games.map((game) => game.id), ["three-seven", "thirteen", "blackjack", "holdem"]);
+  assert.deepEqual(catalog.families[0].games.map((game) => game.id), ["three-seven", "thirteen", "blackjack", "holdem", "five-card-draw"]);
   const thirteen = catalog.families[0].games.find((game) => game.id === "thirteen");
   assert.equal(thirteen.status, "available");
   assert.deepEqual(thirteen.players, { min: 4, max: 4, recommended: 4 });
@@ -18,6 +18,9 @@ test("catalog groups games under ordered deck families", () => {
   const holdem = catalog.families[0].games.find((game) => game.id === "holdem");
   assert.equal(holdem.status, "available");
   assert.deepEqual(holdem.players, { min: 2, max: 4, recommended: 4 });
+  const fiveCardDraw = catalog.families[0].games.find((game) => game.id === "five-card-draw");
+  assert.equal(fiveCardDraw.status, "available");
+  assert.deepEqual(fiveCardDraw.players, { min: 2, max: 4, recommended: 4 });
   assert.equal(catalog.families[1].games[0].id, "juan");
   assert.equal(catalog.families[1].games[0].status, "available");
   assert.deepEqual(catalog.families[1].games[0].players, { min: 2, max: 8, recommended: 4 });

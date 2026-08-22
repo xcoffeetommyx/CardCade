@@ -7,6 +7,7 @@ import { ThirteenRuntime } from "./games/thirteen/runtime.js";
 import { JuanRuntime } from "./games/juan/runtime.js";
 import { BlackjackRuntime } from "./games/blackjack/runtime.js";
 import { HoldemRuntime } from "./games/holdem/runtime.js";
+import { FiveCardDrawRuntime } from "./games/five-card-draw/runtime.js";
 import { RoomStore } from "./room-store.js";
 import { SnapshotStore } from "./snapshot-store.js";
 
@@ -23,10 +24,11 @@ const thirteenRuntime = new ThirteenRuntime({ restoredMatches: snapshots.map((sn
 const juanRuntime = new JuanRuntime({ restoredMatches: snapshots.map((snapshot) => snapshot.game).filter(Boolean) });
 const blackjackRuntime = new BlackjackRuntime({ restoredMatches: snapshots.map((snapshot) => snapshot.game).filter(Boolean) });
 const holdemRuntime = new HoldemRuntime({ restoredMatches: snapshots.map((snapshot) => snapshot.game).filter(Boolean) });
+const fiveCardDrawRuntime = new FiveCardDrawRuntime({ restoredMatches: snapshots.map((snapshot) => snapshot.game).filter(Boolean) });
 for (const snapshot of snapshots) {
   if (!rooms.roomCodes().includes(snapshot.code)) snapshotStore.delete(snapshot.code);
 }
-const app = createCardcadeServer({ registry, roomStore: rooms, threeSevenRuntime, thirteenRuntime, juanRuntime, blackjackRuntime, holdemRuntime, snapshotStore });
+const app = createCardcadeServer({ registry, roomStore: rooms, threeSevenRuntime, thirteenRuntime, juanRuntime, blackjackRuntime, holdemRuntime, fiveCardDrawRuntime, snapshotStore });
 
 await app.listen({ host, port });
 console.log(`Cardcade is listening on http://${host}:${port}`);
