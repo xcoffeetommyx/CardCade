@@ -185,6 +185,7 @@ export class MatchEngine {
 
     if (hasContestedHand(match) && rules.dealerShouldHit(match.dealer.cards)) {
       const drawn = drawCard(match);
+      match.dealer.cards.push(drawn);
       match.lastMoveText = `Dealer draws ${standard52.cardLabel(drawn)}.`;
       match.log.unshift(match.lastMoveText);
       if (rules.dealerShouldHit(match.dealer.cards)) return true;

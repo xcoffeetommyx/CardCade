@@ -101,6 +101,28 @@ test("Blackjack supports hit, stand, and a dealer turn that settles table points
   assert.equal(match.players[1].hands[0].outcome, "win");
 });
 
+test("Blackjack dealer keeps each drawn card and settles after reaching the stand total", () => {
+  const game = engine();
+  const match = setTable(matchFor([human(0, "One")]), {
+    hands: [[ ["10S", "6H"] ]],
+    dealer: ["5D", "6C"],
+    stock: ["4H", "2S"]
+  });
+
+  game.stand(match, 0);
+  assert.equal(match.phase, "dealer-turn");
+
+  game.runDealerTurn(match);
+  assert.deepEqual(match.dealer.cards.map((candidate) => candidate.id), ["5D", "6C", "2S"]);
+  assert.equal(match.roundOver, false);
+
+  game.runDealerTurn(match);
+  assert.deepEqual(match.dealer.cards.map((candidate) => candidate.id), ["5D", "6C", "2S", "4H"]);
+  assert.equal(match.roundOver, true);
+  assert.equal(match.phase, "complete");
+  assert.equal(match.dealer.cards.length, 4);
+});
+
 test("Blackjack split hands use separate wagers and split Aces automatically stand", () => {
   const game = engine();
   const match = setTable(matchFor([human(0, "One")]), {

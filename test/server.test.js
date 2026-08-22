@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { WebSocket } from "ws";
+import standard52 from "../shared/standard-52.js";
 import { createCardcadeServer } from "../server/src/app.js";
+import { MatchEngine as BlackjackMatchEngine } from "../server/src/games/blackjack/match-engine.js";
+import { BlackjackRuntime } from "../server/src/games/blackjack/runtime.js";
 
 async function startServer(t, options = {}) {
   const app = createCardcadeServer(options);
@@ -55,6 +58,14 @@ function openSocket(origin, session, expectedType = "room_state") {
     });
     socket.once("error", reject);
   });
+}
+
+function scriptedBlackjackShuffle(topToBottom) {
+  return (deck) => {
+    const scripted = new Set(topToBottom);
+    const cardsById = new Map(standard52.makeDeck().map((card) => [card.id, card]));
+    return [...deck.filter((card) => !scripted.has(card.id)), ...topToBottom.slice().reverse().map((cardId) => cardsById.get(cardId))];
+  };
 }
 
 test("health, catalog, and launcher are served from one process", async (t) => {
@@ -305,6 +316,33 @@ test("a host starts Blackjack from a global room with CPU seats", async (t) => {
   assert.equal(message.view.type, "blackjack_match_state");
   assert.equal(message.view.hands[0].cards.length, 2);
   assert.equal(message.view.state.players.length, 3);
+});
+
+test("Blackjack's paced dealer turn adds drawn cards and reaches the settled round", async (t) => {
+  const blackjackRuntime = new BlackjackRuntime({
+    matchEngine: new BlackjackMatchEngine({
+      // Player: 10♠ 6♥; dealer: 5♦ 6♣. The dealer must visibly draw 2♠,
+      // then 4♥ to reach 17 and settle.
+      shuffleDeck: scriptedBlackjackShuffle(["10S", "5D", "6H", "6C", "2S", "4H"])
+    })
+  });
+  const { origin } = await startServer(t, { botTurnDelayMs: 5, blackjackRuntime });
+  const result = await jsonRequest(origin, "/api/solo/blackjack", {
+    method: "POST",
+    body: JSON.stringify({ name: "Dealer Audit", botCount: 0 })
+  });
+  const socket = await openSocket(origin, result.body, "game_state");
+  t.after(() => socket.terminate());
+
+  const dealerTurn = nextMessage(socket, (message) => message.type === "game_state" && message.gameId === "blackjack" && message.view.state.phase === "dealer-turn");
+  const settled = nextMessage(socket, (message) => message.type === "game_state" && message.gameId === "blackjack" && message.view.state.roundOver === true);
+  socket.send(JSON.stringify({ type: "blackjack_stand" }));
+
+  await dealerTurn;
+  const finalState = await settled;
+  assert.equal(finalState.view.state.phase, "complete");
+  assert.deepEqual(finalState.view.state.dealer.cards.map((card) => card.id), ["5D", "6C", "2S", "4H"]);
+  assert.match(finalState.view.state.lastMoveText, /Dealer stands on 17/);
 });
 
 test("Texas Hold'em starts from Solo with fixed-limit points and private hole cards", async (t) => {
