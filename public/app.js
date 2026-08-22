@@ -63,6 +63,7 @@ const hotSeatFlow = globalThis.CardcadeHotSeat;
 const juanDeck = globalThis.CardcadeJuanDeck;
 const juanRules = globalThis.JuanRules;
 const blackjackRules = globalThis.CardcadeBlackjackRules;
+const holdemRules = globalThis.CardcadeHoldemRules;
 
 const standardGameAdapters = {
   "three-seven": {
@@ -88,7 +89,7 @@ const juanGameAdapter = {
 };
 
 function supportsGame(gameId) {
-  return Boolean(standardGameAdapters[gameId]) || gameId === "juan" || gameId === "blackjack";
+  return Boolean(standardGameAdapters[gameId]) || gameId === "juan" || gameId === "blackjack" || gameId === "holdem";
 }
 
 function escapeHtml(value) {
@@ -625,7 +626,7 @@ function renderSeatLastCard(player, gameId) {
   return `<span class="seat-last-card standard-seat-card ${red ? "red" : "black"}" aria-label="Last played ${escapeHtml(standard52.cardLong(card))}"><strong>${escapeHtml(card.rank)}</strong><i>${suit}</i></span>`;
 }
 
-function renderPlayingCard(card, index, { played = false, enter = false, selectable = false, dealt = false } = {}) {
+function renderPlayingCard(card, index, { played = false, enter = false, selectable = false, dealt = false, inert = false } = {}) {
   const suit = standard52.SUIT_SYMBOL[card.suit];
   const red = card.suit === "H" || card.suit === "D";
   const selected = !played && state.selectedCards.has(card.id);
@@ -640,11 +641,12 @@ function renderPlayingCard(card, index, { played = false, enter = false, selecta
     played ? "played" : "",
     played && enter ? "enter" : "",
     selectable && !played ? "selectable" : "",
+    inert && !played ? "inert" : "",
     dealt && !played ? "dealt" : ""
   ].filter(Boolean).join(" ");
   const style = playedCardStyle(index, { animate: played && enter, dealt });
   return `
-    <button class="${classes}" type="button" ${played ? "disabled" : ""} ${style}
+    <button class="${classes}" type="button" ${played || inert ? "disabled" : ""} ${style}
       ${played ? "" : `data-game-card="${escapeHtml(card.id)}" data-card-index="${index}" tabindex="${selectable ? "0" : "-1"}"`}
       aria-label="${escapeHtml(standard52.cardLong(card))}" aria-pressed="${selected}">
       <span class="card-corner"><strong>${escapeHtml(card.rank)}</strong><i>${suit}</i></span>
@@ -790,6 +792,126 @@ function renderBlackjackGame() {
         <div class="round-result blackjack-result">
           <div><span class="family-kicker">Round ${match.round} settled</span><h3>${escapeHtml(match.lastMoveText)}</h3><p>${match.players.map((player) => `${escapeHtml(player.name)} · ${formatPoints(player.score)} pts`).join(" · ")}</p></div>
           <button class="action-button primary" type="button" data-action="next-round" ${isHost ? "" : "disabled"}>${isHost ? "Deal next round" : "Waiting for host"}</button>
+        </div>` : ""}
+    </section>`;
+}
+
+function holdemStreetLabel(street) {
+  return ({
+    preflop: "Pre-flop",
+    flop: "Flop",
+    turn: "Turn",
+    river: "River",
+    complete: "Showdown"
+  })[street] || "Table";
+}
+
+function holdemPrivateHandLabel(hand, board) {
+  const cards = Array.isArray(hand) ? hand : [];
+  if (cards.length + (board?.length || 0) < 5 || !holdemRules) {
+    return cards.length ? `Hole cards · ${cards.map((card) => standard52.cardLabel(card)).join(" ")}` : "Waiting for the deal";
+  }
+  try {
+    return holdemRules.bestHand([...cards, ...board]).label;
+  } catch {
+    return "Your best hand";
+  }
+}
+
+function renderHoldemSeatCard(player) {
+  const card = player.revealedCards?.[0];
+  if (!card) {
+    return `<span class="seat-last-card poker-hole-back" aria-label="${player.holeCardCount || 0} private hole cards"><i aria-hidden="true">${player.holeCardCount || 0}</i></span>`;
+  }
+  const suit = standard52.SUIT_SYMBOL[card.suit];
+  const red = card.suit === "H" || card.suit === "D";
+  return `<span class="seat-last-card standard-seat-card ${red ? "red" : "black"}" aria-label="Revealed ${escapeHtml(standard52.cardLong(card))}"><strong>${escapeHtml(card.rank)}</strong><i>${suit}</i></span>`;
+}
+
+function holdemPlayerStatus(player) {
+  if (player.eliminated) return "out of points";
+  if (player.folded) return "folded";
+  if (player.allIn) return "all in";
+  return `${player.holeCardCount} down`;
+}
+
+function renderHoldemGame() {
+  const view = state.gameView;
+  if (!view || !holdemRules) return `<div class="empty-state">Opening the Poker table…</div>`;
+  const match = view.state;
+  const viewer = state.room?.players.find((player) => player.isYou);
+  const viewerSeat = viewer?.seat;
+  const yourPlayer = match.players.find((player) => player.seat === viewerSeat);
+  const opponents = match.players.filter((player) => player.seat !== viewerSeat);
+  const isYourTurn = !match.roundOver && match.activeSeat === viewerSeat && ["preflop", "flop", "turn", "river"].includes(match.phase);
+  const activePlayer = match.players.find((player) => player.seat === match.activeSeat);
+  const actions = match.actions || {};
+  const board = Array.isArray(match.communityCards) ? match.communityCards : [];
+  const boardSignature = `${match.round}:${board.map((card) => card.id).join(",")}`;
+  const boardIsNew = board.length > 0 && boardSignature !== state.lastPileSignature;
+  state.lastPileSignature = boardSignature;
+  const handOwner = `holdem:${state.room?.code || "table"}:${viewerSeat ?? "viewer"}:hand-${match.round}`;
+  const isDealing = !state.dealtHandOwners.has(handOwner);
+  state.dealtHandOwners.add(handOwner);
+  const isHost = viewer?.role === "host";
+  const playerStatus = match.roundOver
+    ? match.matchOver
+      ? `${match.players.find((player) => player.seat === match.winnerSeat)?.name || "The winner"} takes the table`
+      : "Hand complete"
+    : isYourTurn
+      ? `${yourPlayer?.name || "You"}, your turn`
+      : `${activePlayer?.name || "Table"} is thinking`;
+  const checkCallLabel = actions.check ? "Check" : actions.call ? `Call ${formatPoints(actions.callAmount)}` : "Check / Call";
+  const wagerLabel = actions.bet
+    ? `Bet ${formatPoints(actions.betAmount)}`
+    : actions.raise
+      ? `Raise to ${formatPoints((match.currentBet || 0) + (match.betSize || 0))}`
+      : "Bet / Raise";
+  const canAct = isYourTurn && !state.gameActionLock;
+  const showdownDetail = match.showdown?.revealed
+    ? match.showdown.evaluations.map((entry) => {
+      const player = match.players.find((candidate) => candidate.seat === entry.seat);
+      return `${player?.name || "Player"} · ${entry.label}`;
+    }).join(" · ")
+    : "Best five cards from seven";
+
+  return `
+    <section class="standard-card-game holdem-game" data-game-id="holdem">
+      <header class="game-topbar">
+        <button class="back-button" type="button" data-action="leave-game" aria-label="${state.gameMode === "multiplayer" ? "Return to room lobby" : "Leave game"}">←</button>
+        <div><span class="family-kicker">${state.gameMode === "solo" ? "Solo table" : state.gameMode === "hot-seat" ? "Hot Seat table" : `Room ${escapeHtml(state.room.code)}`}</span><h2>Texas Hold'em</h2><p>Hand ${match.round} · ${escapeHtml(match.lastMoveText)}</p></div>
+        <button class="game-score" type="button" disabled><span>Stack</span><strong>${formatPoints(yourPlayer?.stack)}</strong></button>
+      </header>
+      <div class="holdem-rule-bar"><span>Fixed limit</span><i>•</i><span>100 table points</span><i>•</i><span>1 / 2 blinds</span><i>•</i><strong>2 / 4 bets · four-bet cap</strong></div>
+      <div class="game-opponents holdem-opponents ${opponents.length <= 3 ? "fit-opponents" : ""}">
+        ${opponents.map((player) => `
+          <article class="game-seat ${match.activeSeat === player.seat ? "active" : ""} ${player.folded ? "folded" : ""} ${player.allIn ? "all-in" : ""} ${player.eliminated ? "eliminated" : ""}">
+            ${renderHoldemSeatCard(player)}
+            <span><strong>${escapeHtml(player.name)}${player.seat === match.dealerSeat ? " · D" : ""}</strong><small>${formatPoints(player.stack)} pts · ${escapeHtml(holdemPlayerStatus(player))}${player.lastAction ? ` · ${escapeHtml(player.lastAction.label)}` : ""}</small></span>
+            <span class="mini-deck" aria-label="${player.holeCardCount} private cards">${player.holeCardCount}</span>
+          </article>`).join("")}
+      </div>
+      <section class="game-table holdem-table">
+        <div class="game-status"><span><strong>${escapeHtml(playerStatus)}</strong><small>${holdemStreetLabel(match.phase)} · ${match.currentBet ? `${formatPoints(match.currentBet)} to match` : "table is checked"}</small></span><span class="badge">Pot ${formatPoints(match.pot)}</span></div>
+        <div class="holdem-board-zone">
+          <div class="holdem-board-copy"><span>Community board</span><strong>${escapeHtml(showdownDetail)}</strong></div>
+          <div class="active-pile cards-pile holdem-board" aria-label="Community cards">${board.length ? board.map((card, index) => renderPlayingCard(card, index, { played: true, enter: boardIsNew })).join("") : `<div class="empty-pile"><strong>Face-down board</strong><span>Cards arrive after the first betting round.</span></div>`}</div>
+        </div>
+      </section>
+      <section class="physical-hand holdem-hand ${isYourTurn ? "your-turn" : ""}">
+        <div class="hand-heading"><span><strong>Your hole cards</strong><small>${view.hand?.length || 0} cards · ${formatPoints(yourPlayer?.stack)} table points</small></span><span class="selection-status ${isYourTurn ? "valid" : ""}">${escapeHtml(holdemPrivateHandLabel(view.hand, board))}</span></div>
+        <div class="game-hand" data-hand-owner="${escapeHtml(handOwner)}" aria-label="Your fanned Poker hole cards">${(view.hand || []).map((card, index) => renderPlayingCard(card, index, { dealt: isDealing, inert: true })).join("")}</div>
+      </section>
+      <nav class="game-actions holdem-actions">
+        <button type="button" data-action="holdem-hint" ${canAct ? "" : "disabled"}>Hint</button>
+        <button class="danger" type="button" data-action="holdem-action" data-holdem-action="holdem_fold" ${canAct && actions.fold ? "" : "disabled"}>Fold</button>
+        <button type="button" data-action="holdem-action" data-holdem-action="${actions.check ? "holdem_check" : "holdem_call"}" ${canAct && (actions.check || actions.call) ? "" : "disabled"}>${escapeHtml(checkCallLabel)}</button>
+        <button class="primary" type="button" data-action="holdem-action" data-holdem-action="${actions.bet ? "holdem_bet" : "holdem_raise"}" ${canAct && (actions.bet || actions.raise) ? "" : "disabled"}>${escapeHtml(wagerLabel)}</button>
+      </nav>
+      ${match.roundOver ? `
+        <div class="round-result holdem-result">
+          <div><span class="family-kicker">${match.matchOver ? "Table winner" : `Hand ${match.round} settled`}</span><h3>${escapeHtml(match.lastMoveText)}</h3><p>${match.players.map((player) => `${escapeHtml(player.name)} · ${formatPoints(player.stack)} pts${player.eliminated ? " · out" : ""}`).join(" · ")}</p></div>
+          ${match.matchOver ? `<button class="action-button" type="button" data-action="leave-game">Return to Cardcade</button>` : `<button class="action-button primary" type="button" data-action="holdem-next-hand" ${isHost ? "" : "disabled"}>${isHost ? "Deal next hand" : "Waiting for host"}</button>`}
         </div>` : ""}
     </section>`;
 }
@@ -1183,6 +1305,7 @@ function layoutActivePiles() {
 function renderCurrentGame() {
   if (state.room?.gameId === "juan") return renderJuanGame();
   if (state.room?.gameId === "blackjack") return renderBlackjackGame();
+  if (state.room?.gameId === "holdem") return renderHoldemGame();
   return renderStandardGame();
 }
 
@@ -1279,7 +1402,7 @@ function layoutStandardHand() {
   hand.onclick = (event) => {
     const match = state.gameView?.state;
     const viewer = state.room?.players.find((player) => player.isYou);
-    if (state.room?.gameId === "blackjack") return;
+    if (["blackjack", "holdem"].includes(state.room?.gameId)) return;
     if (state.gameActionLock || !match || match.roundOver || match.activeSeat !== viewer?.seat) return;
     const rects = cards.map((card) => card.getBoundingClientRect());
     const indexRects = cards.map((card) => card.querySelector(".card-corner:not(.bottom)")?.getBoundingClientRect());
@@ -1294,7 +1417,7 @@ function layoutStandardHand() {
 function toggleStandardCard(cardId) {
   const match = state.gameView?.state;
   const viewer = state.room?.players.find((player) => player.isYou);
-  if (state.room?.gameId === "blackjack") return;
+  if (["blackjack", "holdem"].includes(state.room?.gameId)) return;
   if (state.gameActionLock || !match || match.roundOver || match.activeSeat !== viewer?.seat) return;
   if (state.room?.gameId === "juan") {
     if (match.drawnCardId && match.drawnCardId !== cardId) return;
@@ -1968,6 +2091,34 @@ document.addEventListener("click", async (event) => {
       state.gameActionLock = false;
       render();
     }
+  }
+  if (action === "holdem-hint") {
+    if (state.gameActionLock || !state.gameView || !holdemRules) return;
+    const match = state.gameView.state;
+    const actions = match.actions || {};
+    if (!Object.values(actions).some(Boolean)) {
+      showToast("Wait for the next Poker decision.");
+      return;
+    }
+    const handLabel = holdemPrivateHandLabel(state.gameView.hand, match.communityCards);
+    if (actions.check && actions.bet) showToast(`Hint: ${handLabel}. You can check or make the ${formatPoints(actions.betAmount)}-point limit bet.`);
+    else if (actions.check) showToast(`Hint: ${handLabel}. Checking is free here.`);
+    else if (actions.raise) showToast(`Hint: ${handLabel}. Call ${formatPoints(actions.callAmount)} or raise to ${formatPoints((match.currentBet || 0) + (match.betSize || 0))}.`);
+    else if (actions.call) showToast(`Hint: ${handLabel}. It costs ${formatPoints(actions.callAmount)} to continue.`);
+    else showToast(`Hint: ${handLabel}.`);
+  }
+  if (action === "holdem-action") {
+    if (state.gameActionLock || !button.dataset.holdemAction) return;
+    state.gameActionLock = true;
+    if (!sendRoom({ type: button.dataset.holdemAction })) {
+      state.gameActionLock = false;
+      render();
+    }
+  }
+  if (action === "holdem-next-hand") {
+    state.selectedCards.clear();
+    if (state.gameMode === "hot-seat") state.hotSeatForceHandoff = true;
+    if (!sendRoom({ type: "holdem_next_hand" })) state.hotSeatForceHandoff = false;
   }
   if (action === "game-play") {
     if (state.gameActionLock) return;

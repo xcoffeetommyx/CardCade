@@ -638,6 +638,7 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   cursor: default;
   margin: 0;
 }
+.playing-card.inert { cursor: default; }
 .playing-card.played .card-center { font-size: 2.8rem; }
 .playing-card.played.enter { animation: cardPileIn .22s cubic-bezier(.2,.8,.3,1.1) both; }
 .playing-card.dealt { animation: cardFanDeal .38s cubic-bezier(.18,.82,.25,1.05) both; }
@@ -846,6 +847,73 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 .blackjack-actions button.primary { border-color: #f4ca58; color: #16120a; background: linear-gradient(#f3ce68, #c7942d); }
 .blackjack-actions button.danger { border-color: #c87072; color: #ffc8c8; background: #4b1e2b; }
 .blackjack-result { border-color: #b89437; }
+
+/* ---------- Texas Hold'em fixed-limit table ---------- */
+.holdem-game {
+  --table-green: #253e3b;
+  --table-green-light: #3e7163;
+  --holdem-violet: #a58bff;
+  --holdem-violet-deep: #5e498e;
+}
+.holdem-rule-bar {
+  min-height: 48px;
+  padding: 8px 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px 12px;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #615483;
+  border-radius: 13px;
+  color: #ddd2ff;
+  background: linear-gradient(100deg, rgba(72, 54, 112, .54), rgba(13, 32, 40, .9));
+  font: 800 .66rem "Cardcade Pixel", "Courier New", monospace;
+  letter-spacing: .055em;
+  text-align: center;
+  text-transform: uppercase;
+}
+.holdem-rule-bar i { color: var(--holdem-violet); font-style: normal; }
+.holdem-rule-bar strong { color: #f1edff; }
+.holdem-opponents .game-seat.active { border-color: var(--holdem-violet); box-shadow: 0 0 18px rgba(165, 139, 255, .18); }
+.holdem-opponents .game-seat.folded { opacity: .58; filter: saturate(.65); }
+.holdem-opponents .game-seat.all-in { border-color: #f0c553; box-shadow: 0 0 15px rgba(240, 197, 83, .16); }
+.holdem-opponents .game-seat.eliminated { opacity: .45; }
+.poker-hole-back {
+  color: #e8ddff;
+  border-color: #e9e1d3;
+  background:
+    repeating-linear-gradient(45deg, transparent 0 4px, rgba(165,139,255,.22) 4px 6px),
+    repeating-linear-gradient(-45deg, transparent 0 4px, rgba(96,210,185,.12) 4px 6px),
+    #18284b;
+}
+.poker-hole-back::before { content: ""; position: absolute; inset: 6px; border: 1px solid rgba(232,221,255,.64); border-radius: 3px; }
+.poker-hole-back i { position: relative; z-index: 1; font: 900 .86rem "Cardcade Pixel", "Courier New", monospace; font-style: normal; text-shadow: 2px 2px 0 rgba(0,0,0,.48); }
+.holdem-table { border-color: #4b6f69; background:
+  linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px),
+  linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px),
+  radial-gradient(circle at 50% 110%, #426d66, #1d3c39 58%, #0b2428);
+  background-size: 4px 4px, 4px 4px, auto;
+}
+.holdem-table .game-status .badge { border-color: #7465a2; color: #e5ddff; background: rgba(51, 38, 79, .74); }
+.holdem-board-zone {
+  min-height: 164px;
+  display: grid;
+  grid-template-columns: minmax(128px, .72fr) minmax(210px, 1.5fr);
+  gap: clamp(12px, 4vw, 44px);
+  align-items: center;
+  justify-items: center;
+}
+.holdem-board-copy { min-width: 0; color: #d6e9e0; text-align: center; }
+.holdem-board-copy span, .holdem-board-copy strong { display: block; }
+.holdem-board-copy span { color: #c9b7ff; font: 800 .7rem "Cardcade Pixel", "Courier New", monospace; letter-spacing: .1em; text-transform: uppercase; }
+.holdem-board-copy strong { max-width: 290px; margin-top: 6px; font-size: .75rem; line-height: 1.38; }
+.holdem-board { width: min(100%, 430px) !important; min-height: 144px !important; }
+.holdem-board .empty-pile { min-width: min(300px, 90%); padding: 18px 10px; }
+.holdem-hand { min-height: 286px; }
+.holdem-actions { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.holdem-actions button.primary { border-color: #aa91ff; color: #f5f1ff; background: linear-gradient(#846bd1, #584493); }
+.holdem-actions button.danger { border-color: #c87072; color: #ffc8c8; background: #4b1e2b; }
+.holdem-result { border-color: #8270ae; }
 
 /* ---------- JUAN color/action table ---------- */
 .juan-game {
@@ -1317,6 +1385,9 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   .blackjack-dealer-pile { min-height: 126px !important; }
   .blackjack-hand { min-height: 254px; }
   .blackjack-actions { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .holdem-board-zone { min-height: 140px; grid-template-columns: minmax(105px, .76fr) minmax(154px, 1fr); gap: 9px; }
+  .holdem-board { min-height: 126px !important; }
+  .holdem-hand { min-height: 254px; }
 }
 
 @media (max-height: 680px) {
@@ -1416,6 +1487,16 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   .blackjack-insurance-prompt strong { font-size: .84rem; }
   .blackjack-insurance-prompt .button-row { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; }
   .blackjack-insurance-prompt .action-button { min-height: 40px; padding-inline: 5px; font-size: .64rem; }
+  .holdem-rule-bar { min-height: 42px; gap: 3px 7px; padding: 6px 8px; font-size: .55rem; }
+  .holdem-rule-bar i { display: none; }
+  .holdem-board-zone { min-height: 126px; grid-template-columns: 1fr; gap: 1px; }
+  .holdem-board-copy { display: flex; gap: 7px; align-items: baseline; }
+  .holdem-board-copy strong { max-width: 250px; margin-top: 0; font-size: .65rem; }
+  .holdem-board-copy span { font-size: .58rem; }
+  .holdem-board { min-height: 103px !important; }
+  .holdem-board .playing-card.played { width: 68px; height: 97px; }
+  .holdem-hand { min-height: 240px; }
+  .holdem-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 520px) and (min-height: 620px) {

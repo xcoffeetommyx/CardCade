@@ -72,6 +72,7 @@ test("health, catalog, and launcher are served from one process", async (t) => {
   assert.match(launcherBody, /<title>Cardcade<\/title>/);
   assert.match(launcherBody, /shared\/thirteen-rules\.js/);
   assert.match(launcherBody, /shared\/blackjack-rules\.js/);
+  assert.match(launcherBody, /shared\/holdem-rules\.js/);
   assert.match(launcherBody, /shared\/hot-seat-flow\.js/);
   assert.match(launcherBody, /shared\/juan-deck\.js/);
   assert.match(launcherBody, /shared\/juan-rules\.js/);
@@ -83,6 +84,10 @@ test("health, catalog, and launcher are served from one process", async (t) => {
   const blackjackRules = await fetch(`${origin}/shared/blackjack-rules.js`);
   assert.equal(blackjackRules.status, 200);
   assert.match(await blackjackRules.text(), /CardcadeBlackjackRules/);
+
+  const holdemRules = await fetch(`${origin}/shared/holdem-rules.js`);
+  assert.equal(holdemRules.status, 200);
+  assert.match(await holdemRules.text(), /CardcadeHoldemRules/);
 
   const hotSeatFlow = await fetch(`${origin}/shared/hot-seat-flow.js`);
   assert.equal(hotSeatFlow.status, 200);
