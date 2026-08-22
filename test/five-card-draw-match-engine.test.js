@@ -74,7 +74,6 @@ test("Five Card Draw replaces selected cards, permits standing pat, and enters f
   assert.equal(match.phase, "final");
   assert.equal(match.activeSeat, 1);
   assert.equal(match.currentBet, 0);
-  assert.equal(match.betSize, undefined);
 });
 
 test("Five Card Draw rejects duplicate and unowned discards", () => {
@@ -136,6 +135,32 @@ test("Five Card Draw showdown evaluates exactly the private five-card hands and 
   assert.equal(match.dealerSeat, 1);
   assert.equal(match.phase, "opening");
   assert.equal(match.players[0].hand.length, 5);
+});
+
+test("Five Card Draw pays a main pot and side pot correctly when a short stack is all in", () => {
+  const game = engine();
+  const match = matchFor([human(0, "Ace"), human(1, "King"), human(2, "Queen")]);
+  setFinalCheckdown(match, {
+    playerCards: [
+      ["AS", "AH", "KD", "QC", "2S"],
+      ["KS", "KH", "QD", "JC", "3S"],
+      ["QS", "QH", "JD", "10C", "4S"]
+    ],
+    contributions: [10, 20, 20],
+    stacks: [0, 80, 80],
+    allInSeats: [0],
+    activeSeat: 1
+  });
+  game.check(match, 1);
+  game.check(match, 2);
+
+  assert.deepEqual(match.showdown.pots.map((pot) => ({ amount: pot.amount, winnerSeats: pot.winnerSeats })), [
+    { amount: 30, winnerSeats: [0] },
+    { amount: 20, winnerSeats: [1] }
+  ]);
+  assert.equal(match.players[0].stack, 30);
+  assert.equal(match.players[1].stack, 100);
+  assert.equal(match.players[2].stack, 80);
 });
 
 test("Five Card Draw CPUs take legal betting and draw turns, and disconnected humans can be replaced", () => {

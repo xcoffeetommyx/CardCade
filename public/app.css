@@ -915,6 +915,119 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 .holdem-actions button.danger { border-color: #c87072; color: #ffc8c8; background: #4b1e2b; }
 .holdem-result { border-color: #8270ae; }
 
+/* ---------- Five Card Draw fixed-limit table ---------- */
+.five-card-draw-game {
+  --draw-plum: #d59aff;
+  --draw-plum-deep: #70478e;
+  --draw-copper: #e7af6d;
+}
+.five-card-draw-rule-bar {
+  min-height: 48px;
+  padding: 8px 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px 12px;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #785471;
+  border-radius: 13px;
+  color: #f5dffb;
+  background: linear-gradient(100deg, rgba(91, 49, 94, .58), rgba(27, 25, 47, .92));
+  font: 800 .66rem "Cardcade Pixel", "Courier New", monospace;
+  letter-spacing: .055em;
+  text-align: center;
+  text-transform: uppercase;
+}
+.five-card-draw-rule-bar i { color: var(--draw-copper); font-style: normal; }
+.five-card-draw-rule-bar strong { color: #fff0dd; }
+.five-card-draw-opponents .game-seat.active { border-color: var(--draw-plum); box-shadow: 0 0 18px rgba(213,154,255,.18); }
+.five-card-draw-opponents .game-seat.folded { opacity: .58; filter: saturate(.65); }
+.five-card-draw-opponents .game-seat.all-in { border-color: #f0c553; box-shadow: 0 0 15px rgba(240,197,83,.16); }
+.five-card-draw-opponents .game-seat.eliminated { opacity: .45; }
+.draw-hole-back {
+  color: #ffe4c3;
+  background:
+    repeating-linear-gradient(45deg, transparent 0 4px, rgba(229,160,255,.23) 4px 6px),
+    repeating-linear-gradient(-45deg, transparent 0 4px, rgba(255,195,111,.12) 4px 6px),
+    #2c1c47;
+}
+.five-card-draw-table { border-color: #77526d; background:
+  linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px),
+  linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px),
+  radial-gradient(circle at 50% 110%, #5d3856, #2e2549 58%, #12162c);
+  background-size: 4px 4px, 4px 4px, auto;
+}
+.five-card-draw-table .game-status .badge { border-color: #9e668f; color: #ffe4c2; background: rgba(80, 38, 73, .74); }
+.five-card-draw-table-zone {
+  min-height: 164px;
+  display: grid;
+  grid-template-columns: minmax(150px, .9fr) minmax(220px, 1.35fr);
+  gap: clamp(12px, 4vw, 44px);
+  align-items: center;
+  justify-items: center;
+}
+.five-card-draw-copy { min-width: 0; color: #f4e0dd; text-align: center; }
+.five-card-draw-copy span, .five-card-draw-copy strong { display: block; }
+.five-card-draw-copy span { color: #e9b5ff; font: 800 .7rem "Cardcade Pixel", "Courier New", monospace; letter-spacing: .1em; text-transform: uppercase; }
+.five-card-draw-copy strong { max-width: 300px; margin-top: 6px; font-size: .75rem; line-height: 1.38; }
+.five-card-draw-piles { min-width: 0; display: flex; align-items: center; justify-content: center; gap: clamp(18px, 5vw, 56px); }
+.draw-stack, .draw-discard-pile {
+  position: relative;
+  width: 104px;
+  min-height: 142px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  color: #f6e7d6;
+  text-align: center;
+}
+.draw-stack::before, .draw-stack::after {
+  content: "";
+  position: absolute;
+  width: 73px;
+  height: 103px;
+  border: 2px solid rgba(255,231,198,.42);
+  border-radius: 9px;
+  background: #21183d;
+  box-shadow: inset 0 0 0 2px rgba(214,146,255,.14);
+}
+.draw-stack::before { transform: translate(-6px, 5px) rotate(-4deg); opacity: .58; }
+.draw-stack::after { transform: translate(6px, 4px) rotate(4deg); opacity: .72; }
+.draw-card-back {
+  position: relative;
+  z-index: 2;
+  width: 74px;
+  height: 104px;
+  display: grid;
+  place-items: center;
+  border: 3px solid #eee0ca;
+  border-radius: 10px;
+  color: #f7e5ff;
+  background:
+    linear-gradient(135deg, rgba(255,255,255,.14) 0 10%, transparent 10% 50%, rgba(255,255,255,.1) 50% 60%, transparent 60%),
+    repeating-linear-gradient(45deg, transparent 0 4px, rgba(228,153,255,.18) 4px 6px),
+    #332156;
+  box-shadow: 5px 7px 0 rgba(0,0,0,.38), inset 0 0 0 3px rgba(247,220,255,.22);
+  transform: rotate(-2deg);
+}
+.draw-card-back::after { content: ""; position: absolute; inset: 7px; border: 1px solid rgba(255,234,212,.67); border-radius: 4px; }
+.draw-card-back i { position: relative; z-index: 1; font: 900 .94rem "Cardcade Pixel", "Courier New", monospace; font-style: normal; text-shadow: 2px 2px 0 rgba(0,0,0,.45); }
+.draw-card-back.discard { transform: rotate(4deg); background:
+  linear-gradient(135deg, rgba(255,255,255,.12) 0 10%, transparent 10% 50%, rgba(255,255,255,.09) 50% 60%, transparent 60%),
+  repeating-linear-gradient(-45deg, transparent 0 4px, rgba(237,173,99,.2) 4px 6px),
+  #4b2948;
+}
+.draw-stack > strong, .draw-discard-pile > strong { position: relative; z-index: 3; margin-top: 4px; font: 800 .64rem "Cardcade Pixel", "Courier New", monospace; letter-spacing: .07em; text-transform: uppercase; }
+.draw-stack > small, .draw-discard-pile > small { position: relative; z-index: 3; color: #ceb9ca; font-size: .64rem; }
+.five-card-draw-hand { min-height: 286px; }
+.five-card-draw-actions { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.five-card-draw-actions.draw-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.five-card-draw-actions button.primary { border-color: #d498ff; color: #fff3ff; background: linear-gradient(#a964c5, #663979); }
+.five-card-draw-actions button.danger { border-color: #c87072; color: #ffc8c8; background: #4b1e2b; }
+.five-card-draw-result { border-color: #a870a4; }
+
 /* ---------- JUAN color/action table ---------- */
 .juan-game {
   --juan-blaze: #ef4d54;
@@ -1388,6 +1501,8 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   .holdem-board-zone { min-height: 140px; grid-template-columns: minmax(105px, .76fr) minmax(154px, 1fr); gap: 9px; }
   .holdem-board { min-height: 126px !important; }
   .holdem-hand { min-height: 254px; }
+  .five-card-draw-table-zone { min-height: 140px; grid-template-columns: minmax(105px, .76fr) minmax(154px, 1fr); gap: 9px; }
+  .five-card-draw-hand { min-height: 254px; }
 }
 
 @media (max-height: 680px) {
@@ -1497,6 +1612,21 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   .holdem-board .playing-card.played { width: 68px; height: 97px; }
   .holdem-hand { min-height: 240px; }
   .holdem-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .five-card-draw-rule-bar { min-height: 42px; gap: 3px 7px; padding: 6px 8px; font-size: .55rem; }
+  .five-card-draw-rule-bar i { display: none; }
+  .five-card-draw-table-zone { min-height: 126px; grid-template-columns: 1fr; gap: 1px; }
+  .five-card-draw-copy { display: flex; gap: 7px; align-items: baseline; }
+  .five-card-draw-copy strong { max-width: 250px; margin-top: 0; font-size: .65rem; }
+  .five-card-draw-copy span { font-size: .58rem; }
+  .five-card-draw-piles { gap: 46px; }
+  .draw-stack, .draw-discard-pile { width: 82px; min-height: 106px; }
+  .draw-stack::before, .draw-stack::after { width: 60px; height: 84px; }
+  .draw-card-back { width: 61px; height: 86px; border-radius: 8px; }
+  .draw-card-back::after { inset: 5px; }
+  .draw-stack > strong, .draw-discard-pile > strong { margin-top: 2px; font-size: .54rem; }
+  .draw-stack > small, .draw-discard-pile > small { font-size: .55rem; }
+  .five-card-draw-hand { min-height: 240px; }
+  .five-card-draw-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 520px) and (min-height: 620px) {

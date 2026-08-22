@@ -75,7 +75,7 @@ test("health, catalog, and launcher are served from one process", async (t) => {
 
   const catalog = await fetch(`${origin}/api/catalog`);
   const catalogBody = await catalog.json();
-  assert.deepEqual(catalogBody.families[0].games.map((game) => game.id), ["three-seven", "thirteen", "blackjack", "holdem"]);
+  assert.deepEqual(catalogBody.families[0].games.map((game) => game.id), ["three-seven", "thirteen", "blackjack", "holdem", "five-card-draw"]);
 
   const launcher = await fetch(origin);
   assert.equal(launcher.status, 200);
@@ -84,6 +84,7 @@ test("health, catalog, and launcher are served from one process", async (t) => {
   assert.match(launcherBody, /shared\/thirteen-rules\.js/);
   assert.match(launcherBody, /shared\/blackjack-rules\.js/);
   assert.match(launcherBody, /shared\/holdem-rules\.js/);
+  assert.match(launcherBody, /shared\/five-card-draw-rules\.js/);
   assert.match(launcherBody, /shared\/hot-seat-flow\.js/);
   assert.match(launcherBody, /shared\/juan-deck\.js/);
   assert.match(launcherBody, /shared\/juan-rules\.js/);
@@ -99,6 +100,10 @@ test("health, catalog, and launcher are served from one process", async (t) => {
   const holdemRules = await fetch(`${origin}/shared/holdem-rules.js`);
   assert.equal(holdemRules.status, 200);
   assert.match(await holdemRules.text(), /CardcadeHoldemRules/);
+
+  const fiveCardDrawRules = await fetch(`${origin}/shared/five-card-draw-rules.js`);
+  assert.equal(fiveCardDrawRules.status, 200);
+  assert.match(await fiveCardDrawRules.text(), /CardcadeFiveCardDrawRules/);
 
   const hotSeatFlow = await fetch(`${origin}/shared/hot-seat-flow.js`);
   assert.equal(hotSeatFlow.status, 200);
@@ -364,6 +369,25 @@ test("Texas Hold'em starts from Solo with fixed-limit points and private hole ca
   assert.equal(result.body.game.view.state.players.every((player) => !Object.hasOwn(player, "holeCards")), true);
 });
 
+test("Five Card Draw starts from Solo with fixed-limit points and five private cards", async (t) => {
+  const { origin } = await startServer(t, { botTurnDelayMs: 10_000 });
+  const result = await jsonRequest(origin, "/api/solo/five-card-draw", {
+    method: "POST",
+    body: JSON.stringify({ name: "Draw Player", botCount: 3 })
+  });
+
+  assert.equal(result.response.status, 201);
+  assert.equal(result.body.room.phase, "playing");
+  assert.equal(result.body.room.gameId, "five-card-draw");
+  assert.equal(result.body.game.view.type, "five_card_draw_match_state");
+  assert.equal(result.body.game.view.hand.length, 5);
+  assert.equal(result.body.game.view.state.players.length, 4);
+  assert.equal(result.body.game.view.state.pot, 3);
+  assert.equal(result.body.game.view.state.currentBet, 2);
+  assert.equal(result.body.game.view.state.players.filter((player) => player.type === "bot").length, 3);
+  assert.equal(result.body.game.view.state.players.every((player) => !Object.hasOwn(player, "hand")), true);
+});
+
 test("a host starts Texas Hold'em from the same shared global room with CPU seats", async (t) => {
   const { origin } = await startServer(t, { botTurnDelayMs: 10_000 });
   const host = (await jsonRequest(origin, "/api/rooms", {
@@ -393,6 +417,38 @@ test("a host starts Texas Hold'em from the same shared global room with CPU seat
   assert.equal(message.room.game.name, "Texas Hold'em");
   assert.equal(message.view.type, "holdem_match_state");
   assert.equal(message.view.hand.length, 2);
+  assert.equal(message.view.state.players.length, 2);
+});
+
+test("a host starts Five Card Draw from the same shared global room with CPU seats", async (t) => {
+  const { origin } = await startServer(t, { botTurnDelayMs: 10_000 });
+  const host = (await jsonRequest(origin, "/api/rooms", {
+    method: "POST",
+    body: JSON.stringify({ name: "Host" })
+  })).body;
+  const socket = await openSocket(origin, host);
+  t.after(() => socket.terminate());
+
+  let update = nextMessage(socket, (message) => message.type === "room_state" && message.room.gameId === "five-card-draw");
+  socket.send(JSON.stringify({ type: "select_game", gameId: "five-card-draw" }));
+  await update;
+
+  update = nextMessage(socket, (message) => message.type === "room_state" && message.room.gameSettings.botCount === 1);
+  socket.send(JSON.stringify({ type: "set_bot_count", botCount: 1 }));
+  await update;
+
+  update = nextMessage(socket, (message) => message.type === "room_state" && message.room.canStart === true);
+  socket.send(JSON.stringify({ type: "set_ready", ready: true }));
+  await update;
+
+  const gameState = nextMessage(socket, (message) => message.type === "game_state" && message.gameId === "five-card-draw");
+  socket.send(JSON.stringify({ type: "start_game" }));
+  const message = await gameState;
+
+  assert.equal(message.room.phase, "playing");
+  assert.equal(message.room.game.name, "Five Card Draw");
+  assert.equal(message.view.type, "five_card_draw_match_state");
+  assert.equal(message.view.hand.length, 5);
   assert.equal(message.view.state.players.length, 2);
 });
 
@@ -606,6 +662,31 @@ test("Texas Hold'em Hot Seat mixes private human hole cards with configurable CP
   });
   assert.equal(guest.body.game.gameId, "holdem");
   assert.equal(guest.body.game.view.hand.length, 2);
+});
+
+test("Five Card Draw Hot Seat mixes private human cards with configurable CPUs", async (t) => {
+  const { origin } = await startServer(t, { botTurnDelayMs: 10_000 });
+  const result = await jsonRequest(origin, "/api/hot-seat/five-card-draw", {
+    method: "POST",
+    body: JSON.stringify({ players: ["Tommy", "Alex"], botCount: 2 })
+  });
+
+  assert.equal(result.response.status, 201);
+  assert.equal(result.body.room.gameId, "five-card-draw");
+  assert.equal(result.body.hotSeat.seats.length, 2);
+  assert.equal(result.body.hotSeat.botCount, 2);
+  assert.equal(result.body.game.view.type, "five_card_draw_match_state");
+  assert.equal(result.body.game.view.hand.length, 5);
+  assert.equal(result.body.game.view.state.players.length, 4);
+  assert.equal(result.body.game.view.state.players.filter((player) => player.type === "bot").length, 2);
+
+  const guestSeat = result.body.hotSeat.seats[1];
+  const guest = await jsonRequest(origin, `/api/rooms/${result.body.code}/reconnect`, {
+    method: "POST",
+    body: JSON.stringify({ token: guestSeat.token })
+  });
+  assert.equal(guest.body.game.gameId, "five-card-draw");
+  assert.equal(guest.body.game.view.hand.length, 5);
 });
 
 test("Hot Seat runs Thirteen with four private human hands and host-controlled closure", async (t) => {

@@ -64,6 +64,7 @@ const juanDeck = globalThis.CardcadeJuanDeck;
 const juanRules = globalThis.JuanRules;
 const blackjackRules = globalThis.CardcadeBlackjackRules;
 const holdemRules = globalThis.CardcadeHoldemRules;
+const fiveCardDrawRules = globalThis.CardcadeFiveCardDrawRules;
 
 const standardGameAdapters = {
   "three-seven": {
@@ -89,7 +90,7 @@ const juanGameAdapter = {
 };
 
 function supportsGame(gameId) {
-  return Boolean(standardGameAdapters[gameId]) || gameId === "juan" || gameId === "blackjack" || gameId === "holdem";
+  return Boolean(standardGameAdapters[gameId]) || gameId === "juan" || gameId === "blackjack" || gameId === "holdem" || gameId === "five-card-draw";
 }
 
 function escapeHtml(value) {
@@ -916,6 +917,143 @@ function renderHoldemGame() {
     </section>`;
 }
 
+function fiveCardDrawPhaseLabel(phase) {
+  return ({
+    opening: "Opening betting",
+    draw: "Draw round",
+    final: "Final betting",
+    complete: "Showdown"
+  })[phase] || "Five Card Draw";
+}
+
+function fiveCardDrawPrivateHandLabel(hand, match) {
+  const cards = Array.isArray(hand) ? hand : [];
+  if (!cards.length) return "Waiting for the deal";
+  if (match?.phase === "draw") {
+    const selected = state.selectedCards.size;
+    return selected ? `${selected} card${selected === 1 ? "" : "s"} marked to replace` : "Select cards to replace, or stand pat";
+  }
+  const showdown = match?.showdown?.evaluations?.find((entry) => entry.seat === state.room?.players.find((player) => player.isYou)?.seat);
+  if (showdown?.label) return showdown.label;
+  try {
+    return fiveCardDrawRules?.evaluateHand(cards)?.label || "Your five-card hand";
+  } catch {
+    return "Your five-card hand";
+  }
+}
+
+function renderFiveCardDrawSeatCard(player) {
+  const card = player.revealedCards?.[0];
+  if (!card) {
+    return `<span class="seat-last-card poker-hole-back draw-hole-back" aria-label="${player.cardCount || 0} private cards"><i aria-hidden="true">${player.cardCount || 0}</i></span>`;
+  }
+  const suit = standard52.SUIT_SYMBOL[card.suit];
+  const red = card.suit === "H" || card.suit === "D";
+  return `<span class="seat-last-card standard-seat-card ${red ? "red" : "black"}" aria-label="Revealed ${escapeHtml(standard52.cardLong(card))}"><strong>${escapeHtml(card.rank)}</strong><i>${suit}</i></span>`;
+}
+
+function fiveCardDrawPlayerStatus(player) {
+  if (player.eliminated) return "out of points";
+  if (player.folded) return "folded";
+  if (player.allIn) return "all in";
+  if (player.hasDrawn) return player.drawCount ? `drew ${player.drawCount}` : "stood pat";
+  return `${player.cardCount} down`;
+}
+
+function renderFiveCardDrawGame() {
+  const view = state.gameView;
+  if (!view || !fiveCardDrawRules) return `<div class="empty-state">Opening the Five Card Draw table…</div>`;
+  const match = view.state;
+  const viewer = state.room?.players.find((player) => player.isYou);
+  const viewerSeat = viewer?.seat;
+  const yourPlayer = match.players.find((player) => player.seat === viewerSeat);
+  const opponents = match.players.filter((player) => player.seat !== viewerSeat);
+  const isDrawTurn = !match.roundOver && match.phase === "draw" && match.activeSeat === viewerSeat && match.actions?.draw;
+  const isBetTurn = !match.roundOver && fiveCardDrawRules.BETTING_PHASES.includes(match.phase) && match.activeSeat === viewerSeat;
+  const isYourTurn = isDrawTurn || isBetTurn;
+  const activePlayer = match.players.find((player) => player.seat === match.activeSeat);
+  const actions = match.actions || {};
+  const handOwner = `five-card-draw:${state.room?.code || "table"}:${viewerSeat ?? "viewer"}:hand-${match.round}`;
+  const isDealing = !state.dealtHandOwners.has(handOwner);
+  state.dealtHandOwners.add(handOwner);
+  const isHost = viewer?.role === "host";
+  const selectedCount = state.selectedCards.size;
+  const canDraw = isDrawTurn && !state.gameActionLock;
+  const canBet = isBetTurn && !state.gameActionLock;
+  const playerStatus = match.roundOver
+    ? match.matchOver
+      ? `${match.players.find((player) => player.seat === match.winnerSeat)?.name || "The winner"} takes the table`
+      : "Hand complete"
+    : isDrawTurn
+      ? `${yourPlayer?.name || "You"}, choose replacements`
+      : isBetTurn
+        ? `${yourPlayer?.name || "You"}, your turn`
+        : `${activePlayer?.name || "Table"} is thinking`;
+  const checkCallLabel = actions.check ? "Check" : actions.call ? `Call ${formatPoints(actions.callAmount)}` : "Check / Call";
+  const wagerLabel = actions.bet
+    ? `Bet ${formatPoints(actions.betAmount)}`
+    : actions.raise
+      ? `Raise to ${formatPoints((match.currentBet || 0) + (match.betSize || 0))}`
+      : "Bet / Raise";
+  const drawLabel = selectedCount ? `Replace ${selectedCount}` : "Stand pat";
+  const showdownDetail = match.showdown?.revealed
+    ? match.showdown.evaluations.map((entry) => {
+      const player = match.players.find((candidate) => candidate.seat === entry.seat);
+      return `${player?.name || "Player"} · ${entry.label}`;
+    }).join(" · ")
+    : match.phase === "draw"
+      ? "Choose zero to five cards. Replacements stay private."
+      : "Every player is building one private five-card hand.";
+
+  return `
+    <section class="standard-card-game five-card-draw-game" data-game-id="five-card-draw">
+      <header class="game-topbar">
+        <button class="back-button" type="button" data-action="leave-game" aria-label="${state.gameMode === "multiplayer" ? "Return to room lobby" : "Leave game"}">←</button>
+        <div><span class="family-kicker">${state.gameMode === "solo" ? "Solo table" : state.gameMode === "hot-seat" ? "Hot Seat table" : `Room ${escapeHtml(state.room.code)}`}</span><h2>Five Card Draw</h2><p>Hand ${match.round} · ${escapeHtml(match.lastMoveText)}</p></div>
+        <button class="game-score" type="button" disabled><span>Stack</span><strong>${formatPoints(yourPlayer?.stack)}</strong></button>
+      </header>
+      <div class="five-card-draw-rule-bar"><span>Fixed limit</span><i>•</i><span>100 table points</span><i>•</i><span>1 / 2 blinds</span><i>•</i><strong>2 / 4 bets · one draw · four-bet cap</strong></div>
+      <div class="game-opponents five-card-draw-opponents ${opponents.length <= 3 ? "fit-opponents" : ""}">
+        ${opponents.map((player) => `
+          <article class="game-seat ${match.activeSeat === player.seat ? "active" : ""} ${player.folded ? "folded" : ""} ${player.allIn ? "all-in" : ""} ${player.eliminated ? "eliminated" : ""}">
+            ${renderFiveCardDrawSeatCard(player)}
+            <span><strong>${escapeHtml(player.name)}${player.seat === match.dealerSeat ? " · D" : ""}</strong><small>${formatPoints(player.stack)} pts · ${escapeHtml(fiveCardDrawPlayerStatus(player))}${player.lastAction ? ` · ${escapeHtml(player.lastAction.label)}` : ""}</small></span>
+            <span class="mini-deck" aria-label="${player.cardCount} private cards">${player.cardCount}</span>
+          </article>`).join("")}
+      </div>
+      <section class="game-table five-card-draw-table">
+        <div class="game-status"><span><strong>${escapeHtml(playerStatus)}</strong><small>${fiveCardDrawPhaseLabel(match.phase)} · ${match.currentBet ? `${formatPoints(match.currentBet)} to match` : match.phase === "draw" ? "replacements are private" : "table is checked"}</small></span><span class="badge">Pot ${formatPoints(match.pot)}</span></div>
+        <div class="five-card-draw-table-zone">
+          <div class="five-card-draw-copy"><span>Private draw</span><strong>${escapeHtml(showdownDetail)}</strong></div>
+          <div class="five-card-draw-piles" aria-label="Draw and discard piles">
+            <div class="draw-stack" aria-label="${match.stockCount} cards in draw pile"><span class="draw-card-back" aria-hidden="true"><i>CC</i></span><strong>Draw</strong><small>${match.stockCount} cards</small></div>
+            <div class="active-pile draw-discard-pile" aria-label="${match.discardCount} private discards"><span class="draw-card-back discard" aria-hidden="true"><i>↻</i></span><strong>Discard</strong><small>${match.discardCount} card${match.discardCount === 1 ? "" : "s"}</small></div>
+          </div>
+        </div>
+      </section>
+      <section class="physical-hand five-card-draw-hand ${isYourTurn ? "your-turn" : ""}">
+        <div class="hand-heading"><span><strong>Your five cards</strong><small>${view.hand?.length || 0} cards · ${formatPoints(yourPlayer?.stack)} table points</small></span><span class="selection-status ${isDrawTurn ? "valid" : ""}">${escapeHtml(fiveCardDrawPrivateHandLabel(view.hand, match))}</span></div>
+        <div class="game-hand" data-hand-owner="${escapeHtml(handOwner)}" aria-label="Your fanned Five Card Draw hand">${(view.hand || []).map((card, index) => renderPlayingCard(card, index, { selectable: canDraw, inert: !isDrawTurn, dealt: isDealing })).join("")}</div>
+      </section>
+      ${match.phase === "draw" ? `
+        <nav class="game-actions five-card-draw-actions draw-actions">
+          <button type="button" data-action="five-card-draw-hint" ${canDraw ? "" : "disabled"}>Hint</button>
+          <button class="primary" type="button" data-action="five-card-draw-draw" ${canDraw ? "" : "disabled"}>${escapeHtml(drawLabel)}</button>
+        </nav>` : `
+        <nav class="game-actions five-card-draw-actions">
+          <button type="button" data-action="five-card-draw-hint" ${canBet ? "" : "disabled"}>Hint</button>
+          <button class="danger" type="button" data-action="five-card-draw-action" data-five-card-draw-action="five_card_draw_fold" ${canBet && actions.fold ? "" : "disabled"}>Fold</button>
+          <button type="button" data-action="five-card-draw-action" data-five-card-draw-action="${actions.check ? "five_card_draw_check" : "five_card_draw_call"}" ${canBet && (actions.check || actions.call) ? "" : "disabled"}>${escapeHtml(checkCallLabel)}</button>
+          <button class="primary" type="button" data-action="five-card-draw-action" data-five-card-draw-action="${actions.bet ? "five_card_draw_bet" : "five_card_draw_raise"}" ${canBet && (actions.bet || actions.raise) ? "" : "disabled"}>${escapeHtml(wagerLabel)}</button>
+        </nav>`}
+      ${match.roundOver ? `
+        <div class="round-result five-card-draw-result">
+          <div><span class="family-kicker">${match.matchOver ? "Table winner" : `Hand ${match.round} settled`}</span><h3>${escapeHtml(match.lastMoveText)}</h3><p>${match.players.map((player) => `${escapeHtml(player.name)} · ${formatPoints(player.stack)} pts${player.eliminated ? " · out" : ""}`).join(" · ")}</p></div>
+          ${match.matchOver ? `<button class="action-button" type="button" data-action="leave-game">Return to Cardcade</button>` : `<button class="action-button primary" type="button" data-action="five-card-draw-next-hand" ${isHost ? "" : "disabled"}>${isHost ? "Deal next hand" : "Waiting for host"}</button>`}
+        </div>` : ""}
+    </section>`;
+}
+
 function renderStandardGame() {
   const view = state.gameView;
   if (!view) return `<div class="empty-state">Dealing the cards…</div>`;
@@ -1306,6 +1444,7 @@ function renderCurrentGame() {
   if (state.room?.gameId === "juan") return renderJuanGame();
   if (state.room?.gameId === "blackjack") return renderBlackjackGame();
   if (state.room?.gameId === "holdem") return renderHoldemGame();
+  if (state.room?.gameId === "five-card-draw") return renderFiveCardDrawGame();
   return renderStandardGame();
 }
 
@@ -1419,6 +1558,14 @@ function toggleStandardCard(cardId) {
   const viewer = state.room?.players.find((player) => player.isYou);
   if (["blackjack", "holdem"].includes(state.room?.gameId)) return;
   if (state.gameActionLock || !match || match.roundOver || match.activeSeat !== viewer?.seat) return;
+  if (state.room?.gameId === "five-card-draw") {
+    if (match.phase !== "draw" || !match.actions?.draw) return;
+    if (state.selectedCards.has(cardId)) state.selectedCards.delete(cardId);
+    else if (state.selectedCards.size < (match.actions.maxDrawCards || 5)) state.selectedCards.add(cardId);
+    else showToast(`You can replace up to ${match.actions.maxDrawCards || 5} cards.`);
+    render();
+    return;
+  }
   if (state.room?.gameId === "juan") {
     if (match.drawnCardId && match.drawnCardId !== cardId) return;
     if (state.selectedCards.has(cardId)) state.selectedCards.clear();
@@ -1435,7 +1582,7 @@ function animateStandardHandExit(cardIds, onComplete) {
     .filter(Boolean);
   if (!nodes.length) { onComplete(); return; }
 
-  app.querySelectorAll('[data-action="game-play"], [data-action="game-pass"]')
+  app.querySelectorAll('[data-action="game-play"], [data-action="game-pass"], [data-action="five-card-draw-draw"]')
     .forEach((button) => { button.disabled = true; });
   const reduceMotion = localStorage.getItem(storageKeys.reducedMotion) === "true"
     || matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -2119,6 +2266,52 @@ document.addEventListener("click", async (event) => {
     state.selectedCards.clear();
     if (state.gameMode === "hot-seat") state.hotSeatForceHandoff = true;
     if (!sendRoom({ type: "holdem_next_hand" })) state.hotSeatForceHandoff = false;
+  }
+  if (action === "five-card-draw-hint") {
+    if (state.gameActionLock || !state.gameView || !fiveCardDrawRules) return;
+    const match = state.gameView.state;
+    const actions = match.actions || {};
+    if (match.phase === "draw" && actions.draw) {
+      const selected = state.selectedCards.size;
+      if (selected) showToast(`${selected} card${selected === 1 ? " is" : "s are"} marked to replace. Tap Replace when ready.`);
+      else showToast("Select zero to five cards to replace. Leave none selected to stand pat.");
+      return;
+    }
+    if (!Object.values(actions).some(Boolean)) {
+      showToast("Wait for the next Five Card Draw decision.");
+      return;
+    }
+    const handLabel = fiveCardDrawPrivateHandLabel(state.gameView.hand, match);
+    if (actions.check && actions.bet) showToast(`Hint: ${handLabel}. You can check or make the ${formatPoints(actions.betAmount)}-point limit bet.`);
+    else if (actions.check) showToast(`Hint: ${handLabel}. Checking is free here.`);
+    else if (actions.raise) showToast(`Hint: ${handLabel}. Call ${formatPoints(actions.callAmount)} or raise to ${formatPoints((match.currentBet || 0) + (match.betSize || 0))}.`);
+    else if (actions.call) showToast(`Hint: ${handLabel}. It costs ${formatPoints(actions.callAmount)} to continue.`);
+    else showToast(`Hint: ${handLabel}.`);
+  }
+  if (action === "five-card-draw-action") {
+    if (state.gameActionLock || !button.dataset.fiveCardDrawAction) return;
+    state.gameActionLock = true;
+    if (!sendRoom({ type: button.dataset.fiveCardDrawAction })) {
+      state.gameActionLock = false;
+      render();
+    }
+  }
+  if (action === "five-card-draw-draw") {
+    if (state.gameActionLock || state.gameView?.state?.phase !== "draw" || !state.gameView?.state?.actions?.draw) return;
+    state.gameActionLock = true;
+    const cardIds = [...state.selectedCards];
+    animateStandardHandExit(cardIds, () => {
+      state.selectedCards.clear();
+      if (!sendRoom({ type: "five_card_draw_draw", cardIds })) {
+        state.gameActionLock = false;
+        render();
+      }
+    });
+  }
+  if (action === "five-card-draw-next-hand") {
+    state.selectedCards.clear();
+    if (state.gameMode === "hot-seat") state.hotSeatForceHandoff = true;
+    if (!sendRoom({ type: "five_card_draw_next_hand" })) state.hotSeatForceHandoff = false;
   }
   if (action === "game-play") {
     if (state.gameActionLock) return;
