@@ -62,6 +62,7 @@ const standard52 = globalThis.CardcadeStandard52;
 const hotSeatFlow = globalThis.CardcadeHotSeat;
 const juanDeck = globalThis.CardcadeJuanDeck;
 const juanRules = globalThis.JuanRules;
+const blackjackRules = globalThis.CardcadeBlackjackRules;
 
 const standardGameAdapters = {
   "three-seven": {
@@ -87,7 +88,7 @@ const juanGameAdapter = {
 };
 
 function supportsGame(gameId) {
-  return Boolean(standardGameAdapters[gameId]) || gameId === "juan";
+  return Boolean(standardGameAdapters[gameId]) || gameId === "juan" || gameId === "blackjack";
 }
 
 function escapeHtml(value) {
@@ -652,6 +653,147 @@ function renderPlayingCard(card, index, { played = false, enter = false, selecta
     </button>`;
 }
 
+function renderBlackjackCardBack(index, { enter = false } = {}) {
+  return `
+    <span class="playing-card played blackjack-card-back ${enter ? "enter" : ""}" ${playedCardStyle(index, { animate: enter })} aria-label="Dealer hole card">
+      <i aria-hidden="true">CC</i>
+      <b aria-hidden="true"></b>
+    </span>`;
+}
+
+function formatPoints(points) {
+  const value = Number(points) || 0;
+  return Number.isInteger(value) ? String(value) : value.toFixed(1).replace(/\.0$/, "");
+}
+
+function blackjackOutcomeLabel(hand) {
+  if (!hand) return "Awaiting deal";
+  if (hand.outcome === "blackjack") return "Blackjack · +1.5";
+  if (hand.outcome === "win") return `Win · +${formatPoints(hand.points)}`;
+  if (hand.outcome === "push") return "Push · 0";
+  if (hand.outcome === "surrender") return "Surrender · −0.5";
+  if (hand.outcome === "loss" || hand.outcome === "dealer-blackjack") return `Loss · ${formatPoints(hand.points)}`;
+  if (hand.complete && hand.finishReason === "bust") return "Bust";
+  if (hand.complete && hand.finishReason === "split-aces") return "Split Aces";
+  if (hand.complete) return hand.label || "Standing";
+  return hand.label || "In play";
+}
+
+function blackjackActionLabel(action) {
+  return {
+    hit: "Hit",
+    stand: "Stand",
+    double: "Double",
+    split: "Split",
+    surrender: "Surrender"
+  }[action] || action;
+}
+
+function blackjackPrivateCards(view) {
+  return Array.isArray(view?.hands) ? view.hands.flatMap((hand) => hand.cards || []) : [];
+}
+
+function currentBlackjackHand(view = state.gameView) {
+  const hands = Array.isArray(view?.hands) ? view.hands : [];
+  const activeHandIndex = Number(view?.state?.activeHandIndex);
+  return hands[Number.isInteger(activeHandIndex) && hands[activeHandIndex] ? activeHandIndex : 0] || null;
+}
+
+function renderBlackjackHandSummary(hand, index, active) {
+  const modifier = hand.doubled ? " · doubled" : hand.isSplitHand ? " · split" : "";
+  return `
+    <article class="blackjack-hand-summary ${active ? "active" : ""} ${hand.complete ? "complete" : ""}">
+      <span>Hand ${index + 1} · ${formatPoints(hand.wager)} pt${hand.wager === 1 ? "" : "s"}${modifier}</span>
+      <strong>${escapeHtml(blackjackOutcomeLabel(hand))}</strong>
+    </article>`;
+}
+
+function renderBlackjackGame() {
+  const view = state.gameView;
+  if (!view || !blackjackRules) return `<div class="empty-state">Dealing the Blackjack table…</div>`;
+  const match = view.state;
+  const viewer = state.room?.players.find((player) => player.isYou);
+  const viewerSeat = viewer?.seat;
+  const yourPlayer = match.players.find((player) => player.seat === viewerSeat);
+  const opponents = match.players.filter((player) => player.seat !== viewerSeat);
+  const isYourTurn = match.phase === "player-turn" && match.activeSeat === viewerSeat && !match.roundOver;
+  const isInsuranceTurn = match.phase === "insurance" && match.activeSeat === viewerSeat && !match.roundOver;
+  const activePlayer = match.players.find((player) => player.seat === match.activeSeat);
+  const activeHand = currentBlackjackHand(view);
+  const activeHandIndex = Number.isInteger(match.activeHandIndex) ? match.activeHandIndex : 0;
+  const actions = match.actions || {};
+  const dealerCards = Array.isArray(match.dealer?.cards) ? match.dealer.cards : [];
+  const dealerHiddenCount = Math.max(0, (match.dealer?.cardCount || 0) - dealerCards.length);
+  const dealerSignature = `${match.dealer?.revealed ? "revealed" : "hidden"}:${dealerCards.map((card) => card.id).join(",")}:${dealerHiddenCount}`;
+  const dealerIsNew = dealerSignature !== state.lastPileSignature;
+  state.lastPileSignature = dealerSignature;
+  const handOwner = `blackjack:${state.room?.code || "table"}:${viewerSeat ?? "viewer"}:round-${match.round}:hand-${activeHandIndex}`;
+  const isDealing = !state.dealtHandOwners.has(handOwner);
+  state.dealtHandOwners.add(handOwner);
+  const isHost = viewer?.role === "host";
+  const playerStatus = match.roundOver
+    ? "Round complete"
+    : match.phase === "dealer-turn"
+      ? "Dealer is resolving"
+      : isInsuranceTurn
+        ? `${yourPlayer?.name || "You"}, insurance decision`
+        : isYourTurn
+          ? `${yourPlayer?.name || "You"}, your turn`
+          : `${activePlayer?.name || "Dealer"} is thinking`;
+  const dealerLabel = match.dealer?.revealed
+    ? (match.dealer.label || `Dealer ${match.dealer.total ?? ""}`.trim())
+    : `${dealerCards[0] ? standard52.cardLong(dealerCards[0]) : "Dealer upcard"} · hole card hidden`;
+  const currentHandCards = activeHand?.cards || [];
+
+  return `
+    <section class="standard-card-game blackjack-game" data-game-id="blackjack">
+      <header class="game-topbar">
+        <button class="back-button" type="button" data-action="leave-game" aria-label="${state.gameMode === "multiplayer" ? "Return to room lobby" : "Leave game"}">←</button>
+        <div><span class="family-kicker">${state.gameMode === "solo" ? "Solo table" : state.gameMode === "hot-seat" ? "Hot Seat table" : `Room ${escapeHtml(state.room.code)}`}</span><h2>Blackjack</h2><p>Round ${match.round} · ${escapeHtml(match.lastMoveText)}</p></div>
+        <button class="game-score" type="button" disabled><span>Points</span><strong>${formatPoints(yourPlayer?.score)}</strong></button>
+      </header>
+      <div class="blackjack-rule-bar"><span>Dealer stands on soft 17</span><i>•</i><span>Split, double, surrender, insurance</span><i>•</i><strong>${match.stockCount} in shoe</strong></div>
+      <div class="game-opponents blackjack-opponents ${opponents.length <= 3 ? "fit-opponents" : ""}">
+        ${opponents.map((player) => `
+          <article class="game-seat ${match.activeSeat === player.seat ? "active" : ""}">
+            ${renderSeatLastCard(player, "blackjack")}
+            <span><strong>${escapeHtml(player.name)}</strong><small>${formatPoints(player.score)} pts · ${player.cardCount} card${player.cardCount === 1 ? "" : "s"}${player.lastAction ? ` · ${escapeHtml(player.lastAction.label)}` : ""}</small></span>
+            <span class="mini-deck" aria-label="${player.cardCount} cards">${player.cardCount}</span>
+          </article>`).join("")}
+      </div>
+      <section class="game-table blackjack-table">
+        <div class="game-status"><span><strong>${escapeHtml(playerStatus)}</strong><small>${escapeHtml(match.lastMoveText)}</small></span><span class="badge">${match.dealer?.revealed ? escapeHtml(match.dealer.label || "Dealer") : "Dealer upcard"}</span></div>
+        <div class="blackjack-dealer-zone">
+          <div class="blackjack-dealer-copy"><span>Dealer</span><strong>${escapeHtml(dealerLabel)}</strong></div>
+          <div class="active-pile cards-pile blackjack-dealer-pile" aria-label="Dealer cards">${dealerCards.map((card, index) => renderPlayingCard(card, index, { played: true, enter: dealerIsNew })).join("")}${Array.from({ length: dealerHiddenCount }, (_, index) => renderBlackjackCardBack(dealerCards.length + index, { enter: dealerIsNew })).join("")}</div>
+        </div>
+      </section>
+      <section class="physical-hand blackjack-hand ${isYourTurn || isInsuranceTurn ? "your-turn" : ""}">
+        <div class="hand-heading"><span><strong>Your hand</strong><small>${view.hands?.length || 0} hand${view.hands?.length === 1 ? "" : "s"} · table points</small></span><span class="selection-status ${isYourTurn ? "valid" : ""}">${isInsuranceTurn ? "Choose insurance" : escapeHtml(activeHand?.label || "Waiting for dealer")}</span></div>
+        <div class="blackjack-hand-summaries">${(view.hands || []).map((hand, index) => renderBlackjackHandSummary(hand, index, isYourTurn && index === activeHandIndex)).join("")}</div>
+        <div class="game-hand" data-hand-owner="${escapeHtml(handOwner)}" aria-label="Your current fanned Blackjack hand">${currentHandCards.map((card, index) => renderPlayingCard(card, index, { dealt: isDealing })).join("")}</div>
+      </section>
+      ${isInsuranceTurn ? `
+        <section class="blackjack-insurance-prompt" aria-live="polite">
+          <span class="family-kicker">Dealer shows an Ace</span><strong>Take insurance for half a table point?</strong><small>It pays 2:1 only if the hole card completes dealer Blackjack.</small>
+          <div class="button-row"><button class="action-button" type="button" data-action="blackjack-insurance" data-take="false" ${state.gameActionLock ? "disabled" : ""}>No insurance</button><button class="action-button primary" type="button" data-action="blackjack-insurance" data-take="true" ${state.gameActionLock ? "disabled" : ""}>Take insurance</button></div>
+        </section>` : ""}
+      <nav class="game-actions blackjack-actions">
+        <button type="button" data-action="blackjack-hint" ${isYourTurn || isInsuranceTurn ? "" : "disabled"}>Hint</button>
+        <button type="button" data-action="blackjack-action" data-blackjack-action="blackjack_hit" ${isYourTurn && actions.hit && !state.gameActionLock ? "" : "disabled"}>Hit</button>
+        <button type="button" data-action="blackjack-action" data-blackjack-action="blackjack_stand" ${isYourTurn && actions.stand && !state.gameActionLock ? "" : "disabled"}>Stand</button>
+        <button type="button" data-action="blackjack-action" data-blackjack-action="blackjack_double" ${isYourTurn && actions.double && !state.gameActionLock ? "" : "disabled"}>Double</button>
+        <button type="button" data-action="blackjack-action" data-blackjack-action="blackjack_split" ${isYourTurn && actions.split && !state.gameActionLock ? "" : "disabled"}>Split</button>
+        <button class="danger" type="button" data-action="blackjack-action" data-blackjack-action="blackjack_surrender" ${isYourTurn && actions.surrender && !state.gameActionLock ? "" : "disabled"}>Surrender</button>
+      </nav>
+      ${match.roundOver ? `
+        <div class="round-result blackjack-result">
+          <div><span class="family-kicker">Round ${match.round} settled</span><h3>${escapeHtml(match.lastMoveText)}</h3><p>${match.players.map((player) => `${escapeHtml(player.name)} · ${formatPoints(player.score)} pts`).join(" · ")}</p></div>
+          <button class="action-button primary" type="button" data-action="next-round" ${isHost ? "" : "disabled"}>${isHost ? "Deal next round" : "Waiting for host"}</button>
+        </div>` : ""}
+    </section>`;
+}
+
 function renderStandardGame() {
   const view = state.gameView;
   if (!view) return `<div class="empty-state">Dealing the cards…</div>`;
@@ -920,14 +1062,15 @@ function renderHotSeatHandoff() {
 
   if (state.hotSeatWaitingForCpu) {
     const cpu = match?.players?.find((player) => player.seat === match.activeSeat);
+    const dealerTurn = state.room?.gameId === "blackjack" && match?.phase === "dealer-turn";
     return `
       <section class="hot-seat-handoff">
         <div class="handoff-panel">
           <span class="family-kicker">Hot Seat · ${escapeHtml(gameName)} · ${escapeHtml(round)}</span>
-          <div class="cpu-thinking" aria-hidden="true"><span>CPU</span><i></i><i></i><i></i></div>
-          <p class="handoff-instruction">CPU turn</p>
-          <h1>${escapeHtml(cpu?.name || "Cardcade CPU")}</h1>
-          <p class="handoff-privacy">The human hand is covered while the CPU plays automatically. Cardcade will name the next person when it is time to pass the device.</p>
+          <div class="cpu-thinking" aria-hidden="true"><span>${dealerTurn ? "DEAL" : "CPU"}</span><i></i><i></i><i></i></div>
+          <p class="handoff-instruction">${dealerTurn ? "Dealer turn" : "CPU turn"}</p>
+          <h1>${escapeHtml(dealerTurn ? "Dealer" : cpu?.name || "Cardcade CPU")}</h1>
+          <p class="handoff-privacy">${dealerTurn ? "Every private hand is covered while the dealer resolves the table." : "The human hand is covered while the CPU plays automatically. Cardcade will name the next person when it is time to pass the device."}</p>
           <button class="action-button handoff-end" type="button" data-action="close-hot-seat">End table</button>
         </div>
       </section>`;
@@ -1038,7 +1181,9 @@ function layoutActivePiles() {
 }
 
 function renderCurrentGame() {
-  return state.room?.gameId === "juan" ? renderJuanGame() : renderStandardGame();
+  if (state.room?.gameId === "juan") return renderJuanGame();
+  if (state.room?.gameId === "blackjack") return renderBlackjackGame();
+  return renderStandardGame();
 }
 
 function captureStandardHandSnapshot() {
@@ -1134,6 +1279,7 @@ function layoutStandardHand() {
   hand.onclick = (event) => {
     const match = state.gameView?.state;
     const viewer = state.room?.players.find((player) => player.isYou);
+    if (state.room?.gameId === "blackjack") return;
     if (state.gameActionLock || !match || match.roundOver || match.activeSeat !== viewer?.seat) return;
     const rects = cards.map((card) => card.getBoundingClientRect());
     const indexRects = cards.map((card) => card.querySelector(".card-corner:not(.bottom)")?.getBoundingClientRect());
@@ -1148,6 +1294,7 @@ function layoutStandardHand() {
 function toggleStandardCard(cardId) {
   const match = state.gameView?.state;
   const viewer = state.room?.players.find((player) => player.isYou);
+  if (state.room?.gameId === "blackjack") return;
   if (state.gameActionLock || !match || match.roundOver || match.activeSeat !== viewer?.seat) return;
   if (state.room?.gameId === "juan") {
     if (match.drawnCardId && match.drawnCardId !== cardId) return;
@@ -1260,12 +1407,20 @@ function disconnectRoomSocket() {
 }
 
 function hiddenPrivateView(view) {
-  return view ? { ...view, hand: [] } : null;
+  if (!view) return null;
+  return {
+    ...view,
+    hand: [],
+    hands: Array.isArray(view.hands)
+      ? view.hands.map((hand) => ({ ...hand, cards: [] }))
+      : view.hands
+  };
 }
 
 function isHotSeatCpuTurn(view) {
   const match = view?.state;
   if (!match || match.roundOver) return false;
+  if (match.phase === "dealer-turn") return true;
   return match.players?.some((player) => player.seat === match.activeSeat && player.type === "bot") === true;
 }
 
@@ -1479,7 +1634,11 @@ function connectRoom(session) {
       state.room = message.room;
       state.gameView = message.view;
       state.gameActionLock = false;
-      const handIds = new Set(message.view.hand.map((card) => card.id));
+      const handIds = new Set(
+        Array.isArray(message.view.hand)
+          ? message.view.hand.map((card) => card.id)
+          : blackjackPrivateCards(message.view).map((card) => card.id)
+      );
       state.selectedCards = new Set([...state.selectedCards].filter((cardId) => handIds.has(cardId)));
       if (!state.selectedCards.size) state.juanChosenColor = null;
       state.screen = "game";
@@ -1768,6 +1927,45 @@ document.addEventListener("click", async (event) => {
       const hintPlayer = { hand: state.gameView.hand, style: "human" };
       const move = moves.slice().sort((left, right) => game.rules.moveCost(left, hintPlayer) - game.rules.moveCost(right, hintPlayer))[0];
       state.selectedCards = new Set(move.cards.map((card) => card.id));
+      render();
+    }
+  }
+  if (action === "blackjack-hint") {
+    if (state.gameActionLock || !state.gameView || !blackjackRules) return;
+    const match = state.gameView.state;
+    if (match.phase === "insurance") {
+      showToast("Insurance is optional: it only pays when the dealer has Blackjack.");
+      return;
+    }
+    const hand = currentBlackjackHand();
+    const actions = match.actions || {};
+    if (!hand || !Object.values(actions).some(Boolean)) {
+      showToast("Wait for the dealer or the next player.");
+      return;
+    }
+    const suggested = blackjackRules.chooseBotAction({
+      cards: hand.cards,
+      dealerUpcard: match.dealer?.cards?.[0],
+      actionsTaken: hand.actionsTaken,
+      isSplitHand: hand.isSplitHand,
+      handCount: state.gameView.hands?.length || 1
+    });
+    const legalSuggestion = actions[suggested] ? suggested : (actions.hit ? "hit" : "stand");
+    showToast(`Hint: ${blackjackActionLabel(legalSuggestion)} on ${hand.label}.`);
+  }
+  if (action === "blackjack-insurance") {
+    if (state.gameActionLock) return;
+    state.gameActionLock = true;
+    if (!sendRoom({ type: "blackjack_insurance", take: button.dataset.take === "true" })) {
+      state.gameActionLock = false;
+      render();
+    }
+  }
+  if (action === "blackjack-action") {
+    if (state.gameActionLock || !button.dataset.blackjackAction) return;
+    state.gameActionLock = true;
+    if (!sendRoom({ type: button.dataset.blackjackAction })) {
+      state.gameActionLock = false;
       render();
     }
   }
