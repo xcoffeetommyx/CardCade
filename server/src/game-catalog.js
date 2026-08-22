@@ -43,6 +43,19 @@ export const games = [
     accent: "blue"
   },
   {
+    id: "blackjack",
+    name: "Blackjack",
+    eyebrow: "Dealer table strategy",
+    description: "Build toward twenty-one, then decide when to press your table points.",
+    deckFamilyId: "standard-52",
+    genres: ["casino", "comparison"],
+    modes: ["solo", "multiplayer", "hot-seat"],
+    players: { min: 1, max: 4, recommended: 4 },
+    supportsBots: true,
+    status: "available",
+    accent: "gold"
+  },
+  {
     id: "juan",
     name: "JUAN",
     eyebrow: "One card changes everything",

@@ -64,7 +64,7 @@ test("health, catalog, and launcher are served from one process", async (t) => {
 
   const catalog = await fetch(`${origin}/api/catalog`);
   const catalogBody = await catalog.json();
-  assert.deepEqual(catalogBody.families[0].games.map((game) => game.id), ["three-seven", "thirteen"]);
+  assert.deepEqual(catalogBody.families[0].games.map((game) => game.id), ["three-seven", "thirteen", "blackjack"]);
 
   const launcher = await fetch(origin);
   assert.equal(launcher.status, 200);
@@ -246,6 +246,57 @@ test("a host starts Thirteen from the shared global room", async (t) => {
   assert.equal(message.view.state.players.filter((player) => player.type === "bot").length, 3);
 });
 
+test("Blackjack starts from Solo with the shared 52-card deck and CPU seats", async (t) => {
+  const { origin } = await startServer(t, { botTurnDelayMs: 10_000 });
+  const result = await jsonRequest(origin, "/api/solo/blackjack", {
+    method: "POST",
+    body: JSON.stringify({ name: "Blackjack Player", botCount: 3 })
+  });
+
+  assert.equal(result.response.status, 201);
+  assert.equal(result.body.room.phase, "playing");
+  assert.equal(result.body.room.gameId, "blackjack");
+  assert.equal(result.body.game.view.type, "blackjack_match_state");
+  assert.equal(result.body.game.view.hands.length, 1);
+  assert.equal(result.body.game.view.hands[0].cards.length, 2);
+  assert.equal(result.body.game.view.state.dealer.cards.length, 1);
+  assert.equal(result.body.game.view.state.players.length, 4);
+  assert.equal(result.body.game.view.state.players.filter((player) => player.type === "bot").length, 3);
+  assert.equal(result.body.game.view.state.players.every((player) => !Object.hasOwn(player, "cards")), true);
+});
+
+test("a host starts Blackjack from a global room with CPU seats", async (t) => {
+  const { origin } = await startServer(t, { botTurnDelayMs: 10_000 });
+  const host = (await jsonRequest(origin, "/api/rooms", {
+    method: "POST",
+    body: JSON.stringify({ name: "Host" })
+  })).body;
+  const socket = await openSocket(origin, host);
+  t.after(() => socket.terminate());
+
+  let update = nextMessage(socket, (message) => message.type === "room_state" && message.room.gameId === "blackjack");
+  socket.send(JSON.stringify({ type: "select_game", gameId: "blackjack" }));
+  await update;
+
+  update = nextMessage(socket, (message) => message.type === "room_state" && message.room.gameSettings.botCount === 2);
+  socket.send(JSON.stringify({ type: "set_bot_count", botCount: 2 }));
+  await update;
+
+  update = nextMessage(socket, (message) => message.type === "room_state" && message.room.canStart === true);
+  socket.send(JSON.stringify({ type: "set_ready", ready: true }));
+  await update;
+
+  const gameState = nextMessage(socket, (message) => message.type === "game_state" && message.gameId === "blackjack");
+  socket.send(JSON.stringify({ type: "start_game" }));
+  const message = await gameState;
+
+  assert.equal(message.room.phase, "playing");
+  assert.equal(message.room.game.name, "Blackjack");
+  assert.equal(message.view.type, "blackjack_match_state");
+  assert.equal(message.view.hands[0].cards.length, 2);
+  assert.equal(message.view.state.players.length, 3);
+});
+
 test("Solo starts JUAN with the original color/action deck", async (t) => {
   const { origin } = await startServer(t, { botTurnDelayMs: 10_000 });
   const result = await jsonRequest(origin, "/api/solo/juan", {
@@ -406,6 +457,31 @@ test("JUAN Hot Seat mixes private human hands with CPU seats", async (t) => {
   });
   assert.equal(guest.body.game.gameId, "juan");
   assert.equal(guest.body.game.view.hand.length, 7);
+});
+
+test("Blackjack Hot Seat shares private human seats with configurable CPUs", async (t) => {
+  const { origin } = await startServer(t, { botTurnDelayMs: 10_000 });
+  const result = await jsonRequest(origin, "/api/hot-seat/blackjack", {
+    method: "POST",
+    body: JSON.stringify({ players: ["Tommy", "Alex"], botCount: 2 })
+  });
+
+  assert.equal(result.response.status, 201);
+  assert.equal(result.body.room.gameId, "blackjack");
+  assert.equal(result.body.hotSeat.seats.length, 2);
+  assert.equal(result.body.hotSeat.botCount, 2);
+  assert.equal(result.body.game.view.type, "blackjack_match_state");
+  assert.equal(result.body.game.view.hands[0].cards.length, 2);
+  assert.equal(result.body.game.view.state.players.length, 4);
+  assert.equal(result.body.game.view.state.players.filter((player) => player.type === "bot").length, 2);
+
+  const guestSeat = result.body.hotSeat.seats[1];
+  const guest = await jsonRequest(origin, `/api/rooms/${result.body.code}/reconnect`, {
+    method: "POST",
+    body: JSON.stringify({ token: guestSeat.token })
+  });
+  assert.equal(guest.body.game.gameId, "blackjack");
+  assert.equal(guest.body.game.view.hands[0].cards.length, 2);
 });
 
 test("Hot Seat runs Thirteen with four private human hands and host-controlled closure", async (t) => {
