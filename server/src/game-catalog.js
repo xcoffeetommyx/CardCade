@@ -56,6 +56,19 @@ export const games = [
     accent: "gold"
   },
   {
+    id: "holdem",
+    name: "Texas Hold'em",
+    eyebrow: "Fixed-limit table poker",
+    description: "Build the best five-card hand, protect your table points, and outlast the table.",
+    deckFamilyId: "standard-52",
+    genres: ["poker", "betting"],
+    modes: ["solo", "multiplayer", "hot-seat"],
+    players: { min: 2, max: 4, recommended: 4 },
+    supportsBots: true,
+    status: "available",
+    accent: "violet"
+  },
+  {
     id: "juan",
     name: "JUAN",
     eyebrow: "One card changes everything",

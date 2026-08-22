@@ -6,6 +6,7 @@ import { ThreeSevenRuntime } from "../server/src/games/three-seven/runtime.js";
 import { ThirteenRuntime } from "../server/src/games/thirteen/runtime.js";
 import { JuanRuntime } from "../server/src/games/juan/runtime.js";
 import { BlackjackRuntime } from "../server/src/games/blackjack/runtime.js";
+import { HoldemRuntime } from "../server/src/games/holdem/runtime.js";
 import { RoomStore } from "../server/src/room-store.js";
 import { SnapshotStore } from "../server/src/snapshot-store.js";
 
@@ -151,5 +152,39 @@ test("restores Blackjack through the shared room and persistence layer", () => {
   assert.equal(view.state.dealer.cards.length, 1);
   assert.equal(view.state.players.length, 3);
   assert.equal(view.state.players.every((player) => !Object.hasOwn(player, "cards")), true);
+  snapshots.close();
+});
+
+test("restores Texas Hold'em through the shared room and persistence layer", () => {
+  const snapshots = new SnapshotStore();
+  const registry = new GameRegistry({ deckFamilies, games });
+  const rooms = new RoomStore({ registry, generateCode: () => "POKER7" });
+  const runtime = new HoldemRuntime();
+  const host = rooms.createRoom({ name: "Host" });
+  rooms.selectGame(host.code, host.token, "holdem");
+  rooms.setSharedDevice(host.code, host.token, true);
+  rooms.setBotCount(host.code, host.token, 2);
+  rooms.setReady(host.code, host.token, true);
+  runtime.start(rooms.publicRoom(host.code, host.token));
+  rooms.markPlaying(host.code, host.token);
+  snapshots.save({
+    code: host.code,
+    room: rooms.privateSnapshot(host.code),
+    game: { gameId: "holdem", code: host.code, state: runtime.snapshot(host.code) }
+  });
+
+  const [stored] = snapshots.loadAll();
+  const restoredRooms = new RoomStore({ registry, restoredRooms: [stored.room] });
+  const restoredRuntime = new HoldemRuntime({ restoredMatches: [stored.game] });
+  const session = restoredRooms.reconnect(host.code, host.token);
+  const view = restoredRuntime.view(session.room);
+
+  assert.equal(session.room.gameId, "holdem");
+  assert.equal(session.room.phase, "playing");
+  assert.equal(session.room.gameSettings.sharedDevice, true);
+  assert.equal(view.type, "holdem_match_state");
+  assert.equal(view.hand.length, 2);
+  assert.equal(view.state.players.length, 3);
+  assert.equal(view.state.players.every((player) => !Object.hasOwn(player, "holeCards")), true);
   snapshots.close();
 });

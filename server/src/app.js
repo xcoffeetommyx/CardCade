@@ -10,6 +10,7 @@ import { ThreeSevenRuntime } from "./games/three-seven/runtime.js";
 import { ThirteenRuntime } from "./games/thirteen/runtime.js";
 import { JuanRuntime } from "./games/juan/runtime.js";
 import { BlackjackRuntime } from "./games/blackjack/runtime.js";
+import { HoldemRuntime } from "./games/holdem/runtime.js";
 import { RoomStore } from "./room-store.js";
 
 const moduleDirectory = path.dirname(fileURLToPath(import.meta.url));
@@ -114,6 +115,7 @@ export function createCardcadeServer({
   thirteenRuntime,
   juanRuntime,
   blackjackRuntime,
+  holdemRuntime,
   snapshotStore = null,
   publicRoot = defaultPublicRoot,
   sharedRoot = defaultSharedRoot,
@@ -125,11 +127,13 @@ export function createCardcadeServer({
   const thirteen = thirteenRuntime ?? new ThirteenRuntime();
   const juan = juanRuntime ?? new JuanRuntime();
   const blackjack = blackjackRuntime ?? new BlackjackRuntime();
+  const holdem = holdemRuntime ?? new HoldemRuntime();
   const gameRuntimes = new Map([
     ["three-seven", threeSeven],
     ["thirteen", thirteen],
     ["juan", juan],
-    ["blackjack", blackjack]
+    ["blackjack", blackjack],
+    ["holdem", holdem]
   ]);
   const roomSockets = new Map();
   const botTimers = new Map();
