@@ -184,9 +184,8 @@ export class MatchEngine {
   nextHand(match) {
     if (!match?.roundOver) throw new RoomError("Finish the current Poker hand first.", "ROUND_IN_PROGRESS", 409);
     if (match.matchOver) throw new RoomError("This table has a winner and does not allow rebuys.", "MATCH_COMPLETE", 409);
-    const eligible = activePlayers(match).map((player) => player.seat);
-    if (eligible.length < MIN_PLAYERS) throw new RoomError("This table no longer has enough points in play.", "MATCH_COMPLETE", 409);
-    this.#startHand(match, { dealerSeat: nextSeat(eligible, match.dealerSeat) });
+    if (activePlayers(match).length < MIN_PLAYERS) throw new RoomError("This table no longer has enough points in play.", "MATCH_COMPLETE", 409);
+    this.#startHand(match, { dealerSeat: nextEligibleSeatAfter(match, match.dealerSeat) });
     return match;
   }
 
@@ -476,6 +475,16 @@ function orderedSeatsFrom(seats, startingSeat) {
 function nextSeat(seats, fromSeat) {
   const index = seats.indexOf(fromSeat);
   return seats[(Math.max(0, index) + 1) % seats.length];
+}
+
+function nextEligibleSeatAfter(match, fromSeat) {
+  const seats = match.players.map((player) => player.seat);
+  const startIndex = Math.max(0, seats.indexOf(fromSeat));
+  for (let offset = 1; offset <= seats.length; offset += 1) {
+    const player = getPlayer(match, seats[(startIndex + offset) % seats.length]);
+    if (!player.eliminated && player.stack > 0) return player.seat;
+  }
+  return null;
 }
 
 function dealFlop(match) {

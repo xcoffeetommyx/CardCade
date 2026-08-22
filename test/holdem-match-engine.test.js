@@ -108,6 +108,21 @@ test("Poker showdown distributes table points, exposes live hands, and rotates t
   assert.equal(match.players[0].holeCards.length, 2);
 });
 
+test("Poker rotates the dealer past an eliminated button seat", () => {
+  const game = engine();
+  const match = matchFor([human(0, "One"), human(1, "Two"), human(2, "Three")]);
+  match.roundOver = true;
+  match.matchOver = false;
+  match.dealerSeat = 1;
+  match.players[1].stack = 0;
+  match.players[1].eliminated = true;
+
+  game.nextHand(match);
+
+  assert.equal(match.dealerSeat, 2);
+  assert.equal(match.phase, "preflop");
+});
+
 test("Poker pays a main pot and side pot correctly when a short stack is all in", () => {
   const game = engine();
   const match = matchFor([human(0, "Ace"), human(1, "King"), human(2, "Queen")]);
