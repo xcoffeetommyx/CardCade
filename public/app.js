@@ -20,6 +20,7 @@ const state = {
   mode: null,
   multiplayerTab: "host",
   selectedGameId: null,
+  selectedDeckFamilyId: null,
   localBots: 3,
   hotSeatPlayerCount: 1,
   hotSeatBots: 2,
@@ -303,22 +304,91 @@ function gameCard(game, mode) {
     </button>`;
 }
 
-function catalogMarkup(mode) {
-  const families = state.catalog.families
-    .map((family) => {
-      const compatibleGames = family.games.filter((game) => game.modes.includes(mode));
-      if (!compatibleGames.length) return "";
-      return `
-        <section class="family-section">
-          <div class="family-header">
-            <div><span class="family-kicker">${escapeHtml(family.shortName)}</span><h3>${escapeHtml(family.name)}</h3></div>
-            <p>${escapeHtml(family.description)}</p>
-          </div>
-          <div class="game-grid">${compatibleGames.map((game) => gameCard(game, mode === "multiplayer" ? "multiplayer" : "local")).join("")}</div>
-        </section>`;
-    })
-    .join("");
-  return families || `<div class="empty-state">No games support this mode yet.</div>`;
+function compatibleDeckFamilies(mode) {
+  return state.catalog.families
+    .map((family) => ({
+      ...family,
+      games: family.games.filter((game) => game.modes.includes(mode))
+    }))
+    .filter((family) => family.games.length);
+}
+
+function selectedDeckFamily(mode, preferredId = state.selectedDeckFamilyId) {
+  const families = compatibleDeckFamilies(mode);
+  return families.find((family) => family.id === preferredId) || families[0] || null;
+}
+
+function setDeckFamilyForMode(mode, preferredId = null) {
+  state.selectedDeckFamilyId = selectedDeckFamily(mode, preferredId)?.id || null;
+}
+
+function deckFamilyMark(family) {
+  if (family.id === "standard-52") return "♠";
+  if (family.id === "color-action") return "✦";
+  return "▣";
+}
+
+function deckFamilyPicker(mode, { compact = false, selectedGameId = null } = {}) {
+  const families = compatibleDeckFamilies(mode);
+  const selectedGameFamilyId = selectedGameId
+    ? families.find((family) => family.games.some((game) => game.id === selectedGameId))?.id
+    : null;
+  const activeFamily = selectedDeckFamily(mode, state.selectedDeckFamilyId || selectedGameFamilyId);
+  if (!activeFamily) return "";
+  const prefix = compact ? "Choose a deck family" : "Step 1 · Choose a deck family";
+  return `
+    <div class="deck-family-picker ${compact ? "compact" : ""}">
+      <p class="library-step">${prefix}</p>
+      <div class="deck-family-rail" aria-label="Deck families">
+        ${families.map((family) => {
+          const active = family.id === activeFamily.id;
+          return `
+            <button class="deck-family-button ${active ? "active" : ""}" type="button" data-action="select-deck-family" data-family-id="${escapeHtml(family.id)}" aria-pressed="${active}">
+              <span class="deck-family-mark" data-family="${escapeHtml(family.id)}" aria-hidden="true">${deckFamilyMark(family)}</span>
+              <span class="deck-family-copy"><strong>${escapeHtml(family.name)}</strong><small>${escapeHtml(family.shortName)} · ${family.games.length} game${family.games.length === 1 ? "" : "s"}</small></span>
+              <span class="deck-family-arrow" aria-hidden="true">${active ? "●" : "›"}</span>
+            </button>`;
+        }).join("")}
+      </div>
+    </div>`;
+}
+
+function compactGameCard(game, selectedGameId) {
+  const isPlanned = game.status === "planned";
+  return `
+    <button class="compact-game ${selectedGameId === game.id ? "selected" : ""}" type="button" data-action="select-room-game" data-game-id="${escapeHtml(game.id)}" data-accent="${escapeHtml(game.accent)}" ${isPlanned ? "disabled" : ""}>
+      <span class="compact-game-mark" aria-hidden="true">${game.deckFamilyId === "standard-52" ? "A♠" : "✦"}</span>
+      <span class="compact-game-copy"><strong>${escapeHtml(game.name)}</strong><small>${escapeHtml(game.eyebrow)}</small></span>
+      <span class="badge">${escapeHtml(statusLabel(game.status))}</span>
+    </button>`;
+}
+
+function catalogMarkup(mode, { compact = false, selectedGameId = null } = {}) {
+  const selectedGameFamilyId = selectedGameId
+    ? compatibleDeckFamilies(mode).find((candidate) => candidate.games.some((game) => game.id === selectedGameId))?.id
+    : null;
+  const family = selectedDeckFamily(mode, state.selectedDeckFamilyId || selectedGameFamilyId);
+  if (!family) return `<div class="empty-state">No games support this mode yet.</div>`;
+
+  const matchingGames = family.games.filter((game) => game.modes.includes(mode));
+  return `
+    <section class="game-library ${compact ? "compact-game-library" : ""}">
+      ${deckFamilyPicker(mode, { compact, selectedGameId })}
+      <div class="library-family-heading">
+        <div>
+          <span class="library-step">${compact ? "Choose a game" : "Step 2 · Choose a game"}</span>
+          <span class="family-kicker">${escapeHtml(family.shortName)}</span>
+          <h3>${escapeHtml(family.name)}</h3>
+        </div>
+        <p>${escapeHtml(family.description)}</p>
+      </div>
+      <div class="${compact ? "compact-games" : "game-grid library-game-grid"}">
+        ${matchingGames.map((game) => compact
+          ? compactGameCard(game, selectedGameId)
+          : gameCard(game, mode === "multiplayer" ? "multiplayer" : "local")
+        ).join("")}
+      </div>
+    </section>`;
 }
 
 function renderHome() {
@@ -327,9 +397,12 @@ function renderHome() {
       <div class="home-copy">
         <h1>Every table starts here.</h1>
         <p class="lede">Pick a game, gather around one room code, and handle cards that feel like physical objects—not tiny buttons in a panel.</p>
-        <div class="home-actions">
+        <div class="home-actions mode-launcher">
           <button class="arcade-button primary" type="button" data-action="open-solo">
             <span class="button-icon">▶</span><span><span class="button-label">Single / Solo</span><span class="button-copy">Choose a game and fill seats with smart rivals</span></span><span class="button-arrow">›</span>
+          </button>
+          <button class="arcade-button" type="button" data-action="open-hot-seat">
+            <span class="button-icon">▣</span><span><span class="button-label">Hot Seat</span><span class="button-copy">Pass one device around a private table</span></span><span class="button-arrow">›</span>
           </button>
           <button class="arcade-button" type="button" data-action="open-multiplayer">
             <span class="button-icon">♟</span><span><span class="button-label">Multiplayer</span><span class="button-copy">Host one global room or join with a code</span></span><span class="button-arrow">›</span>
@@ -350,7 +423,7 @@ function renderHome() {
 function renderLibrary() {
   const modeName = state.mode === "hot-seat" ? "Hot Seat" : "Solo";
   return `
-    ${screenHeader(`${modeName} library`, "Choose a deck family, then choose the game that owns the rules.", state.mode === "hot-seat" ? "open-multiplayer" : "home")}
+    ${screenHeader(`${modeName} library`, "Choose a deck family first, then pick the game for this table.", "home")}
     ${catalogMarkup(state.mode)}`;
 }
 
@@ -469,16 +542,7 @@ function compactGamePicker(room, isHost) {
       ? `<div class="callout">The host selected <strong>${escapeHtml(room.game.name)}</strong>.</div>`
       : `<div class="empty-state">Waiting for the host to choose a game.</div>`;
   }
-  return state.catalog.families.map((family) => `
-    <div class="family-section">
-      <span class="family-kicker">${escapeHtml(family.shortName)}</span>
-      <div class="compact-games">
-        ${family.games.filter((game) => game.modes.includes("multiplayer")).map((game) => `
-          <button class="compact-game ${room.gameId === game.id ? "selected" : ""}" type="button" data-action="select-room-game" data-game-id="${escapeHtml(game.id)}" ${game.status === "planned" ? "disabled" : ""}>
-            <span><strong>${escapeHtml(game.name)}</strong><br><small>${escapeHtml(game.eyebrow)}</small></span><span class="badge">${escapeHtml(statusLabel(game.status))}</span>
-          </button>`).join("")}
-      </div>
-    </div>`).join("");
+  return catalogMarkup("multiplayer", { compact: true, selectedGameId: room.gameId });
 }
 
 function initials(name) {
@@ -1937,6 +2001,9 @@ function enterRoom(session) {
   state.gameMode = session.mode || "multiplayer";
   state.session = { code: session.code, token: session.token, playerId: session.playerId, mode: state.gameMode };
   state.room = session.room;
+  const selectedRoomFamily = compatibleDeckFamilies("multiplayer")
+    .find((family) => family.games.some((game) => game.id === session.room?.gameId));
+  setDeckFamilyForMode("multiplayer", selectedRoomFamily?.id || state.selectedDeckFamilyId);
   localStorage.setItem(storageKeys.room, JSON.stringify(state.session));
   connectRoom(state.session);
   navigate("room");
@@ -2022,19 +2089,32 @@ document.addEventListener("click", async (event) => {
     }
   }
   if (action === "home") navigate("home");
-  if (action === "open-solo") { state.mode = "solo"; state.selectedGameId = null; navigate("library"); }
+  if (action === "open-solo") {
+    state.mode = "solo";
+    state.selectedGameId = null;
+    setDeckFamilyForMode("solo");
+    navigate("library");
+  }
   if (action === "open-hot-seat") {
     state.mode = "hot-seat";
     state.selectedGameId = null;
     state.hotSeatPlayerCount = 1;
     state.hotSeatBots = 2;
     state.hotSeatNames = [];
+    setDeckFamilyForMode("hot-seat");
     navigate("library");
   }
   if (action === "open-multiplayer") navigate("multiplayer");
   if (action === "open-settings") navigate("settings");
   if (action === "back-to-library") navigate("library");
   if (action === "multiplayer-tab") { state.multiplayerTab = button.dataset.tab; render(); }
+  if (action === "select-deck-family") {
+    const mode = state.screen === "room" ? "multiplayer" : state.mode;
+    if (mode && compatibleDeckFamilies(mode).some((family) => family.id === button.dataset.familyId)) {
+      state.selectedDeckFamilyId = button.dataset.familyId;
+      render();
+    }
+  }
   if (action === "select-local-game") { state.selectedGameId = button.dataset.gameId; navigate("local-lobby"); }
   if (action === "local-bot-down") { state.localBots = Math.max(0, state.localBots - 1); render(); }
   if (action === "local-bot-up") { state.localBots += 1; render(); }
@@ -2127,7 +2207,12 @@ document.addEventListener("click", async (event) => {
       button.disabled = false;
     }
   }
-  if (action === "select-room-game") sendRoom({ type: "select_game", gameId: button.dataset.gameId });
+  if (action === "select-room-game") {
+    const family = compatibleDeckFamilies("multiplayer")
+      .find((candidate) => candidate.games.some((game) => game.id === button.dataset.gameId));
+    if (family) state.selectedDeckFamilyId = family.id;
+    sendRoom({ type: "select_game", gameId: button.dataset.gameId });
+  }
   if (action === "room-bot-down") sendRoom({ type: "set_bot_count", botCount: Math.max(0, state.room.gameSettings.botCount - 1) });
   if (action === "room-bot-up") sendRoom({ type: "set_bot_count", botCount: state.room.gameSettings.botCount + 1 });
   if (action === "toggle-ready") {
