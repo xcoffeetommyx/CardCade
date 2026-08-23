@@ -32,6 +32,6 @@ test("the deck-first launcher stays compact at desktop and narrow phone breakpoi
   assert.match(css, /@media \(max-width: 520px\)[\s\S]*?\.deck-family-button/);
   assert.match(css, /@media \(max-width: 520px\) and \(min-height: 620px\)[\s\S]*?\.home-screen \.button-copy \{ display: none; \}/);
   assert.match(html, /\/app\.css\?v=22/);
-  assert.match(html, /\/app\.js\?v=23/);
-  assert.match(worker, /cardcade-shell-v24/);
+  assert.match(html, /\/app\.js\?v=24/);
+  assert.match(worker, /cardcade-shell-v25/);
 });

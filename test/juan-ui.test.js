@@ -20,6 +20,7 @@ test("the JUAN browser modules load in deck-before-rules order", () => {
 test("JUAN has its own renderer while retaining the shared fan and motion path", () => {
   const app = read("public/app.js");
   const css = read("public/app.css");
+  const html = read("public/index.html");
   const worker = read("public/sw.js");
   assert.match(app, /function renderJuanCard/);
   assert.match(app, /function juanCornerFace/);
@@ -43,8 +44,13 @@ test("JUAN has its own renderer while retaining the shared fan and motion path",
   assert.match(css, /\.juan-prism-dialog/);
   assert.match(css, /\.juan-prism-reveal/);
   assert.match(app, /function queueJuanPrismReveal/);
+  assert.match(app, /function syncJuanPrismReveal/);
+  assert.match(app, /data-reveal-key/);
+  assert.match(app, /state\.juanPrismReveal\?\.key === revealKey/);
+  assert.match(app, /juanPrismRevealRoot\.innerHTML = renderJuanPrismReveal\(\)/);
   assert.match(app, /candidate\.lastPlayedCard\?\.id === nextCard\.id/);
   assert.match(css, /\.juan-game \.game-opponents/);
+  assert.match(html, /id="juan-prism-reveal-root"/);
   assert.match(worker, /shared\/juan-deck\.js/);
   assert.match(worker, /shared\/juan-rules\.js/);
 

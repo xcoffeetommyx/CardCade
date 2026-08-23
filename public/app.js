@@ -7,6 +7,7 @@ const networkStatus = document.querySelector("#network-status");
 const systemBanner = document.querySelector("#system-banner");
 const systemBannerMessage = document.querySelector("#system-banner-message");
 const systemBannerAction = systemBanner?.querySelector('[data-action="apply-app-update"]');
+const juanPrismRevealRoot = document.querySelector("#juan-prism-reveal-root");
 
 const storageKeys = {
   name: "cardcade.playerName.v1",
@@ -1291,7 +1292,7 @@ function renderJuanPrismReveal() {
   const reveal = state.juanPrismReveal;
   if (!reveal?.card || !juanDeck.COLORS.includes(reveal.color)) return "";
   return `
-    <div class="juan-prism-reveal juan-${reveal.color}" role="status" aria-live="assertive">
+    <div class="juan-prism-reveal juan-${reveal.color}" data-reveal-key="${escapeHtml(reveal.key)}" role="status" aria-live="assertive">
       <div class="juan-prism-reveal-burst" aria-hidden="true"></div>
       <div class="juan-prism-reveal-card">${renderJuanCard(reveal.card, 0, { played: true })}</div>
       <div class="juan-prism-reveal-copy">
@@ -1302,10 +1303,23 @@ function renderJuanPrismReveal() {
     </div>`;
 }
 
+function syncJuanPrismReveal() {
+  if (!juanPrismRevealRoot) return;
+  const reveal = ["game", "hot-seat-handoff"].includes(state.screen) ? state.juanPrismReveal : null;
+  const existing = juanPrismRevealRoot.firstElementChild;
+  if (!reveal) {
+    if (existing) juanPrismRevealRoot.replaceChildren();
+    return;
+  }
+  if (existing?.dataset.revealKey === reveal.key) return;
+  juanPrismRevealRoot.innerHTML = renderJuanPrismReveal();
+}
+
 function clearJuanPrismReveal() {
   clearTimeout(state.juanPrismRevealTimer);
   state.juanPrismRevealTimer = null;
   state.juanPrismReveal = null;
+  syncJuanPrismReveal();
 }
 
 function queueJuanPrismReveal(gameId, previousView, nextView) {
@@ -1316,9 +1330,12 @@ function queueJuanPrismReveal(gameId, previousView, nextView) {
   if (!["prism", "prism-burst"].includes(nextCard.kind)) return;
   const color = nextView.state.activeColor;
   if (!juanDeck.COLORS.includes(color)) return;
+  const revealKey = `${nextView.state.round}:${nextCard.id}:${color}`;
+  if (state.juanPrismReveal?.key === revealKey) return;
   const player = nextView.state.players.find((candidate) => candidate.lastPlayedCard?.id === nextCard.id);
   clearTimeout(state.juanPrismRevealTimer);
   state.juanPrismReveal = {
+    key: revealKey,
     card: { ...nextCard },
     color,
     playerName: player?.name || "A player"
@@ -1326,8 +1343,8 @@ function queueJuanPrismReveal(gameId, previousView, nextView) {
   const reducedMotion = localStorage.getItem(storageKeys.reducedMotion) === "true"
     || matchMedia("(prefers-reduced-motion: reduce)").matches;
   state.juanPrismRevealTimer = setTimeout(() => {
-    state.juanPrismReveal = null;
-    state.juanPrismRevealTimer = null;
+    if (state.juanPrismReveal?.key !== revealKey) return;
+    clearJuanPrismReveal();
     if (["game", "hot-seat-handoff"].includes(state.screen)) render();
   }, reducedMotion ? 900 : 1_900);
 }
@@ -1486,8 +1503,8 @@ function render() {
   document.body.classList.toggle("playing-game", ["game", "hot-seat-handoff"].includes(state.screen));
   document.body.classList.toggle("home-screen", state.screen === "home");
   const screen = (screens[state.screen] || renderHome)();
-  const prismReveal = ["game", "hot-seat-handoff"].includes(state.screen) ? renderJuanPrismReveal() : "";
-  app.innerHTML = `${screen}${prismReveal}`;
+  app.innerHTML = screen;
+  syncJuanPrismReveal();
   if (state.screen === "game") {
     layoutActivePiles();
     layoutStandardHand();
