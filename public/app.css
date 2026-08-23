@@ -1197,8 +1197,8 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   font: 900 .88rem "Cardcade Pixel", monospace;
   letter-spacing: .16em;
 }
-.juan-stock::before { content: ""; position: absolute; inset: 9px; border: 2px solid rgba(255,255,255,.72); border-radius: 5px; background: linear-gradient(135deg, rgba(239,77,84,.24), transparent 35%, transparent 65%, rgba(45,125,210,.24)); }
-.juan-stock::after { content: ""; position: absolute; width: 32px; height: 32px; border: 2px solid rgba(255,255,255,.72); border-radius: 5px; background: conic-gradient(from 45deg, #ef4d54 0 25%, #f2bf3d 0 50%, #43b66b 0 75%, #2d7dd2 0); transform: rotate(45deg); }
+.juan-stock::before { content: ""; position: absolute; inset: 9px; border: 2px solid rgba(255,255,255,.72); border-radius: 5px; background: rgba(255,255,255,.025); }
+.juan-stock::after { content: none; }
 .juan-stock span { position: relative; z-index: 1; text-shadow: 2px 2px 0 rgba(0,0,0,.45); }
 .juan-stock b { position: absolute; z-index: 2; right: -9px; bottom: -9px; min-width: 29px; height: 29px; display: grid; place-items: center; border: 2px solid #f2ebdd; border-radius: 50%; color: #06101f; background: #f2bf3d; font-size: .72rem; }
 
