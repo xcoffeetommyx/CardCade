@@ -674,6 +674,17 @@ function playedCardStyle(index, { animate = false, dealt = false } = {}) {
   return declarations.length ? `style="${declarations.join(";")}"` : "";
 }
 
+function juanCornerFace(card) {
+  if (card.kind === "number") return String(card.value);
+  return {
+    pause: "Ⅱ",
+    turnabout: "↺",
+    "double-draw": "+2",
+    prism: "✦",
+    "prism-burst": "+4"
+  }[card.kind] || "?";
+}
+
 function renderSeatLastCard(player, gameId) {
   const card = player.lastPlayedCard
     || (player.lastPlay?.kind === "play" ? player.lastPlay.cards?.at(-1) : null);
@@ -681,10 +692,10 @@ function renderSeatLastCard(player, gameId) {
     return `<span class="seat-last-card empty" aria-label="No card played yet"><i aria-hidden="true"></i></span>`;
   }
   if (gameId === "juan") {
-    const action = juanDeck.ACTION_FACE[card.kind];
-    const face = card.kind === "number" ? String(card.value) : action?.symbol || "?";
+    const isNumber = card.kind === "number";
+    const face = juanCornerFace(card);
     const colorClass = card.color ? `juan-${card.color}` : "juan-prism";
-    return `<span class="seat-last-card juan-seat-card ${colorClass}" aria-label="Last played ${escapeHtml(juanDeck.cardLong(card))}"><strong>${escapeHtml(face)}</strong></span>`;
+    return `<span class="seat-last-card juan-seat-card ${colorClass}" aria-label="Last played ${escapeHtml(juanDeck.cardLong(card))}"><strong class="${isNumber ? "juan-rank-glyph" : ""}">${escapeHtml(face)}</strong></span>`;
   }
   const suit = standard52.SUIT_SYMBOL[card.suit];
   const red = card.suit === "H" || card.suit === "D";
@@ -1207,13 +1218,27 @@ function juanSelection() {
   return { ok: true, reason: `${juanDeck.cardLong(card)}${color}`, card };
 }
 
+function juanActionMark(kind) {
+  if (kind === "pause") {
+    return `<span class="juan-action-mark juan-action-pause" aria-hidden="true"><i></i><i></i></span>`;
+  }
+  if (kind === "turnabout") {
+    return `<span class="juan-action-mark juan-action-turnabout" aria-hidden="true"><i></i><i></i></span>`;
+  }
+  if (kind === "double-draw") {
+    return `<span class="juan-action-mark juan-action-double-draw" aria-hidden="true"><i></i><i></i><b>+2</b></span>`;
+  }
+  if (kind === "prism" || kind === "prism-burst") {
+    return `<span class="juan-action-mark juan-action-${kind}" aria-hidden="true"><i></i><i></i><i></i><i></i><b>${kind === "prism-burst" ? "+4" : ""}</b></span>`;
+  }
+  return `<span class="juan-action-mark" aria-hidden="true">?</span>`;
+}
+
 function renderJuanCard(card, index, { played = false, enter = false, selectable = false, dealt = false, turnDrawn = false } = {}) {
   const selected = !played && state.selectedCards.has(card.id);
-  const action = juanDeck.ACTION_FACE[card.kind];
   const isNumber = card.kind === "number";
-  const face = card.kind === "number" ? String(card.value) : action?.symbol || "?";
-  const short = card.kind === "number" ? String(card.value) : action?.short || "?";
-  const name = card.kind === "number" ? juanDeck.COLOR_NAME[card.color] : action?.name || card.kind;
+  const face = isNumber ? String(card.value) : null;
+  const corner = juanCornerFace(card);
   const colorClass = card.color ? `juan-${card.color}` : "juan-prism";
   const classes = [
     "playing-card",
@@ -1233,10 +1258,12 @@ function renderJuanCard(card, index, { played = false, enter = false, selectable
       ${played ? "" : `data-game-card="${escapeHtml(card.id)}" data-card-index="${index}" tabindex="${selectable ? "0" : "-1"}"`}
       aria-label="${escapeHtml(juanDeck.cardLong(card))}" aria-pressed="${selected}">
       <span class="juan-card-ink" aria-hidden="true"></span>
-      <span class="card-corner juan-corner"><strong class="${isNumber ? "juan-rank-glyph" : ""}">${escapeHtml(short)}</strong><i class="juan-lane-pip" aria-hidden="true"></i></span>
-      <span class="juan-card-emblem"><b class="${isNumber ? "juan-rank-glyph" : ""}">${escapeHtml(face)}</b><small>${escapeHtml(name)}</small></span>
-      <span class="juan-card-brand" aria-hidden="true">JUAN</span>
-      <span class="card-corner bottom juan-corner"><strong class="${isNumber ? "juan-rank-glyph" : ""}">${escapeHtml(short)}</strong><i class="juan-lane-pip" aria-hidden="true"></i></span>
+      <span class="card-corner juan-corner"><strong class="${isNumber ? "juan-rank-glyph" : ""}">${escapeHtml(corner)}</strong></span>
+      <span class="juan-card-center">${isNumber
+        ? `<b class="juan-rank-glyph">${escapeHtml(face)}</b>`
+        : juanActionMark(card.kind)
+      }</span>
+      <span class="card-corner bottom juan-corner"><strong class="${isNumber ? "juan-rank-glyph" : ""}">${escapeHtml(corner)}</strong></span>
     </button>`;
 }
 

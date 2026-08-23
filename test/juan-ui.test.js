@@ -22,14 +22,23 @@ test("JUAN has its own renderer while retaining the shared fan and motion path",
   const css = read("public/app.css");
   const worker = read("public/sw.js");
   assert.match(app, /function renderJuanCard/);
+  assert.match(app, /function juanCornerFace/);
+  assert.match(app, /function juanActionMark/);
   assert.match(app, /function renderJuanGame/);
   assert.match(app, /choose-juan-color/);
   assert.match(app, /animateStandardHandExit\(cardIds/);
   assert.match(app, /juan-rank-glyph/);
+  assert.match(app, /juan-card-center/);
+  assert.match(app, /juan-action-double-draw/);
+  assert.match(app, /juan-action-\$\{kind\}/);
   assert.match(app, /tabindex="\$\{selectable \? "0" : "-1"\}"/);
   assert.match(css, /\.juan-card-ink/);
-  assert.match(css, /\.juan-card-emblem/);
-  assert.match(css, /\.juan-card-emblem b\.juan-rank-glyph[\s\S]*Cardcade Ranks/);
+  assert.match(css, /\.juan-card-center > b[\s\S]*Cardcade Ranks/);
+  assert.match(css, /\.juan-action-pause/);
+  assert.match(css, /\.juan-action-turnabout/);
+  assert.match(css, /\.juan-action-double-draw/);
+  assert.match(css, /\.juan-action-prism-burst/);
+  assert.match(css, /\.juan-stock span/);
   assert.match(css, /\.juan-color-chooser/);
   assert.match(css, /\.juan-prism-dialog/);
   assert.match(css, /\.juan-prism-reveal/);
@@ -38,4 +47,9 @@ test("JUAN has its own renderer while retaining the shared fan and motion path",
   assert.match(css, /\.juan-game \.game-opponents/);
   assert.match(worker, /shared\/juan-deck\.js/);
   assert.match(worker, /shared\/juan-rules\.js/);
+
+  const renderer = app.slice(app.indexOf("function renderJuanCard"), app.indexOf("function juanColorChooser"));
+  assert.doesNotMatch(renderer, /JUAN/);
+  assert.doesNotMatch(renderer, /juan-card-brand/);
+  assert.doesNotMatch(renderer, /juan-card-emblem/);
 });

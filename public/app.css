@@ -593,10 +593,11 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 .standard-seat-card.red { color: #bd2936; }
 .standard-seat-card strong { font: 400 1rem/.82 "Cardcade Ranks", "Courier New", monospace; }
 .standard-seat-card i { font: normal .72rem Georgia, serif; }
-.juan-seat-card { color: #fffaf0; border-color: #fff8e9; background: var(--juan-face); text-shadow: 1px 2px 0 rgba(5,13,26,.72); }
-.juan-seat-card::before { content: ""; position: absolute; width: 150%; height: 35%; border-block: 1px solid rgba(255,255,255,.55); background: rgba(255,255,255,.13); transform: rotate(-28deg); }
-.juan-seat-card.juan-prism { background: conic-gradient(from 45deg, #ef4d54 0 25%, #f2bf3d 0 50%, #43b66b 0 75%, #2d7dd2 0); }
+.juan-seat-card { color: var(--juan-ink, #fffaf0); border-color: rgba(255,250,240,.92); background: linear-gradient(132deg, rgba(255,255,255,.15), transparent 45%), var(--juan-face); text-shadow: 1px 2px 0 rgba(5,13,26,.32); }
+.juan-seat-card::before { content: none; }
+.juan-seat-card.juan-prism { --juan-ink: #fffaf0; background: radial-gradient(circle at 50% 42%, rgba(124,169,217,.24), transparent 44%), #0b1320; }
 .juan-seat-card strong { position: relative; z-index: 1; max-width: 30px; font: 900 .78rem/.9 "Cardcade Pixel", monospace; text-align: center; }
+.juan-seat-card strong.juan-rank-glyph { font-family: "Cardcade Ranks", "Courier New", monospace; font-weight: 400; }
 
 .game-table {
   min-height: 225px;
@@ -1166,11 +1167,10 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 .juan-game .game-seat.juan-alert { border-color: #f2bf3d; box-shadow: 0 0 20px rgba(242,191,61,.14); }
 .juan-game .game-seat.juan-alert small { color: #ffd76c; }
 .juan-game .mini-deck, .juan-stock {
-  color: #fff4da;
+  color: #fffaf0;
   background:
-    linear-gradient(135deg, transparent 0 44%, rgba(255,255,255,.2) 44% 50%, transparent 50%),
-    linear-gradient(45deg, #d73e4d, #183e72 48%, #24905a);
-  background-size: 18px 18px, auto;
+    linear-gradient(135deg, rgba(255,255,255,.08), transparent 46%),
+    #0b1c34;
 }
 
 .juan-table {
@@ -1195,185 +1195,166 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   box-shadow: 7px 8px 0 rgba(0,0,0,.42), 0 0 0 2px #1a2947;
   transform: rotate(-4deg);
   font: 900 .88rem "Cardcade Pixel", monospace;
-  letter-spacing: .08em;
+  letter-spacing: .16em;
 }
-.juan-stock::after { content: ""; position: absolute; inset: 7px; border: 2px solid rgba(255,255,255,.74); border-radius: 5px; }
-.juan-stock b { position: absolute; right: -9px; bottom: -9px; min-width: 29px; height: 29px; display: grid; place-items: center; border: 2px solid #f2ebdd; border-radius: 50%; color: #06101f; background: #f2bf3d; font-size: .72rem; }
+.juan-stock::before { content: ""; position: absolute; inset: 9px; border: 2px solid rgba(255,255,255,.72); border-radius: 5px; background: linear-gradient(135deg, rgba(239,77,84,.24), transparent 35%, transparent 65%, rgba(45,125,210,.24)); }
+.juan-stock::after { content: ""; position: absolute; width: 32px; height: 32px; border: 2px solid rgba(255,255,255,.72); border-radius: 5px; background: conic-gradient(from 45deg, #ef4d54 0 25%, #f2bf3d 0 50%, #43b66b 0 75%, #2d7dd2 0); transform: rotate(45deg); }
+.juan-stock span { position: relative; z-index: 1; text-shadow: 2px 2px 0 rgba(0,0,0,.45); }
+.juan-stock b { position: absolute; z-index: 2; right: -9px; bottom: -9px; min-width: 29px; height: 29px; display: grid; place-items: center; border: 2px solid #f2ebdd; border-radius: 50%; color: #06101f; background: #f2bf3d; font-size: .72rem; }
 
+/* Minimal face system: the color field and one mark do the visual work. */
 .juan-card {
-  --juan-paper: #f5eddd;
-  color: #fffaf0;
-  border-color: #fff8e9;
-  background:
-    linear-gradient(rgba(89,63,35,.055) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(89,63,35,.055) 1px, transparent 1px),
-    var(--juan-paper);
-  background-size: 4px 4px, 4px 4px, auto;
-  box-shadow: 5px 7px 0 rgba(0,0,0,.5), inset 0 0 0 1px rgba(72,47,23,.14);
-  text-shadow: none;
+  --juan-ink: #fffaf0;
+  color: var(--juan-ink);
+  border: 3px solid rgba(255,250,240,.94);
+  border-radius: 10px;
+  background: var(--juan-face);
+  box-shadow: 5px 7px 0 rgba(0,0,0,.5), inset 0 0 0 1px rgba(5,13,26,.24);
 }
+.juan-spark { --juan-ink: #16233a; }
 .juan-card-ink {
   position: absolute;
   z-index: 0;
-  inset: 4px;
-  overflow: hidden;
-  border: 2px solid rgba(5,13,26,.42);
-  border-radius: 5px;
+  inset: 0;
+  border: 0;
+  border-radius: inherit;
   background:
-    linear-gradient(rgba(255,255,255,.055) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,.055) 1px, transparent 1px),
-    linear-gradient(155deg, rgba(255,255,255,.2), transparent 29%, rgba(5,13,26,.16) 76%),
+    linear-gradient(132deg, rgba(255,255,255,.15), transparent 34%, rgba(5,13,26,.1) 100%),
     var(--juan-face);
-  background-size: 5px 5px, 5px 5px, auto, auto;
-  box-shadow: inset 0 0 0 2px rgba(255,255,255,.22), inset 0 -18px 32px rgba(5,13,26,.14);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.13), inset 0 -16px 25px rgba(5,13,26,.08);
   pointer-events: none;
 }
-.juan-card-ink::before {
-  content: "";
-  position: absolute;
-  width: 150%;
-  height: 36%;
-  left: -25%;
-  top: 31%;
-  border-block: 2px solid rgba(255,255,255,.42);
-  background: rgba(255,255,255,.12);
-  transform: rotate(-28deg);
-  box-shadow: 0 4px 0 rgba(5,13,26,.09);
-}
-.juan-card-ink::after {
-  content: "";
-  position: absolute;
-  inset: 7px;
-  border: 1px solid rgba(255,255,255,.28);
-  border-radius: 3px;
-}
-.juan-card.juan-prism { --juan-face: #111a2a; --juan-deep: #070d18; }
+.juan-card-ink::before,
+.juan-card-ink::after { content: none; }
+.juan-card.juan-prism { --juan-face: #0b1320; --juan-ink: #fffaf0; }
 .juan-prism .juan-card-ink {
   background:
-    linear-gradient(rgba(255,255,255,.045) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,.045) 1px, transparent 1px),
-    conic-gradient(from 45deg at 50% 50%, #ef4d54 0 25%, #f2bf3d 0 50%, #43b66b 0 75%, #2d7dd2 0) 50% 50% / 170% 170%,
-    #101827;
-  background-size: 5px 5px, 5px 5px, 170% 170%, auto;
+    radial-gradient(circle at 50% 42%, rgba(124,169,217,.18), transparent 36%),
+    linear-gradient(135deg, rgba(255,255,255,.07), transparent 48%),
+    #0b1320;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.14), inset 0 -18px 28px rgba(0,0,0,.35);
 }
-.juan-prism .juan-card-ink::before {
-  height: 39%;
-  border-color: rgba(255,255,255,.62);
-  background: rgba(7,13,24,.44);
-}
-.juan-card-emblem {
+.juan-card-center {
   position: absolute;
   z-index: 2;
-  inset: 24% 17% 22%;
+  inset: 21% 14% 18%;
   display: grid;
   place-items: center;
-  align-content: center;
-  gap: 5px;
-  border: 3px solid rgba(6,16,31,.72);
-  border-radius: 20% 7% 20% 7%;
-  color: var(--juan-deep);
-  background:
-    linear-gradient(rgba(73,49,25,.045) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(73,49,25,.045) 1px, transparent 1px),
-    linear-gradient(145deg, #fffaf0, #e8ddc9);
-  background-size: 4px 4px, 4px 4px, auto;
-  box-shadow: 4px 5px 0 rgba(5,13,26,.45), inset 0 0 0 2px rgba(255,255,255,.7);
-  transform: rotate(-7deg);
+  color: var(--juan-ink);
+  pointer-events: none;
 }
-.juan-card-emblem::before,
-.juan-card-emblem::after {
-  content: "";
-  position: absolute;
-  width: 10px;
-  height: 10px;
-  border: 2px solid var(--juan-deep);
-  background: var(--juan-paper);
-  transform: rotate(45deg);
-}
-.juan-card-emblem::before { left: -7px; top: 12px; }
-.juan-card-emblem::after { right: -7px; bottom: 12px; }
-.juan-card-emblem b {
-  font: 900 clamp(2rem, 7vw, 4.05rem)/.84 "Cardcade Pixel", "Courier New", monospace;
-  letter-spacing: -.07em;
-  transform: rotate(7deg);
-}
-.juan-card-emblem b.juan-rank-glyph {
-  font-family: "Cardcade Ranks", "Courier New", monospace;
-  font-weight: 400;
+.juan-card-center > b {
+  font: 400 clamp(3.15rem, 8.5vw, 5rem)/.82 "Cardcade Ranks", "Courier New", monospace;
   letter-spacing: 0;
-}
-.juan-card-emblem small {
-  max-width: 92%;
-  padding: 3px 5px 2px;
-  border: 1px solid currentColor;
-  border-radius: 3px;
-  font: 900 .54rem/1 "Cardcade Pixel", monospace;
-  letter-spacing: .04em;
-  text-transform: uppercase;
-  text-align: center;
-  transform: rotate(7deg);
-}
-.juan-kind-number .juan-card-emblem b { font-size: clamp(2.9rem, 9vw, 4.8rem); }
-.juan-kind-turnabout .juan-card-emblem b { font-size: clamp(2.35rem, 7vw, 3.8rem); }
-.juan-kind-double-draw .juan-card-emblem b,
-.juan-kind-prism-burst .juan-card-emblem b { font-size: clamp(1.85rem, 6vw, 3.2rem); }
-.juan-kind-prism .juan-card-emblem b { font-size: clamp(2.25rem, 7vw, 3.7rem); }
-.juan-prism .juan-card-emblem {
-  color: #0a1424;
-  background:
-    linear-gradient(rgba(73,49,25,.045) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(73,49,25,.045) 1px, transparent 1px),
-    linear-gradient(145deg, #fffaf0, #e8ddc9);
-  background-size: 4px 4px, 4px 4px, auto;
-}
-.juan-prism .juan-card-emblem::before { border-color: #ef4d54; background: #f2bf3d; }
-.juan-prism .juan-card-emblem::after { border-color: #2d7dd2; background: #43b66b; }
-.juan-card-brand {
-  position: absolute;
-  z-index: 2;
-  left: 50%;
-  bottom: 8px;
-  color: rgba(255,255,255,.82);
-  font: 900 .42rem/1 "Cardcade Pixel", monospace;
-  letter-spacing: .18em;
-  text-shadow: 1px 1px 0 rgba(5,13,26,.48);
-  transform: translateX(-50%);
+  text-shadow: 2px 3px 0 rgba(5,13,26,.16);
 }
 .juan-corner {
-  top: 10px;
-  left: 10px;
-  color: #fffaf0;
-  line-height: .78;
-  text-shadow: 2px 2px 0 rgba(5,13,26,.7);
+  top: 8px;
+  left: 8px;
+  color: var(--juan-ink);
+  line-height: .8;
+  text-shadow: 1px 2px 0 rgba(5,13,26,.18);
 }
 .juan-corner strong {
-  max-width: 44px;
-  font-family: "Cardcade Pixel", monospace;
-  font-size: clamp(.9rem, 3vw, 1.22rem);
-  letter-spacing: -.07em;
+  max-width: 42px;
+  font: 900 clamp(.72rem, 2.45vw, 1.05rem)/.84 "Cardcade Pixel", "Courier New", monospace;
+  letter-spacing: -.05em;
 }
 .juan-corner strong.juan-rank-glyph {
   font-family: "Cardcade Ranks", "Courier New", monospace;
   font-weight: 400;
   letter-spacing: 0;
 }
-.juan-lane-pip {
-  width: 8px;
-  height: 8px;
-  margin-top: 5px;
-  border: 1px solid rgba(255,255,255,.82);
-  background: rgba(255,255,255,.3);
+.juan-action-mark {
+  position: relative;
+  width: 76%;
+  height: 66%;
+  display: block;
+  color: var(--juan-ink);
+}
+.juan-action-mark i { position: absolute; display: block; }
+.juan-action-pause { display: flex; align-items: center; justify-content: center; gap: 16%; }
+.juan-action-pause i {
+  position: relative;
+  width: 20%;
+  height: 82%;
+  border: 3px solid currentColor;
+  border-radius: 3px;
+  box-shadow: 2px 2px 0 rgba(5,13,26,.12);
+}
+.juan-action-turnabout i {
+  width: 76%;
+  height: 27%;
+  border-top: 3px solid currentColor;
+  border-radius: 50%;
+}
+.juan-action-turnabout i::after {
+  content: "";
+  position: absolute;
+  right: -2px;
+  top: -7px;
+  width: 11px;
+  height: 11px;
+  border-top: 3px solid currentColor;
+  border-right: 3px solid currentColor;
   transform: rotate(45deg);
 }
-.juan-prism .juan-lane-pip {
-  border-color: #fffaf0;
-  background: conic-gradient(#ef4d54 0 25%, #f2bf3d 0 50%, #43b66b 0 75%, #2d7dd2 0);
+.juan-action-turnabout i:first-child { top: 19%; left: 1%; }
+.juan-action-turnabout i:last-child { right: 1%; bottom: 19%; transform: rotate(180deg); }
+.juan-action-double-draw i {
+  width: 42%;
+  height: 66%;
+  border: 3px solid currentColor;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--juan-face) 70%, transparent);
 }
-.juan-card.played .juan-card-emblem { inset: 23% 15% 21%; }
-.juan-card.played .juan-card-emblem b { font-size: 2.35rem; }
-.juan-card.played.juan-kind-number .juan-card-emblem b { font-size: 2.8rem; }
-.juan-card.played .juan-card-emblem small { font-size: .42rem; }
-.juan-card.played .juan-card-brand { font-size: .35rem; }
+.juan-action-double-draw i:first-child { left: 8%; top: 2%; }
+.juan-action-double-draw i:nth-child(2) { right: 8%; bottom: 2%; }
+.juan-action-double-draw b,
+.juan-action-prism-burst b {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  top: 50%;
+  color: var(--juan-ink);
+  font: 900 clamp(1.45rem, 4.7vw, 2.45rem)/.8 "Cardcade Pixel", "Courier New", monospace;
+  letter-spacing: -.08em;
+  text-shadow: 2px 2px 0 rgba(5,13,26,.18);
+  transform: translate(-50%, -50%);
+}
+.juan-action-prism,
+.juan-action-prism-burst { width: 78%; height: 74%; }
+.juan-action-prism i,
+.juan-action-prism-burst i {
+  width: 19%;
+  aspect-ratio: 1;
+  border: 2px solid rgba(255,250,240,.82);
+  border-radius: 2px;
+  box-shadow: 1px 2px 0 rgba(0,0,0,.28);
+  transform: rotate(45deg);
+}
+.juan-action-prism i:nth-child(1), .juan-action-prism-burst i:nth-child(1) { left: 4%; top: 12%; background: #ef4d54; }
+.juan-action-prism i:nth-child(2), .juan-action-prism-burst i:nth-child(2) { right: 4%; top: 12%; background: #f2bf3d; }
+.juan-action-prism i:nth-child(3), .juan-action-prism-burst i:nth-child(3) { left: 4%; bottom: 12%; background: #2d7dd2; }
+.juan-action-prism i:nth-child(4), .juan-action-prism-burst i:nth-child(4) { right: 4%; bottom: 12%; background: #43b66b; }
+.juan-action-prism b {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 34%;
+  aspect-ratio: 1;
+  border: 2px solid rgba(5,13,26,.22);
+  border-radius: 3px;
+  background: #fffaf0;
+  box-shadow: 2px 3px 0 rgba(0,0,0,.28);
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+.juan-action-prism-burst b { background: #0b1320; padding: 4px 5px 2px; border-radius: 3px; }
+.juan-card.played .juan-card-center { inset: 20% 13% 17%; }
+.juan-card.played .juan-card-center > b { font-size: 3rem; }
+.juan-card.played .juan-action-mark { transform: scale(.88); }
+.juan-prism-stage-card .juan-card.played .juan-card-center > b,
+.juan-prism-reveal-card .juan-card.played .juan-card-center > b { font-size: 3.7rem; }
 .juan-card.turn-drawn:not(.selected) {
   --card-lift: calc(var(--fan-selected-lift, 38px) * .45);
   border-color: #fff4b6;
@@ -1434,8 +1415,6 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   transform: rotate(-2deg);
   animation: prismCardPresent 520ms cubic-bezier(.16,.84,.26,1.08) both;
 }
-.juan-prism-stage-card .juan-card.played .juan-card-emblem b,
-.juan-prism-reveal-card .juan-card.played .juan-card-emblem b { font-size: 2.9rem; }
 .juan-color-chooser { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
 .juan-color-choice {
   --juan-choice: #fff;
@@ -1713,7 +1692,6 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   .juan-prism-reveal-card .playing-card.played { width: 112px; height: 159px; }
   .juan-prism-reveal-copy { text-align: center; }
   .juan-prism-reveal-copy strong { justify-content: center; }
-  .juan-card-emblem small { font-size: .48rem; }
   .blackjack-rule-bar { min-height: 42px; gap: 3px 7px; padding: 6px 8px; font-size: .55rem; }
   .blackjack-rule-bar i { display: none; }
   .blackjack-dealer-zone { min-height: 125px; grid-template-columns: 1fr; gap: 1px; }
