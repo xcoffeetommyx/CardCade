@@ -126,10 +126,11 @@ function loadAppearancePreferences() {
   }
 }
 
-function saveAppearancePreferences(requestedSkins) {
+function saveAppearancePreferences({ skins: requestedSkins, legacyMode = false }) {
   appearancePreferences = cardSkins.normalizeAppearance({
     version: cardSkins.APPEARANCE_VERSION,
-    skins: requestedSkins
+    skins: requestedSkins,
+    legacyMode
   });
   localStorage.setItem(storageKeys.appearance, JSON.stringify(appearancePreferences));
   return appearancePreferences;
@@ -707,6 +708,22 @@ function selectedCardSkin(deckFamilyId) {
   return cardSkins?.resolveSkin(deckFamilyId, appearancePreferences.skins[deckFamilyId]) || null;
 }
 
+function standardLegacyModeEnabled() {
+  return appearancePreferences.legacyMode === true
+    && deckFamilyIdForGame() === "standard-52";
+}
+
+function activeCardAppearanceClass(deckFamilyId) {
+  if (deckFamilyId === "standard-52" && appearancePreferences.legacyMode === true) {
+    return "card-style-legacy-standard";
+  }
+  return selectedCardSkin(deckFamilyId)?.className || "";
+}
+
+function standardHandAriaLabel(fannedLabel, legacyLabel) {
+  return appearancePreferences.legacyMode === true ? legacyLabel : fannedLabel;
+}
+
 function renderCardBack({
   deckFamilyId,
   context,
@@ -717,12 +734,10 @@ function renderCardBack({
   attributes = "",
   parts = []
 }) {
-  const skin = skinId
-    ? cardSkins?.resolveSkin(deckFamilyId, skinId)
-    : selectedCardSkin(deckFamilyId);
+  const skin = skinId ? cardSkins?.resolveSkin(deckFamilyId, skinId) : null;
   const classes = [
     "card-back",
-    skin?.className || "",
+    skin?.className || activeCardAppearanceClass(deckFamilyId),
     `card-back-family-${deckFamilyId}`,
     `card-back-context-${context}`,
     className
@@ -775,21 +790,45 @@ function renderSeatLastCard(player, gameId) {
   }
   const suit = standard52.SUIT_SYMBOL[card.suit];
   const red = card.suit === "H" || card.suit === "D";
-  return `<span class="seat-last-card standard-seat-card card-skin-face ${selectedCardSkin("standard-52")?.className || ""} ${red ? "red" : "black"}" aria-label="Last played ${escapeHtml(standard52.cardLong(card))}"><strong>${escapeHtml(card.rank)}</strong><i>${suit}</i></span>`;
+  return `<span class="seat-last-card standard-seat-card card-skin-face ${activeCardAppearanceClass("standard-52")} ${red ? "red" : "black"}" aria-label="Last played ${escapeHtml(standard52.cardLong(card))}"><strong>${escapeHtml(card.rank)}</strong><i>${suit}</i></span>`;
+}
+
+const LEGACY_STANDARD_PIP_LAYOUTS = Object.freeze({
+  2: [[50, 10, false], [50, 90, true]],
+  3: [[50, 10, false], [50, 50, false], [50, 90, true]],
+  4: [[26, 12, false], [74, 12, false], [26, 88, true], [74, 88, true]],
+  5: [[26, 12, false], [74, 12, false], [50, 50, false], [26, 88, true], [74, 88, true]],
+  6: [[26, 12, false], [74, 12, false], [26, 50, false], [74, 50, false], [26, 88, true], [74, 88, true]],
+  7: [[26, 11, false], [74, 11, false], [50, 30, false], [26, 50, false], [74, 50, false], [26, 89, true], [74, 89, true]],
+  8: [[26, 10, false], [74, 10, false], [50, 29, false], [26, 48, false], [74, 48, false], [50, 71, true], [26, 90, true], [74, 90, true]],
+  9: [[26, 10, false], [74, 10, false], [26, 37, false], [74, 37, false], [50, 50, false], [26, 63, true], [74, 63, true], [26, 90, true], [74, 90, true]],
+  10: [[26, 9, false], [74, 9, false], [50, 24, false], [26, 37, false], [74, 37, false], [26, 63, true], [74, 63, true], [50, 76, true], [26, 91, true], [74, 91, true]]
+});
+
+function renderLegacyStandardCenter(card, suit) {
+  if (["J", "Q", "K"].includes(card.rank)) {
+    return `<span class="legacy-card-center legacy-face"><strong>${escapeHtml(card.rank)}</strong><i>${suit}</i></span>`;
+  }
+  if (card.rank === "A") return `<span class="legacy-card-center legacy-ace">${suit}</span>`;
+  const layout = LEGACY_STANDARD_PIP_LAYOUTS[Number(card.rank)] || [[50, 50, false]];
+  return `<span class="legacy-card-center legacy-pips">${layout.map(([x, y, flip]) => `<i class="${flip ? "flip" : ""}" style="left:${x}%;top:${y}%">${suit}</i>`).join("")}</span>`;
 }
 
 function renderPlayingCard(card, index, { played = false, enter = false, selectable = false, dealt = false, inert = false } = {}) {
   const suit = standard52.SUIT_SYMBOL[card.suit];
   const red = card.suit === "H" || card.suit === "D";
   const selected = !played && state.selectedCards.has(card.id);
+  const legacy = appearancePreferences.legacyMode === true;
   const faceId = { J: "card-face-jack", Q: "card-face-queen", K: "card-face-king" }[card.rank];
-  const center = faceId
-    ? `<span class="card-center court"><svg viewBox="0 0 100 140" aria-hidden="true"><use href="#${faceId}"></use></svg></span>`
-    : `<span class="card-center">${suit}</span>`;
+  const center = legacy
+    ? renderLegacyStandardCenter(card, suit)
+    : faceId
+      ? `<span class="card-center court"><svg viewBox="0 0 100 140" aria-hidden="true"><use href="#${faceId}"></use></svg></span>`
+      : `<span class="card-center">${suit}</span>`;
   const classes = [
     "playing-card",
     "card-skin-face",
-    selectedCardSkin("standard-52")?.className || "",
+    activeCardAppearanceClass("standard-52"),
     red ? "red" : "black",
     selected ? "selected" : "",
     played ? "played" : "",
@@ -933,7 +972,7 @@ function renderBlackjackGame() {
       <section class="physical-hand blackjack-hand ${isYourTurn || isInsuranceTurn ? "your-turn" : ""}">
         <div class="hand-heading"><span><strong>Your hand</strong><small>${view.hands?.length || 0} hand${view.hands?.length === 1 ? "" : "s"} · table points</small></span><span class="selection-status ${isYourTurn ? "valid" : ""}">${isInsuranceTurn ? "Choose insurance" : escapeHtml(activeHand?.label || "Waiting for dealer")}</span></div>
         <div class="blackjack-hand-summaries">${(view.hands || []).map((hand, index) => renderBlackjackHandSummary(hand, index, isYourTurn && index === activeHandIndex)).join("")}</div>
-        <div class="game-hand" data-hand-owner="${escapeHtml(handOwner)}" aria-label="Your current fanned Blackjack hand">${currentHandCards.map((card, index) => renderPlayingCard(card, index, { dealt: isDealing })).join("")}</div>
+        <div class="game-hand" data-hand-owner="${escapeHtml(handOwner)}" aria-label="${standardHandAriaLabel("Your current fanned Blackjack hand", "Your current flat legacy Blackjack hand")}">${currentHandCards.map((card, index) => renderPlayingCard(card, index, { dealt: isDealing })).join("")}</div>
       </section>
       ${isInsuranceTurn ? `
         <section class="blackjack-insurance-prompt" aria-live="polite">
@@ -991,7 +1030,7 @@ function renderHoldemSeatCard(player) {
   }
   const suit = standard52.SUIT_SYMBOL[card.suit];
   const red = card.suit === "H" || card.suit === "D";
-  return `<span class="seat-last-card standard-seat-card card-skin-face ${selectedCardSkin("standard-52")?.className || ""} ${red ? "red" : "black"}" aria-label="Revealed ${escapeHtml(standard52.cardLong(card))}"><strong>${escapeHtml(card.rank)}</strong><i>${suit}</i></span>`;
+  return `<span class="seat-last-card standard-seat-card card-skin-face ${activeCardAppearanceClass("standard-52")} ${red ? "red" : "black"}" aria-label="Revealed ${escapeHtml(standard52.cardLong(card))}"><strong>${escapeHtml(card.rank)}</strong><i>${suit}</i></span>`;
 }
 
 function holdemPlayerStatus(player) {
@@ -1066,7 +1105,7 @@ function renderHoldemGame() {
       </section>
       <section class="physical-hand holdem-hand ${isYourTurn ? "your-turn" : ""}">
         <div class="hand-heading"><span><strong>Your hole cards</strong><small>${view.hand?.length || 0} cards · ${formatPoints(yourPlayer?.stack)} table points</small></span><span class="selection-status ${isYourTurn ? "valid" : ""}">${escapeHtml(holdemPrivateHandLabel(view.hand, board))}</span></div>
-        <div class="game-hand" data-hand-owner="${escapeHtml(handOwner)}" aria-label="Your fanned Poker hole cards">${(view.hand || []).map((card, index) => renderPlayingCard(card, index, { dealt: isDealing, inert: true })).join("")}</div>
+        <div class="game-hand" data-hand-owner="${escapeHtml(handOwner)}" aria-label="${standardHandAriaLabel("Your fanned Poker hole cards", "Your flat legacy Poker hole cards")}">${(view.hand || []).map((card, index) => renderPlayingCard(card, index, { dealt: isDealing, inert: true })).join("")}</div>
       </section>
       <nav class="game-actions holdem-actions">
         <button type="button" data-action="holdem-hint" ${canAct ? "" : "disabled"}>Hint</button>
@@ -1120,7 +1159,7 @@ function renderFiveCardDrawSeatCard(player) {
   }
   const suit = standard52.SUIT_SYMBOL[card.suit];
   const red = card.suit === "H" || card.suit === "D";
-  return `<span class="seat-last-card standard-seat-card card-skin-face ${selectedCardSkin("standard-52")?.className || ""} ${red ? "red" : "black"}" aria-label="Revealed ${escapeHtml(standard52.cardLong(card))}"><strong>${escapeHtml(card.rank)}</strong><i>${suit}</i></span>`;
+  return `<span class="seat-last-card standard-seat-card card-skin-face ${activeCardAppearanceClass("standard-52")} ${red ? "red" : "black"}" aria-label="Revealed ${escapeHtml(standard52.cardLong(card))}"><strong>${escapeHtml(card.rank)}</strong><i>${suit}</i></span>`;
 }
 
 function fiveCardDrawPlayerStatus(player) {
@@ -1197,14 +1236,14 @@ function renderFiveCardDrawGame() {
         <div class="five-card-draw-table-zone">
           <div class="five-card-draw-copy"><span>Private draw</span><strong>${escapeHtml(showdownDetail)}</strong></div>
           <div class="five-card-draw-piles" aria-label="Draw and discard piles">
-            <div class="draw-stack ${selectedCardSkin("standard-52")?.className || ""}" aria-label="${match.stockCount} cards in draw pile">${renderCardBack({ deckFamilyId: "standard-52", context: "draw-stock", className: "draw-card-back", ariaHidden: true, parts: [{ tag: "i", text: "CC" }] })}<strong>Draw</strong><small>${match.stockCount} cards</small></div>
-            <div class="active-pile draw-discard-pile ${selectedCardSkin("standard-52")?.className || ""}" aria-label="${match.discardCount} private discards">${renderCardBack({ deckFamilyId: "standard-52", context: "discard", className: "draw-card-back discard", ariaHidden: true, parts: [{ tag: "i", text: "↻" }] })}<strong>Discard</strong><small>${match.discardCount} card${match.discardCount === 1 ? "" : "s"}</small></div>
+            <div class="draw-stack ${activeCardAppearanceClass("standard-52")}" aria-label="${match.stockCount} cards in draw pile">${renderCardBack({ deckFamilyId: "standard-52", context: "draw-stock", className: "draw-card-back", ariaHidden: true, parts: [{ tag: "i", text: "CC" }] })}<strong>Draw</strong><small>${match.stockCount} cards</small></div>
+            <div class="active-pile draw-discard-pile ${activeCardAppearanceClass("standard-52")}" aria-label="${match.discardCount} private discards">${renderCardBack({ deckFamilyId: "standard-52", context: "discard", className: "draw-card-back discard", ariaHidden: true, parts: [{ tag: "i", text: "↻" }] })}<strong>Discard</strong><small>${match.discardCount} card${match.discardCount === 1 ? "" : "s"}</small></div>
           </div>
         </div>
       </section>
       <section class="physical-hand five-card-draw-hand ${isYourTurn ? "your-turn" : ""}">
         <div class="hand-heading"><span><strong>Your five cards</strong><small>${view.hand?.length || 0} cards · ${formatPoints(yourPlayer?.stack)} table points</small></span><span class="selection-status ${isDrawTurn ? "valid" : ""}">${escapeHtml(fiveCardDrawPrivateHandLabel(view.hand, match))}</span></div>
-        <div class="game-hand" data-hand-owner="${escapeHtml(handOwner)}" aria-label="Your fanned Five Card Draw hand">${(view.hand || []).map((card, index) => renderPlayingCard(card, index, { selectable: canDraw, inert: !isDrawTurn, dealt: isDealing })).join("")}</div>
+        <div class="game-hand" data-hand-owner="${escapeHtml(handOwner)}" aria-label="${standardHandAriaLabel("Your fanned Five Card Draw hand", "Your flat legacy Five Card Draw hand")}">${(view.hand || []).map((card, index) => renderPlayingCard(card, index, { selectable: canDraw, inert: !isDrawTurn, dealt: isDealing })).join("")}</div>
       </section>
       ${match.phase === "draw" ? `
         <nav class="game-actions five-card-draw-actions draw-actions">
@@ -1274,7 +1313,7 @@ function renderStandardGame() {
       </section>
       <section class="physical-hand ${isYourTurn ? "your-turn" : ""}">
         <div class="hand-heading"><span><strong>Your hand</strong><small>${view.hand.length} cards · ${escapeHtml(state.gameSort)} sort</small></span><span class="selection-status ${evaluation.ok ? "valid" : state.selectedCards.size ? "invalid" : ""}">${escapeHtml(evaluation.reason)}</span></div>
-        <div class="game-hand" data-hand-owner="${escapeHtml(handOwner)}" aria-label="Your fanned hand">${sortedHand.map((card, index) => renderPlayingCard(card, index, { selectable: isYourTurn && !state.gameActionLock, dealt: isDealing })).join("")}</div>
+        <div class="game-hand" data-hand-owner="${escapeHtml(handOwner)}" aria-label="${standardHandAriaLabel("Your fanned hand", "Your flat legacy hand")}">${sortedHand.map((card, index) => renderPlayingCard(card, index, { selectable: isYourTurn && !state.gameActionLock, dealt: isDealing })).join("")}</div>
       </section>
       <nav class="game-actions">
         <button type="button" data-action="game-hint" ${isYourTurn && !state.gameActionLock ? "" : "disabled"}>Hint</button>
@@ -1612,8 +1651,20 @@ function renderSkinSetting(deckFamilyId) {
     </article>`;
 }
 
+function renderLegacyModePreview() {
+  return `
+    <span class="legacy-mode-preview" role="img" aria-label="Legacy counted-pip card and green patterned back preview">
+      <span class="legacy-preview-card legacy-preview-face" aria-hidden="true">
+        <span><strong>5</strong><i>♥</i></span>
+        <b class="pip-one">♥</b><b class="pip-two">♥</b><b class="pip-three">♥</b><b class="pip-four">♥</b><b class="pip-five">♥</b>
+      </span>
+      <span class="legacy-preview-card legacy-preview-back" aria-hidden="true"></span>
+    </span>`;
+}
+
 function renderSettings() {
   const reducedMotion = localStorage.getItem(storageKeys.reducedMotion) === "true";
+  const legacyMode = appearancePreferences.legacyMode === true;
   return `
     ${screenHeader("Options", "Readable first, physical second, pixelated with restraint.")}
     <div class="form-panel">
@@ -1626,6 +1677,10 @@ function renderSettings() {
           </div>
         </section>
         <div class="settings-grid">
+          <label class="setting-row legacy-mode-setting">
+            <span class="legacy-mode-copy"><strong>Legacy mode</strong><p>Use Cardcade's original pre-fan Standard 52 cards in a smaller, flat scrolling hand. Your selected modern skin stays remembered, JUAN is unchanged, and this never enters online room state.</p>${renderLegacyModePreview()}</span>
+            <input type="checkbox" name="legacyMode" ${legacyMode ? "checked" : ""}>
+          </label>
           <label class="setting-row"><span><strong>Reduce card motion</strong><p>Use gentler transitions when game modules are connected.</p></span><input type="checkbox" name="reducedMotion" ${reducedMotion ? "checked" : ""}></label>
           <div class="setting-row"><span><strong>Sound</strong><p>Audio controls arrive with the shared game runtime.</p></span><span class="badge">Coming later</span></div>
         </div>
@@ -1648,6 +1703,7 @@ function render() {
   };
   document.body.classList.toggle("playing-game", ["game", "hot-seat-handoff"].includes(state.screen));
   document.body.classList.toggle("home-screen", state.screen === "home");
+  document.body.classList.toggle("legacy-standard-mode", state.screen === "game" && standardLegacyModeEnabled());
   const screen = (screens[state.screen] || renderHome)();
   app.innerHTML = screen;
   syncJuanPrismReveal();
@@ -1712,6 +1768,7 @@ function captureStandardHandSnapshot() {
       card.dataset.gameCard,
       card.classList.contains("selected") ? "selected" : ""
     ].join(":")).join("|"),
+    scrollLeft: hand.scrollLeft,
     cards: new Map(cards.map((card) => [card.dataset.gameCard, card.getBoundingClientRect()]))
   };
 }
@@ -1720,6 +1777,7 @@ function animateStandardHandReflow(previousHand) {
   const hand = app.querySelector(".game-hand");
   if (!hand || !previousHand || previousHand.owner !== (hand.dataset.handOwner || "")) return;
   const cards = [...hand.querySelectorAll("[data-game-card]")];
+  if (hand.classList.contains("legacy-flat-hand")) hand.scrollLeft = previousHand.scrollLeft || 0;
   const currentSignature = cards.map((card) => [
     card.dataset.gameCard,
     card.classList.contains("selected") ? "selected" : ""
@@ -1751,9 +1809,20 @@ function animateStandardHandReflow(previousHand) {
 
 function layoutStandardHand() {
   const hand = app.querySelector(".game-hand");
-  if (!hand || !cardPresentation) return;
+  if (!hand) return;
   const cards = [...hand.querySelectorAll("[data-game-card]")];
   if (!cards.length) return;
+  if (standardLegacyModeEnabled()) {
+    hand.classList.add("legacy-flat-hand", "fan-ready");
+    hand.dataset.density = "legacy-flat";
+    hand.onclick = (event) => {
+      const card = event.target.closest?.("[data-game-card]");
+      if (!card || !hand.contains(card)) return;
+      toggleStandardCard(card.dataset.gameCard);
+    };
+    return;
+  }
+  if (!cardPresentation) return;
   const containerWidth = hand.clientWidth;
   const cardWidth = cards[0].offsetWidth;
   const cardHeight = cards[0].offsetHeight || cardWidth * 1.42;
@@ -2723,10 +2792,13 @@ document.addEventListener("submit", async (event) => {
     if (formType === "settings") {
       savePlayerName(data.get("name"));
       localStorage.setItem(storageKeys.reducedMotion, data.get("reducedMotion") === "on" ? "true" : "false");
-      saveAppearancePreferences(Object.fromEntries(Object.keys(cardSkins.DEFAULT_SKIN_IDS).map((deckFamilyId) => [
-        deckFamilyId,
-        String(data.get(`skin-${deckFamilyId}`) || "")
-      ])));
+      saveAppearancePreferences({
+        skins: Object.fromEntries(Object.keys(cardSkins.DEFAULT_SKIN_IDS).map((deckFamilyId) => [
+          deckFamilyId,
+          String(data.get(`skin-${deckFamilyId}`) || "")
+        ])),
+        legacyMode: data.get("legacyMode") === "on"
+      });
       showToast("Options saved.");
       navigate("home");
     }

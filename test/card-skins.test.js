@@ -40,8 +40,9 @@ test("appearance preferences are versioned and normalize every family independen
   });
 
   assert.deepEqual(defaults, {
-    version: 1,
-    skins: { "standard-52": "cardcade-pixel", "color-action": "juan-minimal" }
+    version: 2,
+    skins: { "standard-52": "cardcade-pixel", "color-action": "juan-minimal" },
+    legacyMode: false
   });
   assert.deepEqual(invalid, defaults);
   assert.equal(Object.isFrozen(defaults), true);
@@ -54,4 +55,18 @@ test("alternate standard skin choices persist without changing the color-action 
   });
 
   assert.deepEqual(appearance.skins, { "standard-52": "royal-violet", "color-action": "juan-minimal" });
+});
+
+test("Legacy Mode is a separate immutable local override rather than a skin", () => {
+  const appearance = cardSkins.normalizeAppearance({
+    skins: { "standard-52": "casino-gold", "color-action": "juan-minimal" },
+    legacyMode: true
+  });
+  const invalid = cardSkins.normalizeAppearance({ legacyMode: "true" });
+
+  assert.equal(appearance.legacyMode, true);
+  assert.equal(appearance.skins["standard-52"], "casino-gold");
+  assert.equal(invalid.legacyMode, false);
+  assert.equal(cardSkins.skinById("legacy-mode"), null);
+  assert.equal(Object.isFrozen(appearance), true);
 });

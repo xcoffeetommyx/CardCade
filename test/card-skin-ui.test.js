@@ -9,12 +9,12 @@ const read = (file) => readFileSync(path.join(root, file), "utf8");
 
 test("the browser loads the skin registry before the table renderer", () => {
   const html = read("public/index.html");
-  const registryIndex = html.indexOf('/shared/card-skins.js?v=2');
-  const appIndex = html.indexOf('/app.js?v=27');
+  const registryIndex = html.indexOf('/shared/card-skins.js?v=3');
+  const appIndex = html.indexOf('/app.js?v=29');
 
   assert.ok(registryIndex >= 0);
   assert.ok(appIndex > registryIndex);
-  assert.match(read("public/sw.js"), /\/shared\/card-skins\.js\?v=2/);
+  assert.match(read("public/sw.js"), /\/shared\/card-skins\.js\?v=3/);
 });
 
 test("appearance settings are versioned, family-scoped, and local-only", () => {
@@ -55,4 +55,26 @@ test("alternate standard skins cover faces, backs, stacks, and previews without 
     assert.match(css, new RegExp(`\\.skin-preview\\.${skinClass}`));
   }
   assert.doesNotMatch(css, /\.juan-card\.card-skin-(?:casino-gold|royal-violet)/);
+});
+
+test("Legacy Mode restores pre-fan Standard 52 cards locally without becoming a skin or JUAN layout", () => {
+  const app = read("public/app.js");
+  const css = read("public/app.css");
+
+  assert.match(app, /name="legacyMode"/);
+  assert.match(app, /function standardLegacyModeEnabled/);
+  assert.match(app, /const LEGACY_STANDARD_PIP_LAYOUTS/);
+  assert.match(app, /function renderLegacyStandardCenter/);
+  assert.match(app, /"card-style-legacy-standard"/);
+  assert.match(app, /hand\.classList\.add\("legacy-flat-hand", "fan-ready"\)/);
+  assert.match(app, /scrollLeft: hand\.scrollLeft/);
+  assert.match(app, /legacyMode: data\.get\("legacyMode"\) === "on"/);
+  assert.match(css, /\.game-hand\.legacy-flat-hand[\s\S]*?overflow-x: auto/);
+  assert.match(css, /\.playing-card\.card-style-legacy-standard/);
+  assert.match(css, /\.card-back\.card-style-legacy-standard/);
+  assert.match(css, /\.standard-seat-card\.card-style-legacy-standard/);
+  assert.doesNotMatch(css, /\.juan-card\.card-style-legacy-standard/);
+
+  const saveFunction = app.match(/function saveAppearancePreferences[\s\S]*?\n}/)?.[0] || "";
+  assert.doesNotMatch(saveFunction, /sendRoom|socket|api\(/);
 });

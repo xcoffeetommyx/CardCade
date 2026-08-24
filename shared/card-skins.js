@@ -50,7 +50,7 @@
     "standard-52": "cardcade-pixel",
     "color-action": "juan-minimal"
   });
-  const APPEARANCE_VERSION = 1;
+  const APPEARANCE_VERSION = 2;
 
   function skinsForFamily(deckFamilyId) {
     return SKINS.filter((skin) => skin.deckFamilyId === deckFamilyId);
@@ -78,7 +78,14 @@
       deckFamilyId,
       resolveSkin(deckFamilyId, requestedSkins[deckFamilyId])?.id || DEFAULT_SKIN_IDS[deckFamilyId]
     ]));
-    return Object.freeze({ version: APPEARANCE_VERSION, skins: Object.freeze(skins) });
+    return Object.freeze({
+      version: APPEARANCE_VERSION,
+      skins: Object.freeze(skins),
+      // Legacy Mode is deliberately separate from the skin registry. It is a
+      // local presentation override for Standard 52 faces and hand geometry;
+      // it can never become part of rules, rooms, or synchronized game state.
+      legacyMode: value?.legacyMode === true
+    });
   }
 
   return Object.freeze({
