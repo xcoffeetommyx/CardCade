@@ -1322,6 +1322,17 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   font-weight: 400;
   letter-spacing: 0;
 }
+.juan-kind-double-draw .juan-corner strong,
+.juan-kind-prism-burst .juan-corner strong {
+  max-width: none;
+  font: 400 clamp(.96rem, 3.05vw, 1.28rem)/.76 "Cardcade Ranks", "Courier New", monospace;
+  letter-spacing: -.12em;
+  text-shadow: 1px 2px 0 rgba(5,13,26,.26);
+  transform: scaleX(.82);
+  transform-origin: left center;
+}
+.juan-kind-double-draw .juan-corner.bottom strong,
+.juan-kind-prism-burst .juan-corner.bottom strong { transform-origin: right center; }
 .juan-action-mark {
   position: relative;
   width: 76%;
@@ -1374,9 +1385,11 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   left: 50%;
   top: 50%;
   color: var(--juan-ink);
-  font: 900 clamp(1.45rem, 4.7vw, 2.45rem)/.8 "Cardcade Pixel", "Courier New", monospace;
-  letter-spacing: -.08em;
-  text-shadow: 2px 2px 0 rgba(5,13,26,.18);
+  font: 400 clamp(1.8rem, 5.35vw, 2.75rem)/.78 "Cardcade Ranks", "Courier New", monospace;
+  letter-spacing: -.12em;
+  paint-order: stroke fill;
+  -webkit-text-stroke: 3px var(--juan-face);
+  text-shadow: 2px 3px 0 rgba(5,13,26,.28);
   transform: translate(-50%, -50%);
 }
 .juan-action-prism,
@@ -1406,7 +1419,7 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   box-shadow: 2px 3px 0 rgba(0,0,0,.28);
   transform: translate(-50%, -50%) rotate(45deg);
 }
-.juan-action-prism-burst b { background: #0b1320; padding: 4px 5px 2px; border-radius: 3px; }
+.juan-action-prism-burst b { padding: 0; border: 0; border-radius: 0; background: transparent; }
 .juan-card.played .juan-card-center { inset: 20% 13% 17%; }
 .juan-card.played .juan-card-center > b { font-size: 3rem; }
 .juan-card.played .juan-action-mark { transform: scale(.88); }
@@ -1795,7 +1808,7 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   box-shadow: inset 7px 0 0 #e84f59, inset 0 0 0 1px rgba(87,52,29,.13);
 }
 .juan-card.card-skin-juan-paper-pop .juan-action-double-draw i { background: color-mix(in srgb, var(--juan-face) 88%, white); }
-.juan-card.card-skin-juan-paper-pop .juan-action-prism-burst b { color: #fffaf0; background: #12243c; }
+.juan-card.card-skin-juan-paper-pop .juan-action-prism-burst b { color: var(--juan-ink); background: transparent; }
 .juan-seat-card.card-skin-juan-paper-pop {
   color: var(--juan-ink);
   border-color: var(--juan-skin-color);
