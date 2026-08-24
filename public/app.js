@@ -793,25 +793,11 @@ function renderSeatLastCard(player, gameId) {
   return `<span class="seat-last-card standard-seat-card card-skin-face ${activeCardAppearanceClass("standard-52")} ${red ? "red" : "black"}" aria-label="Last played ${escapeHtml(standard52.cardLong(card))}"><strong>${escapeHtml(card.rank)}</strong><i>${suit}</i></span>`;
 }
 
-const LEGACY_STANDARD_PIP_LAYOUTS = Object.freeze({
-  2: [[50, 10, false], [50, 90, true]],
-  3: [[50, 10, false], [50, 50, false], [50, 90, true]],
-  4: [[26, 12, false], [74, 12, false], [26, 88, true], [74, 88, true]],
-  5: [[26, 12, false], [74, 12, false], [50, 50, false], [26, 88, true], [74, 88, true]],
-  6: [[26, 12, false], [74, 12, false], [26, 50, false], [74, 50, false], [26, 88, true], [74, 88, true]],
-  7: [[26, 11, false], [74, 11, false], [50, 30, false], [26, 50, false], [74, 50, false], [26, 89, true], [74, 89, true]],
-  8: [[26, 10, false], [74, 10, false], [50, 29, false], [26, 48, false], [74, 48, false], [50, 71, true], [26, 90, true], [74, 90, true]],
-  9: [[26, 10, false], [74, 10, false], [26, 37, false], [74, 37, false], [50, 50, false], [26, 63, true], [74, 63, true], [26, 90, true], [74, 90, true]],
-  10: [[26, 9, false], [74, 9, false], [50, 24, false], [26, 37, false], [74, 37, false], [26, 63, true], [74, 63, true], [50, 76, true], [26, 91, true], [74, 91, true]]
-});
-
-function renderLegacyStandardCenter(card, suit) {
-  if (["J", "Q", "K"].includes(card.rank)) {
-    return `<span class="legacy-card-center legacy-face"><strong>${escapeHtml(card.rank)}</strong><i>${suit}</i></span>`;
+function renderLegacyStandardCenter(suit, faceId = null) {
+  if (faceId) {
+    return `<span class="legacy-card-center legacy-court"><svg viewBox="0 0 100 140" preserveAspectRatio="xMidYMid meet" aria-hidden="true"><use href="#${faceId}"></use></svg></span>`;
   }
-  if (card.rank === "A") return `<span class="legacy-card-center legacy-ace">${suit}</span>`;
-  const layout = LEGACY_STANDARD_PIP_LAYOUTS[Number(card.rank)] || [[50, 50, false]];
-  return `<span class="legacy-card-center legacy-pips">${layout.map(([x, y, flip]) => `<i class="${flip ? "flip" : ""}" style="left:${x}%;top:${y}%">${suit}</i>`).join("")}</span>`;
+  return `<span class="legacy-card-center legacy-emblem">${suit}</span>`;
 }
 
 function renderPlayingCard(card, index, { played = false, enter = false, selectable = false, dealt = false, inert = false } = {}) {
@@ -821,7 +807,7 @@ function renderPlayingCard(card, index, { played = false, enter = false, selecta
   const legacy = appearancePreferences.legacyMode === true;
   const faceId = { J: "card-face-jack", Q: "card-face-queen", K: "card-face-king" }[card.rank];
   const center = legacy
-    ? renderLegacyStandardCenter(card, suit)
+    ? renderLegacyStandardCenter(suit, faceId)
     : faceId
       ? `<span class="card-center court"><svg viewBox="0 0 100 140" aria-hidden="true"><use href="#${faceId}"></use></svg></span>`
       : `<span class="card-center">${suit}</span>`;
@@ -1654,10 +1640,10 @@ function renderSkinSetting(deckFamilyId) {
 
 function renderLegacyModePreview() {
   return `
-    <span class="legacy-mode-preview" role="img" aria-label="Legacy counted-pip card and green patterned back preview">
+    <span class="legacy-mode-preview" role="img" aria-label="Legacy illustrated court card and blue patterned back preview">
       <span class="legacy-preview-card legacy-preview-face" aria-hidden="true">
-        <span><strong>5</strong><i>♥</i></span>
-        <b class="pip-one">♥</b><b class="pip-two">♥</b><b class="pip-three">♥</b><b class="pip-four">♥</b><b class="pip-five">♥</b>
+        <span><strong>K</strong><i>♠</i></span>
+        <svg viewBox="0 0 100 140" preserveAspectRatio="xMidYMid meet"><use href="#card-face-king"></use></svg>
       </span>
       <span class="legacy-preview-card legacy-preview-back" aria-hidden="true"></span>
     </span>`;
@@ -1679,7 +1665,7 @@ function renderSettings() {
         </section>
         <div class="settings-grid">
           <label class="setting-row legacy-mode-setting">
-            <span class="legacy-mode-copy"><strong>Legacy mode</strong><p>Use Cardcade's original pre-fan Standard 52 cards in a smaller, flat scrolling hand. Your selected modern skin stays remembered, JUAN is unchanged, and this never enters online room state.</p>${renderLegacyModePreview()}</span>
+            <span class="legacy-mode-copy"><strong>Legacy mode</strong><p>Use the original 3s &amp; 7s and Thirteen illustrated Standard 52 cards in a smaller, flat scrolling hand. Your selected modern skin stays remembered, JUAN is unchanged, and this never enters online room state.</p>${renderLegacyModePreview()}</span>
             <input type="checkbox" name="legacyMode" ${legacyMode ? "checked" : ""}>
           </label>
           <label class="setting-row"><span><strong>Reduce card motion</strong><p>Use gentler transitions when game modules are connected.</p></span><input type="checkbox" name="reducedMotion" ${reducedMotion ? "checked" : ""}></label>
