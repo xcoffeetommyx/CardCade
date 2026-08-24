@@ -40,6 +40,8 @@ test("JUAN has its own renderer while retaining the shared fan and motion path",
   assert.match(css, /\.juan-action-double-draw/);
   assert.match(css, /\.juan-action-prism-burst/);
   assert.match(css, /\.juan-kind-double-draw \.juan-corner strong,[\s\S]*?Cardcade Ranks/);
+  assert.match(css, /\.juan-kind-double-draw \.juan-corner strong \{[\s\S]*?color: #fffaf0;[\s\S]*?-webkit-text-stroke: 1px #07101d;/);
+  assert.match(css, /\.juan-action-double-draw b \{[\s\S]*?color: #fffaf0;[\s\S]*?-webkit-text-stroke-color: #07101d;/);
   assert.match(css, /\.juan-action-prism-burst b \{ padding: 0; border: 0; border-radius: 0; background: transparent; \}/);
   assert.match(css, /\.juan-stock span/);
   assert.match(css, /\.juan-color-chooser/);
