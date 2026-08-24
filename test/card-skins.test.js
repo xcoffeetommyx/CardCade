@@ -26,3 +26,22 @@ test("skin metadata is immutable presentation data", () => {
   assert.equal(cardSkins.SKINS.every((skin) => Object.isFrozen(skin)), true);
   assert.equal(cardSkins.SKINS.every((skin) => Object.isFrozen(skin.capabilities)), true);
 });
+
+test("appearance preferences are versioned and normalize every family independently", () => {
+  const defaults = cardSkins.normalizeAppearance();
+  const invalid = cardSkins.normalizeAppearance({
+    version: 999,
+    skins: {
+      "standard-52": "juan-minimal",
+      "color-action": "missing-skin"
+    }
+  });
+
+  assert.deepEqual(defaults, {
+    version: 1,
+    skins: { "standard-52": "cardcade-pixel", "color-action": "juan-minimal" }
+  });
+  assert.deepEqual(invalid, defaults);
+  assert.equal(Object.isFrozen(defaults), true);
+  assert.equal(Object.isFrozen(defaults.skins), true);
+});

@@ -483,6 +483,40 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 .setting-row { padding: 1rem; display: flex; justify-content: space-between; gap: 1rem; align-items: center; border: 1px solid var(--line); border-radius: 10px; }
 .setting-row p { margin: .2rem 0 0; color: var(--muted); font-size: .78rem; }
 .setting-row input[type="checkbox"] { width: 24px; height: 24px; accent-color: var(--coral); }
+.appearance-settings { margin: 1.25rem 0; padding: 1rem; border: 1px solid var(--line); border-radius: 12px; background: rgba(5,16,33,.42); }
+.appearance-settings-heading { margin-bottom: .85rem; display: flex; justify-content: space-between; gap: 1rem; align-items: start; }
+.appearance-settings-heading strong, .appearance-settings-heading p { display: block; }
+.appearance-settings-heading p { max-width: 470px; margin: .2rem 0 0; color: var(--muted); font-size: .76rem; line-height: 1.45; }
+.appearance-family-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: .75rem; }
+.skin-setting { min-width: 0; padding: .8rem; border: 1px solid var(--line); border-radius: 10px; background: #07152a; }
+.skin-setting-heading { margin-bottom: .7rem; display: flex; justify-content: space-between; gap: .7rem; align-items: start; }
+.skin-setting-heading strong, .skin-setting-heading small { display: block; }
+.skin-setting-heading strong { font-size: .82rem; }
+.skin-setting-heading small { margin-top: .18rem; color: var(--muted); font-size: .65rem; }
+.skin-setting .field { margin-bottom: .7rem; }
+.skin-setting .field select { min-height: 44px; }
+.skin-preview { min-height: 103px; padding: .5rem; display: flex; align-items: end; justify-content: center; gap: .55rem; overflow: hidden; border: 1px solid rgba(91,137,184,.32); border-radius: 9px; background: radial-gradient(circle at 50% 120%, rgba(67,112,156,.22), rgba(3,12,25,.72)); }
+.skin-preview-card { position: relative; width: 54px; height: 77px; display: grid; place-items: center; overflow: hidden; border: 3px solid #e7ddc8; border-radius: 7px; box-shadow: 4px 5px 0 rgba(0,0,0,.42); }
+.skin-preview-face { transform: rotate(-4deg); }
+.skin-preview-back { transform: rotate(4deg); }
+.skin-preview-standard-face { color: #bd2936; background: linear-gradient(rgba(83,64,35,.055) 1px, transparent 1px), linear-gradient(90deg, rgba(83,64,35,.055) 1px, transparent 1px), #f5eedf; background-size: 4px 4px; }
+.skin-preview-standard-face > span { position: absolute; top: 6px; left: 7px; display: grid; justify-items: center; font-family: "Cardcade Ranks", "Courier New", monospace; line-height: .78; }
+.skin-preview-standard-face > span strong { font-size: 1.05rem; font-weight: 400; }
+.skin-preview-standard-face > span i { margin-top: 3px; font: normal .8rem Georgia, serif; }
+.skin-preview-standard-face > b { font: normal 2rem Georgia, serif; }
+.skin-preview-standard-back { color: #cbe4ff; background: repeating-linear-gradient(45deg, #112948 0 4px, #1b3b62 4px 7px); font: 900 .76rem "Cardcade Pixel", monospace; letter-spacing: .08em; }
+.skin-preview-juan-face { color: #fffaf0; background: linear-gradient(132deg, rgba(255,255,255,.15), transparent 34%, rgba(5,13,26,.1)), #43b66b; }
+.skin-preview-juan-face small { position: absolute; top: 6px; left: 7px; font: 400 .9rem "Cardcade Ranks", monospace; }
+.skin-preview-juan-face b { font: 400 2.4rem "Cardcade Ranks", monospace; text-shadow: 2px 2px 0 rgba(5,13,26,.16); }
+.skin-preview-juan-back { color: #fffaf0; background: linear-gradient(135deg, rgba(255,255,255,.08), transparent 46%), #0b1c34; font: 900 .68rem "Cardcade Pixel", monospace; letter-spacing: .1em; }
+.skin-description { min-height: 2.8em; margin: .65rem 0 0; color: var(--muted); font-size: .68rem; line-height: 1.4; }
+
+@media (max-width: 520px) {
+  .appearance-settings { padding: .75rem; }
+  .appearance-settings-heading { align-items: center; }
+  .appearance-family-grid { grid-template-columns: 1fr; }
+  .skin-description { min-height: 0; }
+}
 
 .toast { position: fixed; z-index: 2000; left: 50%; bottom: max(1rem, env(safe-area-inset-bottom)); max-width: calc(100% - 2rem); padding: .8rem 1rem; border: 2px solid var(--line-bright); border-radius: 9px; color: var(--ink); background: #10243e; box-shadow: 5px 5px 0 rgba(0,0,0,.5); opacity: 0; pointer-events: none; transform: translate(-50%, 14px); transition: opacity 150ms ease, transform 150ms ease; }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }

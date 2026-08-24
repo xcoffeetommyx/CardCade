@@ -12,7 +12,8 @@ const juanPrismRevealRoot = document.querySelector("#juan-prism-reveal-root");
 const storageKeys = {
   name: "cardcade.playerName.v1",
   room: "cardcade.roomSession.v1",
-  reducedMotion: "cardcade.reducedMotion.v1"
+  reducedMotion: "cardcade.reducedMotion.v1",
+  appearance: "cardcade.appearance.v1"
 };
 
 const state = {
@@ -68,6 +69,7 @@ const juanRules = globalThis.JuanRules;
 const blackjackRules = globalThis.CardcadeBlackjackRules;
 const holdemRules = globalThis.CardcadeHoldemRules;
 const fiveCardDrawRules = globalThis.CardcadeFiveCardDrawRules;
+let appearancePreferences = loadAppearancePreferences();
 
 const standardGameAdapters = {
   "three-seven": {
@@ -113,6 +115,24 @@ function savePlayerName(value) {
   const name = String(value || "").trim();
   if (name) localStorage.setItem(storageKeys.name, name);
   return name;
+}
+
+function loadAppearancePreferences() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(storageKeys.appearance) || "null");
+    return cardSkins.normalizeAppearance(stored);
+  } catch {
+    return cardSkins.normalizeAppearance();
+  }
+}
+
+function saveAppearancePreferences(requestedSkins) {
+  appearancePreferences = cardSkins.normalizeAppearance({
+    version: cardSkins.APPEARANCE_VERSION,
+    skins: requestedSkins
+  });
+  localStorage.setItem(storageKeys.appearance, JSON.stringify(appearancePreferences));
+  return appearancePreferences;
 }
 
 function showToast(message) {
@@ -683,20 +703,23 @@ function deckFamilyIdForGame(gameId = state.room?.gameId) {
   return gameId === "juan" ? "color-action" : "standard-52";
 }
 
-function defaultCardSkin(deckFamilyId) {
-  return cardSkins?.resolveSkin(deckFamilyId) || null;
+function selectedCardSkin(deckFamilyId) {
+  return cardSkins?.resolveSkin(deckFamilyId, appearancePreferences.skins[deckFamilyId]) || null;
 }
 
 function renderCardBack({
   deckFamilyId,
   context,
+  skinId = null,
   className = "",
   ariaLabel = "",
   ariaHidden = false,
   attributes = "",
   parts = []
 }) {
-  const skin = defaultCardSkin(deckFamilyId);
+  const skin = skinId
+    ? cardSkins?.resolveSkin(deckFamilyId, skinId)
+    : selectedCardSkin(deckFamilyId);
   const classes = [
     "card-back",
     skin?.className || "",
@@ -710,7 +733,7 @@ function renderCardBack({
   const content = parts.map(({ tag = null, text = "", ariaHidden: partHidden = false }) => {
     const escaped = escapeHtml(text);
     if (!tag) return escaped;
-    const safeTag = ["b", "i", "span"].includes(tag) ? tag : "span";
+    const safeTag = ["b", "i", "span", "strong"].includes(tag) ? tag : "span";
     return `<${safeTag}${partHidden ? ' aria-hidden="true"' : ""}>${escaped}</${safeTag}>`;
   }).join("");
   return `<span class="${classes}" ${attributes} ${accessibility}>${content}</span>`;
@@ -748,11 +771,11 @@ function renderSeatLastCard(player, gameId) {
     const isNumber = card.kind === "number";
     const face = juanCornerFace(card);
     const colorClass = card.color ? `juan-${card.color}` : "juan-prism";
-    return `<span class="seat-last-card juan-seat-card card-skin-face ${defaultCardSkin("color-action")?.className || ""} ${colorClass}" aria-label="Last played ${escapeHtml(juanDeck.cardLong(card))}"><strong class="${isNumber ? "juan-rank-glyph" : ""}">${escapeHtml(face)}</strong></span>`;
+    return `<span class="seat-last-card juan-seat-card card-skin-face ${selectedCardSkin("color-action")?.className || ""} ${colorClass}" aria-label="Last played ${escapeHtml(juanDeck.cardLong(card))}"><strong class="${isNumber ? "juan-rank-glyph" : ""}">${escapeHtml(face)}</strong></span>`;
   }
   const suit = standard52.SUIT_SYMBOL[card.suit];
   const red = card.suit === "H" || card.suit === "D";
-  return `<span class="seat-last-card standard-seat-card card-skin-face ${defaultCardSkin("standard-52")?.className || ""} ${red ? "red" : "black"}" aria-label="Last played ${escapeHtml(standard52.cardLong(card))}"><strong>${escapeHtml(card.rank)}</strong><i>${suit}</i></span>`;
+  return `<span class="seat-last-card standard-seat-card card-skin-face ${selectedCardSkin("standard-52")?.className || ""} ${red ? "red" : "black"}" aria-label="Last played ${escapeHtml(standard52.cardLong(card))}"><strong>${escapeHtml(card.rank)}</strong><i>${suit}</i></span>`;
 }
 
 function renderPlayingCard(card, index, { played = false, enter = false, selectable = false, dealt = false, inert = false } = {}) {
@@ -766,7 +789,7 @@ function renderPlayingCard(card, index, { played = false, enter = false, selecta
   const classes = [
     "playing-card",
     "card-skin-face",
-    defaultCardSkin("standard-52")?.className || "",
+    selectedCardSkin("standard-52")?.className || "",
     red ? "red" : "black",
     selected ? "selected" : "",
     played ? "played" : "",
@@ -968,7 +991,7 @@ function renderHoldemSeatCard(player) {
   }
   const suit = standard52.SUIT_SYMBOL[card.suit];
   const red = card.suit === "H" || card.suit === "D";
-  return `<span class="seat-last-card standard-seat-card card-skin-face ${defaultCardSkin("standard-52")?.className || ""} ${red ? "red" : "black"}" aria-label="Revealed ${escapeHtml(standard52.cardLong(card))}"><strong>${escapeHtml(card.rank)}</strong><i>${suit}</i></span>`;
+  return `<span class="seat-last-card standard-seat-card card-skin-face ${selectedCardSkin("standard-52")?.className || ""} ${red ? "red" : "black"}" aria-label="Revealed ${escapeHtml(standard52.cardLong(card))}"><strong>${escapeHtml(card.rank)}</strong><i>${suit}</i></span>`;
 }
 
 function holdemPlayerStatus(player) {
@@ -1097,7 +1120,7 @@ function renderFiveCardDrawSeatCard(player) {
   }
   const suit = standard52.SUIT_SYMBOL[card.suit];
   const red = card.suit === "H" || card.suit === "D";
-  return `<span class="seat-last-card standard-seat-card card-skin-face ${defaultCardSkin("standard-52")?.className || ""} ${red ? "red" : "black"}" aria-label="Revealed ${escapeHtml(standard52.cardLong(card))}"><strong>${escapeHtml(card.rank)}</strong><i>${suit}</i></span>`;
+  return `<span class="seat-last-card standard-seat-card card-skin-face ${selectedCardSkin("standard-52")?.className || ""} ${red ? "red" : "black"}" aria-label="Revealed ${escapeHtml(standard52.cardLong(card))}"><strong>${escapeHtml(card.rank)}</strong><i>${suit}</i></span>`;
 }
 
 function fiveCardDrawPlayerStatus(player) {
@@ -1317,7 +1340,7 @@ function renderJuanCard(card, index, { played = false, enter = false, selectable
     "playing-card",
     "juan-card",
     "card-skin-face",
-    defaultCardSkin("color-action")?.className || "",
+    selectedCardSkin("color-action")?.className || "",
     `juan-kind-${card.kind}`,
     colorClass,
     selected ? "selected" : "",
@@ -1546,6 +1569,49 @@ function renderHotSeatHandoff() {
     </section>`;
 }
 
+function appearanceFamilyName(deckFamilyId) {
+  const family = state.catalog.families?.find((candidate) => candidate.id === deckFamilyId);
+  if (family) return { name: family.name, shortName: family.shortName };
+  if (deckFamilyId === "standard-52") return { name: "Standard playing cards", shortName: "52-card deck" };
+  if (deckFamilyId === "color-action") return { name: "Color & action cards", shortName: "Custom shedding deck" };
+  return { name: deckFamilyId, shortName: "Card deck" };
+}
+
+function renderSkinPreview(skin) {
+  if (skin.deckFamilyId === "standard-52") {
+    return `
+      <div class="skin-preview ${skin.className}" data-skin-preview="${escapeHtml(skin.deckFamilyId)}" role="img" aria-label="${escapeHtml(skin.name)} card face and back preview">
+        <span class="skin-preview-card skin-preview-face skin-preview-standard-face" aria-hidden="true"><span><strong>A</strong><i>♥</i></span><b>♥</b></span>
+        ${renderCardBack({ deckFamilyId: skin.deckFamilyId, skinId: skin.id, context: "settings-preview", className: "skin-preview-card skin-preview-back skin-preview-standard-back", ariaHidden: true, parts: [{ tag: "strong", text: "CC" }] })}
+      </div>`;
+  }
+  return `
+    <div class="skin-preview ${skin.className}" data-skin-preview="${escapeHtml(skin.deckFamilyId)}" role="img" aria-label="${escapeHtml(skin.name)} card face and back preview">
+      <span class="skin-preview-card skin-preview-face skin-preview-juan-face" aria-hidden="true"><small>1</small><b>1</b></span>
+      ${renderCardBack({ deckFamilyId: skin.deckFamilyId, skinId: skin.id, context: "settings-preview", className: "skin-preview-card skin-preview-back skin-preview-juan-back", ariaHidden: true, parts: [{ tag: "strong", text: "JUAN" }] })}
+    </div>`;
+}
+
+function renderSkinSetting(deckFamilyId) {
+  const skins = cardSkins.skinsForFamily(deckFamilyId);
+  const selected = selectedCardSkin(deckFamilyId);
+  const family = appearanceFamilyName(deckFamilyId);
+  if (!selected || !skins.length) return "";
+  const inputId = `settings-skin-${deckFamilyId}`;
+  return `
+    <article class="skin-setting" data-skin-setting="${escapeHtml(deckFamilyId)}">
+      <div class="skin-setting-heading"><span><strong>${escapeHtml(family.name)}</strong><small>${escapeHtml(family.shortName)}</small></span><span class="badge">${skins.length} skin${skins.length === 1 ? "" : "s"}</span></div>
+      <div class="field">
+        <label for="${escapeHtml(inputId)}">Card skin</label>
+        <select id="${escapeHtml(inputId)}" name="skin-${escapeHtml(deckFamilyId)}" data-skin-family="${escapeHtml(deckFamilyId)}">
+          ${skins.map((skin) => `<option value="${escapeHtml(skin.id)}" ${skin.id === selected.id ? "selected" : ""}>${escapeHtml(skin.name)}</option>`).join("")}
+        </select>
+      </div>
+      ${renderSkinPreview(selected)}
+      <p class="skin-description" data-skin-description>${escapeHtml(selected.description)}</p>
+    </article>`;
+}
+
 function renderSettings() {
   const reducedMotion = localStorage.getItem(storageKeys.reducedMotion) === "true";
   return `
@@ -1553,6 +1619,12 @@ function renderSettings() {
     <div class="form-panel">
       <form data-form="settings">
         <div class="field"><label for="settings-name">Default player name</label><input id="settings-name" name="name" maxlength="24" value="${escapeHtml(playerName())}" autocomplete="nickname"></div>
+        <section class="appearance-settings" aria-labelledby="appearance-settings-title">
+          <div class="appearance-settings-heading"><span><strong id="appearance-settings-title">Card appearance</strong><p>Each deck family keeps its own skin. Appearance is saved only on this device and never changes a room or its rules.</p></span><span class="badge">Local only</span></div>
+          <div class="appearance-family-grid">
+            ${Object.keys(cardSkins.DEFAULT_SKIN_IDS).map(renderSkinSetting).join("")}
+          </div>
+        </section>
         <div class="settings-grid">
           <label class="setting-row"><span><strong>Reduce card motion</strong><p>Use gentler transitions when game modules are connected.</p></span><input type="checkbox" name="reducedMotion" ${reducedMotion ? "checked" : ""}></label>
           <div class="setting-row"><span><strong>Sound</strong><p>Audio controls arrive with the shared game runtime.</p></span><span class="badge">Coming later</span></div>
@@ -2617,6 +2689,18 @@ window.addEventListener("resize", () => {
   });
 });
 
+document.addEventListener("change", (event) => {
+  const select = event.target.closest?.("[data-skin-family]");
+  if (!select) return;
+  const deckFamilyId = select.dataset.skinFamily;
+  const skin = cardSkins.resolveSkin(deckFamilyId, select.value);
+  const setting = select.closest("[data-skin-setting]");
+  const preview = setting?.querySelector("[data-skin-preview]");
+  const description = setting?.querySelector("[data-skin-description]");
+  if (preview && skin) preview.outerHTML = renderSkinPreview(skin);
+  if (description && skin) description.textContent = skin.description;
+});
+
 document.addEventListener("submit", async (event) => {
   const form = event.target.closest("[data-form]");
   if (!form) return;
@@ -2639,6 +2723,10 @@ document.addEventListener("submit", async (event) => {
     if (formType === "settings") {
       savePlayerName(data.get("name"));
       localStorage.setItem(storageKeys.reducedMotion, data.get("reducedMotion") === "on" ? "true" : "false");
+      saveAppearancePreferences(Object.fromEntries(Object.keys(cardSkins.DEFAULT_SKIN_IDS).map((deckFamilyId) => [
+        deckFamilyId,
+        String(data.get(`skin-${deckFamilyId}`) || "")
+      ])));
       showToast("Options saved.");
       navigate("home");
     }

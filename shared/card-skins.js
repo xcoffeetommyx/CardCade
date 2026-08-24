@@ -32,6 +32,7 @@
     "standard-52": "cardcade-pixel",
     "color-action": "juan-minimal"
   });
+  const APPEARANCE_VERSION = 1;
 
   function skinsForFamily(deckFamilyId) {
     return SKINS.filter((skin) => skin.deckFamilyId === deckFamilyId);
@@ -51,12 +52,25 @@
     return defaultSkinForFamily(deckFamilyId);
   }
 
+  function normalizeAppearance(value = null) {
+    const requestedSkins = value && typeof value === "object" && value.skins && typeof value.skins === "object"
+      ? value.skins
+      : {};
+    const skins = Object.fromEntries(Object.keys(DEFAULT_SKIN_IDS).map((deckFamilyId) => [
+      deckFamilyId,
+      resolveSkin(deckFamilyId, requestedSkins[deckFamilyId])?.id || DEFAULT_SKIN_IDS[deckFamilyId]
+    ]));
+    return Object.freeze({ version: APPEARANCE_VERSION, skins: Object.freeze(skins) });
+  }
+
   return Object.freeze({
     SKINS,
     DEFAULT_SKIN_IDS,
+    APPEARANCE_VERSION,
     skinsForFamily,
     skinById,
     defaultSkinForFamily,
-    resolveSkin
+    resolveSkin,
+    normalizeAppearance
   });
 });
