@@ -508,6 +508,9 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 .skin-preview-juan-face { color: #fffaf0; background: linear-gradient(132deg, rgba(255,255,255,.15), transparent 34%, rgba(5,13,26,.1)), #43b66b; }
 .skin-preview-juan-face small { position: absolute; top: 6px; left: 7px; font: 400 .9rem "Cardcade Ranks", monospace; }
 .skin-preview-juan-face b { font: 400 2.4rem "Cardcade Ranks", monospace; text-shadow: 2px 2px 0 rgba(5,13,26,.16); }
+.skin-preview-juan-prism { color: #fffaf0; background: radial-gradient(circle at 50% 45%, rgba(124,169,217,.22), transparent 36%), #0b1320; }
+.skin-preview-juan-prism small { position: absolute; top: 6px; left: 7px; font: 800 .4rem "Cardcade Pixel", monospace; letter-spacing: -.03em; }
+.skin-preview-juan-prism b { font: 900 1.8rem "Cardcade Pixel", monospace; }
 .skin-preview-juan-back { color: #fffaf0; background: linear-gradient(135deg, rgba(255,255,255,.08), transparent 46%), #0b1c34; font: 900 .68rem "Cardcade Pixel", monospace; letter-spacing: .1em; }
 .skin-description { min-height: 2.8em; margin: .65rem 0 0; color: var(--muted); font-size: .68rem; line-height: 1.4; }
 .legacy-mode-setting { align-items: flex-start; }
@@ -1704,6 +1707,139 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
     linear-gradient(145deg, var(--skin-paper), var(--skin-paper-deep));
   background-size: 4px 4px, 4px 4px, auto;
 }
+
+/* ---------- JUAN color/action skin packs ---------- */
+.card-skin-juan-night-shift {
+  --juan-skin-accent: #79e6ff;
+  --juan-skin-border: #b9f3ff;
+  --juan-skin-back: #07101e;
+  --juan-skin-back-deep: #101c34;
+}
+.card-skin-juan-paper-pop {
+  --juan-skin-accent: #fff4df;
+  --juan-skin-border: #fff4df;
+  --juan-skin-back: #e84f59;
+  --juan-skin-back-deep: #b72e44;
+}
+
+:is(.juan-card, .juan-seat-card).card-skin-juan-night-shift.juan-blaze { --juan-face: #351520; --juan-deep: #170b14; --juan-ink: #ff8188; --juan-skin-color: #ff5563; }
+:is(.juan-card, .juan-seat-card).card-skin-juan-night-shift.juan-tide { --juan-face: #102a46; --juan-deep: #081525; --juan-ink: #80c9ff; --juan-skin-color: #3da6ff; }
+:is(.juan-card, .juan-seat-card).card-skin-juan-night-shift.juan-grove { --juan-face: #123226; --juan-deep: #081b15; --juan-ink: #8ce6af; --juan-skin-color: #54d68a; }
+:is(.juan-card, .juan-seat-card).card-skin-juan-night-shift.juan-spark { --juan-face: #382d12; --juan-deep: #1d1608; --juan-ink: #ffe184; --juan-skin-color: #ffc84b; }
+:is(.juan-card, .juan-seat-card).card-skin-juan-night-shift.juan-prism { --juan-face: #09111f; --juan-deep: #040912; --juan-ink: #f8fbff; --juan-skin-color: #79e6ff; }
+
+.juan-card.card-skin-juan-night-shift {
+  border-color: color-mix(in srgb, var(--juan-skin-color) 72%, white);
+  background: var(--juan-face);
+  box-shadow: 5px 7px 0 rgba(0,0,0,.58), 0 0 0 1px color-mix(in srgb, var(--juan-skin-color) 48%, transparent), inset 0 0 0 1px rgba(255,255,255,.1);
+}
+.juan-card.card-skin-juan-night-shift .juan-card-ink {
+  background:
+    linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px),
+    radial-gradient(circle at 50% 43%, color-mix(in srgb, var(--juan-skin-color) 28%, transparent), transparent 48%),
+    linear-gradient(145deg, color-mix(in srgb, var(--juan-face) 90%, white), var(--juan-deep));
+  background-size: 5px 5px, 5px 5px, auto, auto;
+  box-shadow: inset 0 0 0 2px rgba(2,7,15,.55), inset 0 0 20px rgba(0,0,0,.34);
+}
+.juan-card.card-skin-juan-night-shift .juan-corner,
+.juan-card.card-skin-juan-night-shift .juan-card-center { filter: drop-shadow(0 0 5px color-mix(in srgb, var(--juan-skin-color) 42%, transparent)); }
+.juan-card.card-skin-juan-night-shift.juan-prism .juan-card-ink {
+  background:
+    linear-gradient(rgba(121,230,255,.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(121,230,255,.04) 1px, transparent 1px),
+    conic-gradient(from 45deg at 50% 50%, rgba(255,85,99,.2), rgba(61,166,255,.2), rgba(84,214,138,.2), rgba(255,200,75,.2), rgba(255,85,99,.2)),
+    #07101e;
+  background-size: 5px 5px, 5px 5px, auto, auto;
+}
+.juan-seat-card.card-skin-juan-night-shift {
+  color: var(--juan-ink);
+  border-color: color-mix(in srgb, var(--juan-skin-color) 70%, white);
+  background:
+    radial-gradient(circle at 50% 42%, color-mix(in srgb, var(--juan-skin-color) 28%, transparent), transparent 52%),
+    linear-gradient(145deg, var(--juan-face), var(--juan-deep));
+  text-shadow: 0 0 5px color-mix(in srgb, var(--juan-skin-color) 58%, transparent);
+}
+
+:is(.juan-card, .juan-seat-card).card-skin-juan-paper-pop.juan-blaze { --juan-face: #fff4e3; --juan-deep: #f8dec9; --juan-ink: #9e2034; --juan-skin-color: #df3f50; }
+:is(.juan-card, .juan-seat-card).card-skin-juan-paper-pop.juan-tide { --juan-face: #f2f4e8; --juan-deep: #dbe8df; --juan-ink: #185288; --juan-skin-color: #287fbd; }
+:is(.juan-card, .juan-seat-card).card-skin-juan-paper-pop.juan-grove { --juan-face: #f4f3df; --juan-deep: #dce8ce; --juan-ink: #17633c; --juan-skin-color: #2e9e62; }
+:is(.juan-card, .juan-seat-card).card-skin-juan-paper-pop.juan-spark { --juan-face: #fff2d0; --juan-deep: #f3ddb0; --juan-ink: #87510c; --juan-skin-color: #d9941a; }
+:is(.juan-card, .juan-seat-card).card-skin-juan-paper-pop.juan-prism { --juan-face: #f8efdf; --juan-deep: #dfd2bf; --juan-ink: #12243c; --juan-skin-color: #e84f59; }
+
+.juan-card.card-skin-juan-paper-pop {
+  border-color: #fff8e9;
+  background: var(--juan-face);
+  box-shadow: 5px 7px 0 color-mix(in srgb, var(--juan-skin-color) 38%, #111522), 0 0 0 2px var(--juan-skin-color), inset 0 0 0 1px rgba(255,255,255,.75);
+}
+.juan-card.card-skin-juan-paper-pop .juan-card-ink {
+  background:
+    linear-gradient(rgba(88,59,31,.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(88,59,31,.055) 1px, transparent 1px),
+    linear-gradient(118deg, color-mix(in srgb, var(--juan-skin-color) 23%, transparent) 0 22%, transparent 22% 76%, color-mix(in srgb, var(--juan-skin-color) 14%, transparent) 76%),
+    linear-gradient(145deg, var(--juan-face), var(--juan-deep));
+  background-size: 5px 5px, 5px 5px, auto, auto;
+  box-shadow: inset 7px 0 0 var(--juan-skin-color), inset 0 0 0 1px rgba(87,52,29,.13);
+}
+.juan-card.card-skin-juan-paper-pop.juan-prism .juan-card-ink {
+  background:
+    linear-gradient(rgba(88,59,31,.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(88,59,31,.055) 1px, transparent 1px),
+    conic-gradient(from 45deg at 50% 50%, rgba(223,63,80,.18), rgba(40,127,189,.18), rgba(46,158,98,.18), rgba(217,148,26,.18), rgba(223,63,80,.18)),
+    linear-gradient(145deg, var(--juan-face), var(--juan-deep));
+  background-size: 5px 5px, 5px 5px, auto, auto;
+  box-shadow: inset 7px 0 0 #e84f59, inset 0 0 0 1px rgba(87,52,29,.13);
+}
+.juan-card.card-skin-juan-paper-pop .juan-action-double-draw i { background: color-mix(in srgb, var(--juan-face) 88%, white); }
+.juan-card.card-skin-juan-paper-pop .juan-action-prism-burst b { color: #fffaf0; background: #12243c; }
+.juan-seat-card.card-skin-juan-paper-pop {
+  color: var(--juan-ink);
+  border-color: var(--juan-skin-color);
+  background:
+    linear-gradient(118deg, color-mix(in srgb, var(--juan-skin-color) 28%, transparent) 0 25%, transparent 25%),
+    linear-gradient(145deg, var(--juan-face), var(--juan-deep));
+  box-shadow: 3px 4px 0 color-mix(in srgb, var(--juan-skin-color) 34%, #111522);
+  text-shadow: none;
+}
+
+.card-back.card-skin-juan-night-shift,
+.card-back.card-skin-juan-paper-pop {
+  isolation: isolate;
+  color: var(--juan-skin-accent);
+  border-color: var(--juan-skin-border);
+  text-shadow: 2px 3px 0 rgba(0,0,0,.48);
+}
+.card-back.card-skin-juan-night-shift {
+  background:
+    radial-gradient(circle at 50% 48%, rgba(121,230,255,.2), transparent 27%),
+    linear-gradient(rgba(121,230,255,.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(121,230,255,.055) 1px, transparent 1px),
+    linear-gradient(145deg, var(--juan-skin-back-deep), var(--juan-skin-back));
+  background-size: auto, 5px 5px, 5px 5px, auto;
+  box-shadow: 5px 7px 0 rgba(0,0,0,.52), inset 0 0 0 2px rgba(121,230,255,.18), inset 0 0 22px rgba(121,230,255,.08);
+}
+.card-back.card-skin-juan-paper-pop {
+  background:
+    linear-gradient(rgba(255,244,223,.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,244,223,.08) 1px, transparent 1px),
+    linear-gradient(35deg, transparent 0 38%, rgba(255,244,223,.16) 38% 50%, transparent 50% 62%, rgba(255,244,223,.1) 62% 68%, transparent 68%),
+    linear-gradient(145deg, var(--juan-skin-back), var(--juan-skin-back-deep));
+  background-size: 5px 5px, 5px 5px, auto, auto;
+  box-shadow: 5px 7px 0 rgba(73,19,31,.46), inset 0 0 0 3px rgba(255,244,223,.24);
+}
+.card-back.card-skin-juan-night-shift > :is(b, i, span, strong),
+.card-back.card-skin-juan-paper-pop > :is(b, i, span, strong) { position: relative; z-index: 2; color: inherit; }
+.juan-stock.card-skin-juan-night-shift::before { border-color: rgba(121,230,255,.72); box-shadow: 0 0 12px rgba(121,230,255,.18); }
+.juan-stock.card-skin-juan-paper-pop::before { border-color: rgba(255,244,223,.78); }
+.juan-stock.card-skin-juan-night-shift b { border-color: #b9f3ff; background: #79e6ff; }
+.juan-stock.card-skin-juan-paper-pop b { border-color: #fff4df; background: #ffd45e; }
+
+.skin-preview.card-skin-juan-night-shift { border-color: rgba(121,230,255,.48); background: radial-gradient(circle at 50% 120%, rgba(121,230,255,.18), rgba(3,12,25,.82)); }
+.skin-preview.card-skin-juan-paper-pop { border-color: rgba(232,79,89,.48); background: radial-gradient(circle at 50% 120%, rgba(232,79,89,.2), rgba(34,16,24,.76)); }
+.skin-preview.card-skin-juan-night-shift .skin-preview-juan-face { color: #8ce6af; border-color: #9df1bc; background: radial-gradient(circle at 50% 43%, rgba(84,214,138,.28), transparent 50%), linear-gradient(145deg, #123226, #081b15); box-shadow: 4px 5px 0 rgba(0,0,0,.5), 0 0 0 1px #54d68a; }
+.skin-preview.card-skin-juan-night-shift .skin-preview-juan-prism { border-color: #b9f3ff; background: conic-gradient(from 45deg, rgba(255,85,99,.18), rgba(61,166,255,.2), rgba(84,214,138,.2), rgba(255,200,75,.18), rgba(255,85,99,.18)), #07101e; }
+.skin-preview.card-skin-juan-paper-pop .skin-preview-juan-face { color: #17633c; border-color: #fff8e9; background: linear-gradient(118deg, rgba(46,158,98,.28) 0 23%, transparent 23%), linear-gradient(145deg, #f4f3df, #dce8ce); box-shadow: 4px 5px 0 rgba(46,77,42,.42), 0 0 0 2px #2e9e62; }
+.skin-preview.card-skin-juan-paper-pop .skin-preview-juan-prism { color: #12243c; border-color: #fff8e9; background: conic-gradient(from 45deg, rgba(223,63,80,.2), rgba(40,127,189,.2), rgba(46,158,98,.2), rgba(217,148,26,.2), rgba(223,63,80,.2)), linear-gradient(145deg, #f8efdf, #dfd2bf); box-shadow: 4px 5px 0 rgba(73,19,31,.35), 0 0 0 2px #e84f59; }
 
 /* ---------- Pre-fan Standard 52 Legacy Mode ---------- */
 .playing-card.card-style-legacy-standard {

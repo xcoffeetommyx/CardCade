@@ -43,6 +43,24 @@
       className: "card-skin-juan-minimal",
       renderer: "color-action",
       capabilities: Object.freeze({ faces: true, backs: true, courts: false })
+    }),
+    Object.freeze({
+      id: "juan-night-shift",
+      deckFamilyId: "color-action",
+      name: "JUAN Night Shift",
+      description: "Dark color fields, bright signal ink, and a neon arcade back for late-night tables.",
+      className: "card-skin-juan-night-shift",
+      renderer: "color-action",
+      capabilities: Object.freeze({ faces: true, backs: true, courts: false })
+    }),
+    Object.freeze({
+      id: "juan-paper-pop",
+      deckFamilyId: "color-action",
+      name: "JUAN Paper Pop",
+      description: "Warm printed faces with bold color bands and a playful cream-and-coral back.",
+      className: "card-skin-juan-paper-pop",
+      renderer: "color-action",
+      capabilities: Object.freeze({ faces: true, backs: true, courts: false })
     })
   ]);
 

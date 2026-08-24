@@ -9,12 +9,12 @@ const read = (file) => readFileSync(path.join(root, file), "utf8");
 
 test("the browser loads the skin registry before the table renderer", () => {
   const html = read("public/index.html");
-  const registryIndex = html.indexOf('/shared/card-skins.js?v=3');
-  const appIndex = html.indexOf('/app.js?v=29');
+  const registryIndex = html.indexOf('/shared/card-skins.js?v=4');
+  const appIndex = html.indexOf('/app.js?v=30');
 
   assert.ok(registryIndex >= 0);
   assert.ok(appIndex > registryIndex);
-  assert.match(read("public/sw.js"), /\/shared\/card-skins\.js\?v=3/);
+  assert.match(read("public/sw.js"), /\/shared\/card-skins\.js\?v=4/);
 });
 
 test("appearance settings are versioned, family-scoped, and local-only", () => {
@@ -55,6 +55,25 @@ test("alternate standard skins cover faces, backs, stacks, and previews without 
     assert.match(css, new RegExp(`\\.skin-preview\\.${skinClass}`));
   }
   assert.doesNotMatch(css, /\.juan-card\.card-skin-(?:casino-gold|royal-violet)/);
+});
+
+test("JUAN skins cover number, action, Prism, backs, piles, opponent minis, and previews without leaking into Standard 52", () => {
+  const app = read("public/app.js");
+  const css = read("public/app.css");
+
+  assert.match(app, /skin-preview-juan-prism/);
+  assert.match(app, /renderMiniCardBack\("color-action"/);
+  assert.match(app, /deckFamilyId: "color-action", context: "stock"/);
+  assert.match(app, /juan-prism-stage-card.*renderJuanCard/s);
+  assert.match(app, /juan-prism-reveal-card.*renderJuanCard/s);
+  for (const skinClass of ["card-skin-juan-night-shift", "card-skin-juan-paper-pop"]) {
+    assert.match(css, new RegExp(`\\.juan-card\\.${skinClass}`));
+    assert.match(css, new RegExp(`\\.juan-seat-card\\.${skinClass}`));
+    assert.match(css, new RegExp(`\\.card-back\\.${skinClass}`));
+    assert.match(css, new RegExp(`\\.juan-stock\\.${skinClass}`));
+    assert.match(css, new RegExp(`\\.skin-preview\\.${skinClass}`));
+  }
+  assert.doesNotMatch(css, /\.playing-card\.card-skin-juan-(?:night-shift|paper-pop)\.(?:red|black)/);
 });
 
 test("Legacy Mode restores pre-fan Standard 52 cards locally without becoming a skin or JUAN layout", () => {

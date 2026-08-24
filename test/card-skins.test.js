@@ -11,7 +11,7 @@ test("card skins are registered by deck family with stable defaults", () => {
   assert.equal(colorAction.id, "juan-minimal");
   assert.equal(colorAction.deckFamilyId, "color-action");
   assert.deepEqual(cardSkins.skinsForFamily("standard-52").map((skin) => skin.id), ["cardcade-pixel", "casino-gold", "royal-violet"]);
-  assert.deepEqual(cardSkins.skinsForFamily("color-action").map((skin) => skin.id), ["juan-minimal"]);
+  assert.deepEqual(cardSkins.skinsForFamily("color-action").map((skin) => skin.id), ["juan-minimal", "juan-night-shift", "juan-paper-pop"]);
 });
 
 test("a skin can never resolve across deck-family boundaries", () => {
@@ -55,6 +55,16 @@ test("alternate standard skin choices persist without changing the color-action 
   });
 
   assert.deepEqual(appearance.skins, { "standard-52": "royal-violet", "color-action": "juan-minimal" });
+});
+
+test("alternate JUAN skin choices persist without changing the standard family", () => {
+  const appearance = cardSkins.normalizeAppearance({
+    skins: { "standard-52": "casino-gold", "color-action": "juan-paper-pop" }
+  });
+
+  assert.deepEqual(appearance.skins, { "standard-52": "casino-gold", "color-action": "juan-paper-pop" });
+  assert.equal(cardSkins.resolveSkin("color-action", "juan-night-shift").id, "juan-night-shift");
+  assert.equal(cardSkins.resolveSkin("standard-52", "juan-paper-pop").id, "cardcade-pixel");
 });
 
 test("Legacy Mode is a separate immutable local override rather than a skin", () => {

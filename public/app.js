@@ -1627,6 +1627,7 @@ function renderSkinPreview(skin) {
   return `
     <div class="skin-preview ${skin.className}" data-skin-preview="${escapeHtml(skin.deckFamilyId)}" role="img" aria-label="${escapeHtml(skin.name)} card face and back preview">
       <span class="skin-preview-card skin-preview-face skin-preview-juan-face" aria-hidden="true"><small>1</small><b>1</b></span>
+      <span class="skin-preview-card skin-preview-face skin-preview-juan-prism" aria-hidden="true"><small>PRISM</small><b>✦</b></span>
       ${renderCardBack({ deckFamilyId: skin.deckFamilyId, skinId: skin.id, context: "settings-preview", className: "skin-preview-card skin-preview-back skin-preview-juan-back", ariaHidden: true, parts: [{ tag: "strong", text: "JUAN" }] })}
     </div>`;
 }
