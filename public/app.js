@@ -1800,8 +1800,15 @@ function layoutStandardHand() {
   const cards = [...hand.querySelectorAll("[data-game-card]")];
   if (!cards.length) return;
   if (standardLegacyModeEnabled()) {
-    hand.classList.add("legacy-flat-hand", "fan-ready");
+    // A render replaces the table DOM. Settle the replacement legacy row while
+    // card transitions are disabled, then enable interaction transitions for
+    // genuine selection changes. Otherwise Chrome can tween from the shared
+    // fan transform on every unrelated turn update and make the row bounce.
+    hand.classList.remove("fan-ready");
+    hand.classList.add("legacy-flat-hand");
     hand.dataset.density = "legacy-flat";
+    void hand.offsetWidth;
+    hand.classList.add("fan-ready");
     hand.onclick = (event) => {
       const card = event.target.closest?.("[data-game-card]");
       if (!card || !hand.contains(card)) return;

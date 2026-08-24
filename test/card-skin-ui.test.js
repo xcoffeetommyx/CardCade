@@ -10,7 +10,7 @@ const read = (file) => readFileSync(path.join(root, file), "utf8");
 test("the browser loads the skin registry before the table renderer", () => {
   const html = read("public/index.html");
   const registryIndex = html.indexOf('/shared/card-skins.js?v=4');
-  const appIndex = html.indexOf('/app.js?v=31');
+  const appIndex = html.indexOf('/app.js?v=32');
 
   assert.ok(registryIndex >= 0);
   assert.ok(appIndex > registryIndex);
@@ -89,7 +89,7 @@ test("Legacy Mode restores the original 3s & 7s and Thirteen cards without becom
   assert.doesNotMatch(app, /LEGACY_STANDARD_PIP_LAYOUTS/);
   assert.doesNotMatch(app, /legacy-card-center legacy-face/);
   assert.match(app, /"card-style-legacy-standard"/);
-  assert.match(app, /hand\.classList\.add\("legacy-flat-hand", "fan-ready"\)/);
+  assert.match(app, /hand\.classList\.remove\("fan-ready"\);[\s\S]*?hand\.classList\.add\("legacy-flat-hand"\);[\s\S]*?void hand\.offsetWidth;[\s\S]*?hand\.classList\.add\("fan-ready"\);/);
   assert.match(app, /scrollLeft: hand\.scrollLeft/);
   assert.match(app, /legacyMode: data\.get\("legacyMode"\) === "on"/);
   assert.match(css, /\.game-hand\.legacy-flat-hand[\s\S]*?overflow-x: auto/);
