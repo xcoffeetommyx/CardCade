@@ -10,11 +10,13 @@ test("card skins are registered by deck family with stable defaults", () => {
   assert.equal(standard.deckFamilyId, "standard-52");
   assert.equal(colorAction.id, "juan-minimal");
   assert.equal(colorAction.deckFamilyId, "color-action");
-  assert.deepEqual(cardSkins.skinsForFamily("standard-52").map((skin) => skin.id), ["cardcade-pixel"]);
+  assert.deepEqual(cardSkins.skinsForFamily("standard-52").map((skin) => skin.id), ["cardcade-pixel", "casino-gold", "royal-violet"]);
   assert.deepEqual(cardSkins.skinsForFamily("color-action").map((skin) => skin.id), ["juan-minimal"]);
 });
 
 test("a skin can never resolve across deck-family boundaries", () => {
+  assert.equal(cardSkins.resolveSkin("standard-52", "casino-gold").id, "casino-gold");
+  assert.equal(cardSkins.resolveSkin("standard-52", "royal-violet").id, "royal-violet");
   assert.equal(cardSkins.resolveSkin("standard-52", "juan-minimal").id, "cardcade-pixel");
   assert.equal(cardSkins.resolveSkin("color-action", "cardcade-pixel").id, "juan-minimal");
   assert.equal(cardSkins.resolveSkin("standard-52", "missing-skin").id, "cardcade-pixel");
@@ -44,4 +46,12 @@ test("appearance preferences are versioned and normalize every family independen
   assert.deepEqual(invalid, defaults);
   assert.equal(Object.isFrozen(defaults), true);
   assert.equal(Object.isFrozen(defaults.skins), true);
+});
+
+test("alternate standard skin choices persist without changing the color-action family", () => {
+  const appearance = cardSkins.normalizeAppearance({
+    skins: { "standard-52": "royal-violet", "color-action": "juan-minimal" }
+  });
+
+  assert.deepEqual(appearance.skins, { "standard-52": "royal-violet", "color-action": "juan-minimal" });
 });

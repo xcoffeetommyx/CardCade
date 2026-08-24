@@ -18,6 +18,24 @@
       capabilities: Object.freeze({ faces: true, backs: true, courts: true })
     }),
     Object.freeze({
+      id: "casino-gold",
+      deckFamilyId: "standard-52",
+      name: "Casino Gold",
+      description: "Warm ivory faces with navy ink and a tailored midnight-and-gold back.",
+      className: "card-skin-casino-gold",
+      renderer: "standard-52",
+      capabilities: Object.freeze({ faces: true, backs: true, courts: true })
+    }),
+    Object.freeze({
+      id: "royal-violet",
+      deckFamilyId: "standard-52",
+      name: "Royal Violet",
+      description: "Cool pearl faces with violet ink and a jewel-toned geometric back.",
+      className: "card-skin-royal-violet",
+      renderer: "standard-52",
+      capabilities: Object.freeze({ faces: true, backs: true, courts: true })
+    }),
+    Object.freeze({
       id: "juan-minimal",
       deckFamilyId: "color-action",
       name: "JUAN Minimal",

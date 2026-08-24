@@ -9,12 +9,12 @@ const read = (file) => readFileSync(path.join(root, file), "utf8");
 
 test("the browser loads the skin registry before the table renderer", () => {
   const html = read("public/index.html");
-  const registryIndex = html.indexOf('/shared/card-skins.js?v=1');
-  const appIndex = html.indexOf('/app.js?v=26');
+  const registryIndex = html.indexOf('/shared/card-skins.js?v=2');
+  const appIndex = html.indexOf('/app.js?v=27');
 
   assert.ok(registryIndex >= 0);
   assert.ok(appIndex > registryIndex);
-  assert.match(read("public/sw.js"), /\/shared\/card-skins\.js\?v=1/);
+  assert.match(read("public/sw.js"), /\/shared\/card-skins\.js\?v=2/);
 });
 
 test("appearance settings are versioned, family-scoped, and local-only", () => {
@@ -42,4 +42,17 @@ test("faces and all hidden-card contexts use the shared skin boundary", () => {
   for (const context of ["opponent-mini", "dealer-hole", "private-seat", "draw-stock", "discard", "stock", "hot-seat-handoff"]) {
     assert.match(app, new RegExp(`context: "${context}"`));
   }
+});
+
+test("alternate standard skins cover faces, backs, stacks, and previews without leaking into JUAN", () => {
+  const css = read("public/app.css");
+
+  for (const skinClass of ["card-skin-casino-gold", "card-skin-royal-violet"]) {
+    assert.match(css, new RegExp(`\\.playing-card\\.${skinClass}`));
+    assert.match(css, new RegExp(`\\.standard-seat-card\\.${skinClass}`));
+    assert.match(css, new RegExp(`\\.card-back\\.${skinClass}`));
+    assert.match(css, new RegExp(`\\.draw-stack\\.${skinClass}`));
+    assert.match(css, new RegExp(`\\.skin-preview\\.${skinClass}`));
+  }
+  assert.doesNotMatch(css, /\.juan-card\.card-skin-(?:casino-gold|royal-violet)/);
 });

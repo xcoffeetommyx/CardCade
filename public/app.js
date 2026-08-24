@@ -1197,8 +1197,8 @@ function renderFiveCardDrawGame() {
         <div class="five-card-draw-table-zone">
           <div class="five-card-draw-copy"><span>Private draw</span><strong>${escapeHtml(showdownDetail)}</strong></div>
           <div class="five-card-draw-piles" aria-label="Draw and discard piles">
-            <div class="draw-stack" aria-label="${match.stockCount} cards in draw pile">${renderCardBack({ deckFamilyId: "standard-52", context: "draw-stock", className: "draw-card-back", ariaHidden: true, parts: [{ tag: "i", text: "CC" }] })}<strong>Draw</strong><small>${match.stockCount} cards</small></div>
-            <div class="active-pile draw-discard-pile" aria-label="${match.discardCount} private discards">${renderCardBack({ deckFamilyId: "standard-52", context: "discard", className: "draw-card-back discard", ariaHidden: true, parts: [{ tag: "i", text: "↻" }] })}<strong>Discard</strong><small>${match.discardCount} card${match.discardCount === 1 ? "" : "s"}</small></div>
+            <div class="draw-stack ${selectedCardSkin("standard-52")?.className || ""}" aria-label="${match.stockCount} cards in draw pile">${renderCardBack({ deckFamilyId: "standard-52", context: "draw-stock", className: "draw-card-back", ariaHidden: true, parts: [{ tag: "i", text: "CC" }] })}<strong>Draw</strong><small>${match.stockCount} cards</small></div>
+            <div class="active-pile draw-discard-pile ${selectedCardSkin("standard-52")?.className || ""}" aria-label="${match.discardCount} private discards">${renderCardBack({ deckFamilyId: "standard-52", context: "discard", className: "draw-card-back discard", ariaHidden: true, parts: [{ tag: "i", text: "↻" }] })}<strong>Discard</strong><small>${match.discardCount} card${match.discardCount === 1 ? "" : "s"}</small></div>
           </div>
         </div>
       </section>
