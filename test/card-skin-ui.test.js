@@ -56,6 +56,30 @@ test("modern Standard 52 artwork scales equally in hands and table piles", () =>
   assert.doesNotMatch(css, /\.card-center \{[^}]*font: 4\.1rem/);
 });
 
+test("default felt and Cardcade Pixel backs stay consistent across game modes", () => {
+  const css = read("public/app.css");
+
+  assert.match(css, /\.standard-card-game \{[\s\S]*?--table-green: #0f4635;[\s\S]*?--table-green-deep: #092b23;[\s\S]*?--table-border: #315a54;/);
+  assert.match(css, /\.game-table \{[\s\S]*?border: 2px solid var\(--table-border\);[\s\S]*?var\(--table-green-deep\)/);
+  assert.doesNotMatch(css, /\.blackjack-game\s*\{[^}]*?--table-green/);
+  assert.doesNotMatch(css, /\.holdem-game\s*\{[^}]*?--table-green/);
+  for (const selector of ["blackjack-table", "holdem-table", "five-card-draw-table", "juan-table"]) {
+    assert.doesNotMatch(css, new RegExp(`\\.${selector}\\s*\\{[^}]*?(?:border-color|background:)`));
+  }
+
+  assert.match(css, /\.card-back\.card-skin-cardcade-pixel \{/);
+  assert.match(css, /\.draw-stack\.card-skin-cardcade-pixel::before/);
+  assert.match(css, /\.blackjack-card-back\.card-skin-cardcade-pixel b \{ display: none; \}/);
+  assert.match(css, /\.draw-card-back\.card-skin-cardcade-pixel::after \{ content: none; \}/);
+});
+
+test("the Standard 52 settings preview leaves clear space around its corner mark", () => {
+  const css = read("public/app.css");
+
+  assert.match(css, /\.skin-preview-standard-face > span i \{ margin-top: 1px; font: normal \.68rem Georgia, serif; \}/);
+  assert.match(css, /\.skin-preview-standard-face > b \{ position: absolute; inset: 30px 25% 16px; display: grid; place-items: center; font: normal 1\.25rem\/\.8 Georgia, serif; \}/);
+});
+
 test("alternate standard skins cover faces, backs, stacks, and previews without leaking into JUAN", () => {
   const css = read("public/app.css");
 

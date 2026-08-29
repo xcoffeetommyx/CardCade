@@ -502,8 +502,8 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 .skin-preview-standard-face { color: #bd2936; background: linear-gradient(rgba(83,64,35,.055) 1px, transparent 1px), linear-gradient(90deg, rgba(83,64,35,.055) 1px, transparent 1px), #f5eedf; background-size: 4px 4px; }
 .skin-preview-standard-face > span { position: absolute; top: 6px; left: 7px; display: grid; justify-items: center; font-family: "Cardcade Ranks", "Courier New", monospace; line-height: .78; }
 .skin-preview-standard-face > span strong { font-size: 1.05rem; font-weight: 400; }
-.skin-preview-standard-face > span i { margin-top: 3px; font: normal .8rem Georgia, serif; }
-.skin-preview-standard-face > b { font: normal 2rem Georgia, serif; }
+.skin-preview-standard-face > span i { margin-top: 1px; font: normal .68rem Georgia, serif; }
+.skin-preview-standard-face > b { position: absolute; inset: 30px 25% 16px; display: grid; place-items: center; font: normal 1.25rem/.8 Georgia, serif; }
 .skin-preview-standard-back { color: #cbe4ff; background: repeating-linear-gradient(45deg, #112948 0 4px, #1b3b62 4px 7px); font: 900 .76rem "Cardcade Pixel", monospace; letter-spacing: .08em; }
 .skin-preview-juan-face { color: #fffaf0; background: linear-gradient(132deg, rgba(255,255,255,.15), transparent 34%, rgba(5,13,26,.1)), #43b66b; }
 .skin-preview-juan-face small { position: absolute; top: 6px; left: 7px; font: 400 .9rem "Cardcade Ranks", monospace; }
@@ -651,6 +651,8 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 .standard-card-game {
   --table-green: #0f4635;
   --table-green-light: #176249;
+  --table-green-deep: #092b23;
+  --table-border: #315a54;
   --game-card-width: clamp(86px, 24vw, 112px);
   --game-card-height: calc(var(--game-card-width) * 1.42);
   min-height: calc(var(--game-viewport-height) - var(--safe-top) - var(--game-main-top) - var(--game-main-bottom));
@@ -766,12 +768,12 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   padding: 14px;
   display: grid;
   grid-template-rows: auto 1fr;
-  border: 2px solid #315a54;
+  border: 2px solid var(--table-border);
   border-radius: 18px;
   background:
     linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px),
-    radial-gradient(circle at 50% 110%, var(--table-green-light), var(--table-green) 58%, #092b23);
+    radial-gradient(circle at 50% 110%, var(--table-green-light), var(--table-green) 58%, var(--table-green-deep));
   background-size: 4px 4px, 4px 4px, auto;
   box-shadow: inset 0 0 55px rgba(0,0,0,.28), 5px 5px 0 rgba(0,0,0,.38);
 }
@@ -1023,8 +1025,6 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 
 /* ---------- Blackjack dealer table ---------- */
 .blackjack-game {
-  --table-green: #34491e;
-  --table-green-light: #5e7730;
   --blackjack-gold: #f0c553;
   --blackjack-gold-deep: #a77a1c;
 }
@@ -1048,7 +1048,6 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 .blackjack-rule-bar i { color: var(--blackjack-gold); font-style: normal; }
 .blackjack-rule-bar strong { color: #fff0bd; }
 .blackjack-opponents .game-seat.active { border-color: var(--blackjack-gold); box-shadow: 0 0 18px rgba(240, 197, 83, .16); }
-.blackjack-table { border-color: #697949; }
 .blackjack-table.insurance-pending { grid-template-rows: auto auto 1fr; }
 .blackjack-table .game-status .badge { border-color: #887a42; color: #f7e7b1; background: rgba(48, 46, 20, .72); }
 .blackjack-dealer-zone {
@@ -1154,8 +1153,6 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 
 /* ---------- Texas Hold'em fixed-limit table ---------- */
 .holdem-game {
-  --table-green: #253e3b;
-  --table-green-light: #3e7163;
   --holdem-violet: #a58bff;
   --holdem-violet-deep: #5e498e;
 }
@@ -1192,12 +1189,6 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 }
 .poker-hole-back::before { content: ""; position: absolute; inset: 6px; border: 1px solid rgba(232,221,255,.64); border-radius: 3px; }
 .poker-hole-back i { position: relative; z-index: 1; font: 900 .86rem "Cardcade Pixel", "Courier New", monospace; font-style: normal; text-shadow: 2px 2px 0 rgba(0,0,0,.48); }
-.holdem-table { border-color: #4b6f69; background:
-  linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px),
-  linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px),
-  radial-gradient(circle at 50% 110%, #426d66, #1d3c39 58%, #0b2428);
-  background-size: 4px 4px, 4px 4px, auto;
-}
 .holdem-table .game-status .badge { border-color: #7465a2; color: #e5ddff; background: rgba(51, 38, 79, .74); }
 .holdem-board-zone {
   min-height: 164px;
@@ -1254,12 +1245,6 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
     repeating-linear-gradient(45deg, transparent 0 4px, rgba(229,160,255,.23) 4px 6px),
     repeating-linear-gradient(-45deg, transparent 0 4px, rgba(255,195,111,.12) 4px 6px),
     #2c1c47;
-}
-.five-card-draw-table { border-color: #77526d; background:
-  linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px),
-  linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px),
-  radial-gradient(circle at 50% 110%, #5d3856, #2e2549 58%, #12162c);
-  background-size: 4px 4px, 4px 4px, auto;
 }
 .five-card-draw-table .game-status .badge { border-color: #9e668f; color: #ffe4c2; background: rgba(80, 38, 73, .74); }
 .five-card-draw-table-zone {
@@ -1442,14 +1427,6 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
     #0b1c34;
 }
 
-.juan-table {
-  border-color: #414c72;
-  background:
-    linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px),
-    radial-gradient(circle at 50% 110%, #26376d, #17254d 58%, #0a1634);
-  background-size: 4px 4px, 4px 4px, auto;
-}
 .juan-pile-zone { min-height: 150px; display: flex; align-items: center; justify-content: center; gap: clamp(22px, 6vw, 70px); }
 .juan-pile-zone .active-pile { min-height: 135px; min-width: 100px; }
 .juan-pile-zone .active-pile.cards-pile { width: 86px; min-width: 86px; flex: 0 0 86px; overflow: visible; }
@@ -1812,6 +1789,49 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 .handoff-card-back span { font: 900 1.6rem "Cardcade Pixel", "Courier New", monospace; letter-spacing: .08em; }
 
 /* ---------- Standard 52 skin packs ---------- */
+.card-skin-cardcade-pixel {
+  --pixel-back-ink: #cbe4ff;
+  --pixel-back-border: #46688c;
+  --pixel-back-deep: #112948;
+  --pixel-back-light: #1b3b62;
+  --pixel-back-keyline: rgba(203,228,255,.58);
+  --pixel-back-pattern: rgba(105,174,242,.18);
+  --pixel-back-inset: rgba(105,174,242,.16);
+}
+.card-back.card-skin-cardcade-pixel {
+  isolation: isolate;
+  color: var(--pixel-back-ink);
+  border-color: var(--pixel-back-border);
+  background:
+    linear-gradient(135deg, rgba(255,255,255,.08), transparent 38%, rgba(0,0,0,.14)),
+    repeating-linear-gradient(45deg, transparent 0 6px, var(--pixel-back-pattern) 6px 8px),
+    repeating-linear-gradient(-45deg, transparent 0 6px, rgba(203,228,255,.08) 6px 8px),
+    linear-gradient(145deg, var(--pixel-back-light), var(--pixel-back-deep));
+  box-shadow: 5px 7px 0 rgba(0,0,0,.48), inset 0 0 0 2px var(--pixel-back-inset);
+  text-shadow: 2px 3px 0 rgba(0,0,0,.5);
+}
+.card-back.card-skin-cardcade-pixel::before {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  inset: clamp(4px, 8%, 9px);
+  border: 2px solid var(--pixel-back-keyline);
+  border-radius: max(3px, calc(1em * .28));
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.12);
+  pointer-events: none;
+}
+.card-back.card-skin-cardcade-pixel > :is(i, b, span, strong) { z-index: 2; color: inherit; }
+.card-back.card-skin-cardcade-pixel > :is(span, strong) { position: relative; }
+.blackjack-card-back.card-skin-cardcade-pixel b { display: none; }
+.draw-card-back.card-skin-cardcade-pixel::after { content: none; }
+.draw-stack.card-skin-cardcade-pixel::before,
+.draw-stack.card-skin-cardcade-pixel::after {
+  border-color: var(--pixel-back-border);
+  background:
+    repeating-linear-gradient(45deg, transparent 0 6px, var(--pixel-back-pattern) 6px 8px),
+    linear-gradient(145deg, var(--pixel-back-light), var(--pixel-back-deep));
+  box-shadow: inset 0 0 0 2px var(--pixel-back-inset);
+}
 .card-skin-casino-gold {
   --skin-paper: #f6eed9;
   --skin-paper-deep: #eadbb9;
