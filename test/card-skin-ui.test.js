@@ -44,11 +44,15 @@ test("faces and all hidden-card contexts use the shared skin boundary", () => {
   }
 });
 
-test("modern Standard 52 center suits stay within the space between corner indices", () => {
+test("modern Standard 52 artwork scales equally in hands and table piles", () => {
   const css = read("public/app.css");
 
-  assert.match(css, /\.card-center:not\(\.court\) \{[\s\S]*?inset: 27% 16%;[\s\S]*?clamp\(1\.45rem, 5vw, 2\.35rem\)/);
-  assert.match(css, /\.playing-card\.played \.card-center:not\(\.court\) \{ font-size: clamp\(1\.35rem, 4vw, 1\.85rem\); \}/);
+  assert.match(css, /\.playing-card \{[\s\S]*?container-type: size;/);
+  assert.match(css, /\.card-corner \{[\s\S]*?top: 5\.5cqh;[\s\S]*?left: 7cqw;/);
+  assert.match(css, /\.card-corner strong \{[^}]*font-size: 18cqh;/);
+  assert.match(css, /\.card-center:not\(\.court\) \{[\s\S]*?inset: 27% 16%;[\s\S]*?font: normal 24cqh\/\.8 Georgia, serif;/);
+  assert.match(css, /\.card-center\.court \{ inset: 20% 27% 25%;/);
+  assert.doesNotMatch(css, /\.playing-card\.played \.card-center:not\(\.court\)/);
   assert.doesNotMatch(css, /\.card-center \{[^}]*font: 4\.1rem/);
 });
 
