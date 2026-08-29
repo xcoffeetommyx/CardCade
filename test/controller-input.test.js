@@ -58,3 +58,15 @@ test("moves the virtual cursor from the left stick and repeats held d-pad direct
     { action: "down", repeat: true }
   ]);
 });
+
+test("chooses the nearest control in the requested d-pad direction", () => {
+  const targets = [
+    { id: "left", left: 0, right: 40, top: 40, bottom: 80 },
+    { id: "right", left: 90, right: 130, top: 40, bottom: 80 },
+    { id: "below", left: 35, right: 75, top: 115, bottom: 155 }
+  ];
+
+  assert.equal(controllerInput.directionalTarget(targets, { x: 20, y: 60 }, "right").id, "right");
+  assert.equal(controllerInput.directionalTarget(targets, { x: 20, y: 60 }, "down").id, "below");
+  assert.equal(controllerInput.directionalTarget(targets, { x: 110, y: 60 }, "left").id, "left");
+});

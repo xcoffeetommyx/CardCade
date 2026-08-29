@@ -1,0 +1,33 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import test from "node:test";
+import { fileURLToPath } from "node:url";
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const read = (file) => readFileSync(path.join(root, file), "utf8");
+
+test("the controller cursor is loaded before Cardcade and cached for offline use", () => {
+  const html = read("public/index.html");
+  const worker = read("public/sw.js");
+  const controllerIndex = html.indexOf('src="shared/controller-input.js');
+  const appIndex = html.indexOf('src="app.js');
+
+  assert.ok(controllerIndex >= 0 && controllerIndex < appIndex);
+  assert.match(html, /id="controller-cursor"/);
+  assert.match(worker, /"shared\/controller-input\.js\?v=2"/);
+});
+
+test("controller inputs use a virtual cursor, d-pad navigation, and safe A/B actions", () => {
+  const app = read("public/app.js");
+  const css = read("public/app.css");
+
+  assert.match(app, /function moveControllerCursor/);
+  assert.match(app, /function moveControllerFocus/);
+  assert.match(app, /controllerInput\.directionalTarget/);
+  assert.match(app, /function activateControllerTarget/);
+  assert.match(app, /function controllerBack/);
+  assert.match(app, /prismCancel\.click\(\)/);
+  assert.match(app, /screen-head \.back-button/);
+  assert.match(css, /\.controller-hover:not\(\.playing-card\)/);
+});

@@ -50,6 +50,35 @@
       || connected[0];
   }
 
+  function directionalTarget(items, origin, direction) {
+    const startX = Number(origin?.x);
+    const startY = Number(origin?.y);
+    if (!Number.isFinite(startX) || !Number.isFinite(startY)) return null;
+    if (!["up", "down", "left", "right"].includes(direction)) return null;
+
+    return (items || []).reduce((closest, item) => {
+      const left = Number(item?.left);
+      const right = Number(item?.right);
+      const top = Number(item?.top);
+      const bottom = Number(item?.bottom);
+      if (![left, right, top, bottom].every(Number.isFinite) || right <= left || bottom <= top) return closest;
+      const centerX = (left + right) / 2;
+      const centerY = (top + bottom) / 2;
+      const deltaX = centerX - startX;
+      const deltaY = centerY - startY;
+      const primary = direction === "left" ? -deltaX
+        : direction === "right" ? deltaX
+          : direction === "up" ? -deltaY
+            : deltaY;
+      const secondary = direction === "left" || direction === "right" ? Math.abs(deltaY) : Math.abs(deltaX);
+      if (primary <= 1) return closest;
+      // Prefer the target that is both nearest and most directly in the
+      // requested direction, while retaining an intuitive diagonal fallback.
+      const score = primary + secondary * 1.3;
+      return !closest || score < closest.score ? { item, score } : closest;
+    }, null)?.item || null;
+  }
+
   function createGamepadInput({
     getGamepads = defaultGetGamepads,
     requestFrame = defaultRequestFrame,
@@ -175,5 +204,5 @@
     return Math.min(maximum, Math.max(minimum, Number(value) || 0));
   }
 
-  return Object.freeze({ BUTTONS, stickVector, buttonPressed, selectGamepad, createGamepadInput });
+  return Object.freeze({ BUTTONS, stickVector, buttonPressed, selectGamepad, directionalTarget, createGamepadInput });
 });

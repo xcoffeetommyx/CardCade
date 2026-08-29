@@ -566,6 +566,12 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   background: linear-gradient(140deg, #ffffff, #77c8ff 68%, #3474ca);
   clip-path: polygon(7% 0, 95% 52%, 59% 62%, 74% 96%, 57% 100%, 41% 67%, 18% 91%);
 }
+.controller-hover:not(.playing-card),
+.controller-focus:not(.playing-card) {
+  outline: 3px solid #81d5ff !important;
+  outline-offset: 3px;
+  filter: brightness(1.08) saturate(1.08);
+}
 .error-text { color: #ff9696; }
 
 /* ---------- Shared physical-card table ---------- */

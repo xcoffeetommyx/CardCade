@@ -84,7 +84,8 @@ const controllerState = {
   cursorX: Math.round(innerWidth / 2),
   cursorY: Math.round(innerHeight / 2),
   active: false,
-  input: null
+  input: null,
+  hoveredTarget: null
 };
 
 const standardGameAdapters = {
@@ -1833,6 +1834,7 @@ function render() {
     const firstColor = app.querySelector(".juan-prism-dialog .juan-color-choice");
     if (firstColor) requestAnimationFrame(() => firstColor.focus({ preventScroll: true }));
   }
+  if (controllerState.active) requestAnimationFrame(updateControllerHover);
 }
 
 function layoutActivePiles() {
@@ -2971,7 +2973,9 @@ function setupControllerCursor() {
   if (!controllerCursor || !controllerInput?.createGamepadInput) return;
   controllerState.input = controllerInput.createGamepadInput({
     onMove: ({ x, y }) => moveControllerCursor(x, y),
-    onActivity: showControllerCursor
+    onButton: handleControllerButton,
+    onActivity: showControllerCursor,
+    onDisconnect: hideControllerCursor
   });
   controllerState.input.start();
 }
@@ -2987,6 +2991,7 @@ function moveControllerCursor(deltaX, deltaY) {
   controllerState.cursorY += Number(deltaY) || 0;
   clampControllerCursor();
   showControllerCursor();
+  updateControllerHover();
 }
 
 function renderControllerCursor() {
@@ -3007,6 +3012,127 @@ function hideControllerCursor() {
   controllerState.active = false;
   controllerCursor.hidden = true;
   document.body.classList.remove("controller-active");
+  setControllerHoverTarget(null);
+}
+
+function handleControllerButton(action) {
+  if (action === "activate") {
+    activateControllerTarget();
+    return;
+  }
+  if (action === "back") {
+    controllerBack();
+    return;
+  }
+  moveControllerFocus(action);
+}
+
+function controllerTargetScope() {
+  return document.querySelector("dialog[open]")
+    || app.querySelector(".juan-prism-dialog")
+    || app.querySelector(".round-result")
+    || document;
+}
+
+function controllerTargets(scope = controllerTargetScope()) {
+  const selector = [
+    "button:not([disabled]):not(.playing-card)",
+    "input:not([disabled]):not([type=hidden])",
+    "select:not([disabled])",
+    "textarea:not([disabled])"
+  ].join(",");
+  return [...scope.querySelectorAll(selector)].filter((target) => {
+    if (target.closest("[hidden], [aria-hidden=\"true\"]")) return false;
+    const rect = target.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return false;
+    const style = getComputedStyle(target);
+    return style.display !== "none" && style.visibility !== "hidden" && style.pointerEvents !== "none";
+  });
+}
+
+function controllerTargetAtPoint(clientX = controllerState.cursorX, clientY = controllerState.cursorY) {
+  const scope = controllerTargetScope();
+  const element = document.elementFromPoint(clientX, clientY);
+  const target = element?.closest?.("button:not([disabled]):not(.playing-card), input:not([disabled]):not([type=hidden]), select:not([disabled]), textarea:not([disabled])");
+  return target && scope.contains(target) && controllerTargets(scope).includes(target) ? target : null;
+}
+
+function setControllerHoverTarget(target, { focus = false } = {}) {
+  const previous = controllerState.hoveredTarget;
+  if (previous && previous !== target) previous.classList.remove("controller-hover", "controller-focus");
+  controllerState.hoveredTarget = target || null;
+  if (!target) return;
+  target.classList.add("controller-hover");
+  if (focus) {
+    target.classList.add("controller-focus");
+    target.focus?.({ preventScroll: true });
+  }
+}
+
+function updateControllerHover() {
+  if (!controllerState.active) return;
+  setControllerHoverTarget(controllerTargetAtPoint());
+}
+
+function moveControllerFocus(direction) {
+  const scope = controllerTargetScope();
+  const targets = controllerTargets(scope);
+  if (!targets.length || !controllerInput?.directionalTarget) return;
+  const current = controllerState.hoveredTarget && targets.includes(controllerState.hoveredTarget)
+    ? controllerState.hoveredTarget
+    : controllerTargetAtPoint();
+  const currentRect = current?.getBoundingClientRect();
+  const origin = currentRect
+    ? { x: (currentRect.left + currentRect.right) / 2, y: (currentRect.top + currentRect.bottom) / 2 }
+    : { x: controllerState.cursorX, y: controllerState.cursorY };
+  const candidates = targets.filter((target) => target !== current).map((target) => {
+    const rect = target.getBoundingClientRect();
+    return { target, left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom };
+  });
+  const next = controllerInput.directionalTarget(candidates, origin, direction)?.target;
+  if (!next) return;
+  next.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+  const rect = next.getBoundingClientRect();
+  controllerState.cursorX = Math.round((rect.left + rect.right) / 2);
+  controllerState.cursorY = Math.round((rect.top + rect.bottom) / 2);
+  clampControllerCursor();
+  showControllerCursor();
+  setControllerHoverTarget(next, { focus: true });
+}
+
+function activateControllerTarget() {
+  const target = controllerState.hoveredTarget || controllerTargetAtPoint();
+  if (!target || !controllerTargets().includes(target)) return;
+  target.focus?.({ preventScroll: true });
+  target.click?.();
+}
+
+function controllerBack() {
+  if (installDialog?.open) {
+    installDialog.close();
+    return;
+  }
+  const prismCancel = app.querySelector('[data-action="cancel-juan-color"]');
+  if (prismCancel) {
+    prismCancel.click();
+    return;
+  }
+  if (document.activeElement?.matches?.("input, select, textarea")) {
+    document.activeElement.blur();
+    return;
+  }
+  if (state.screen === "game" && state.selectedCards.size) {
+    state.selectedCards.clear();
+    state.juanChosenColor = null;
+    render();
+    return;
+  }
+  const screenBack = app.querySelector(".screen-head .back-button:not([disabled])");
+  if (screenBack) {
+    screenBack.click();
+    return;
+  }
+  if (["game", "hot-seat-handoff"].includes(state.screen)) showToast("Use the table back button to leave safely.");
 }
 
 boot();
