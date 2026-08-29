@@ -15,6 +15,7 @@ test("the controller cursor is loaded before Cardcade and cached for offline use
 
   assert.ok(controllerIndex >= 0 && controllerIndex < appIndex);
   assert.match(html, /id="controller-cursor"/);
+  assert.match(html, /id="controller-keyboard-root"/);
   assert.match(worker, /"shared\/controller-input\.js\?v=2"/);
 });
 
@@ -44,4 +45,21 @@ test("controller cursor and d-pad support selectable fanned cards across decks",
   assert.match(css, /\.playing-card\.selectable\.controller-hover:not\(\.selected\)/);
   assert.match(css, /\.playing-card\.selectable\.controller-focus/);
   assert.match(css, /\.game-hand\.legacy-flat-hand \.playing-card\.selectable\.controller-hover:not\(\.selected\)/);
+});
+
+test("controller mode provides a keyboard for text fields and select controls", () => {
+  const app = read("public/app.js");
+  const css = read("public/app.css");
+
+  assert.match(app, /function openControllerTextEntry/);
+  assert.match(app, /function renderControllerTextEntry/);
+  assert.match(app, /function handleControllerKeyboardAction/);
+  assert.match(app, /function closeControllerTextEntry/);
+  assert.match(app, /function cycleControllerSelect/);
+  assert.match(app, /data-action="controller-key-done"/);
+  assert.match(app, /controllerKeyboardRoot\?\.querySelector\("\.controller-keyboard-dialog"\)/);
+  assert.match(app, /if \(controllerTextState\.inputId\)/);
+  assert.match(css, /\.controller-keyboard-dialog/);
+  assert.match(css, /\.controller-keyboard-keys/);
+  assert.match(css, /\.controller-keyboard-action\.done/);
 });

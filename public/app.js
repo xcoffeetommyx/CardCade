@@ -8,6 +8,7 @@ const systemBanner = document.querySelector("#system-banner");
 const systemBannerMessage = document.querySelector("#system-banner-message");
 const systemBannerAction = systemBanner?.querySelector('[data-action="apply-app-update"]');
 const juanPrismRevealRoot = document.querySelector("#juan-prism-reveal-root");
+const controllerKeyboardRoot = document.querySelector("#controller-keyboard-root");
 const controllerCursor = document.querySelector("#controller-cursor");
 
 const appBasePath = new URL(document.baseURI).pathname.replace(/\/+$/, "") || "";
@@ -86,6 +87,14 @@ const controllerState = {
   active: false,
   input: null,
   hoveredTarget: null
+};
+
+const controllerTextState = {
+  inputId: "",
+  value: "",
+  originalValue: "",
+  uppercase: false,
+  roomCode: false
 };
 
 const standardGameAdapters = {
@@ -1827,6 +1836,7 @@ function render() {
   const screen = (screens[state.screen] || renderHome)();
   app.innerHTML = screen;
   syncJuanPrismReveal();
+  syncControllerTextEntry();
   if (state.screen === "game") {
     layoutActivePiles();
     layoutStandardHand();
@@ -2461,6 +2471,11 @@ document.addEventListener("click", async (event) => {
   if (!button) return;
   const action = button.dataset.action;
 
+  if (action.startsWith("controller-key")) {
+    handleControllerKeyboardAction(button);
+    return;
+  }
+
   if (action === "install-pwa") await requestAppInstall();
   if (action === "dismiss-install-help") {
     if (typeof installDialog?.close === "function") installDialog.close();
@@ -3024,11 +3039,17 @@ function handleControllerButton(action) {
     controllerBack();
     return;
   }
+  const target = controllerState.hoveredTarget || controllerTargetAtPoint();
+  if (["left", "right"].includes(action) && target?.matches?.("select:not([disabled])")) {
+    cycleControllerSelect(target, action === "left" ? -1 : 1);
+    return;
+  }
   moveControllerFocus(action);
 }
 
 function controllerTargetScope() {
-  return document.querySelector("dialog[open]")
+  return controllerKeyboardRoot?.querySelector(".controller-keyboard-dialog")
+    || document.querySelector("dialog[open]")
     || app.querySelector(".juan-prism-dialog")
     || app.querySelector(".round-result")
     || document;
@@ -3119,17 +3140,31 @@ function focusControllerTarget(target) {
   controllerState.cursorY = Math.round((rect.top + rect.bottom) / 2);
   clampControllerCursor();
   showControllerCursor();
-  setControllerHoverTarget(target, { focus: true });
+  // Keep navigation over text fields from summoning a device keyboard. A
+  // opens Cardcade's controller keyboard instead.
+  setControllerHoverTarget(target, { focus: !isControllerTextTarget(target) });
 }
 
 function activateControllerTarget() {
   const target = controllerState.hoveredTarget || controllerTargetAtPoint();
   if (!target || !controllerTargets().includes(target)) return;
+  if (isControllerTextTarget(target)) {
+    openControllerTextEntry(target);
+    return;
+  }
+  if (target.matches?.("select:not([disabled])")) {
+    cycleControllerSelect(target, 1);
+    return;
+  }
   target.focus?.({ preventScroll: true });
   target.click?.();
 }
 
 function controllerBack() {
+  if (controllerTextState.inputId) {
+    closeControllerTextEntry({ save: false });
+    return;
+  }
   if (installDialog?.open) {
     installDialog.close();
     return;
@@ -3155,6 +3190,177 @@ function controllerBack() {
     return;
   }
   if (["game", "hot-seat-handoff"].includes(state.screen)) showToast("Use the table back button to leave safely.");
+}
+
+function isControllerTextTarget(target) {
+  if (!target?.matches?.("input, textarea") || target.readOnly) return false;
+  return !["button", "checkbox", "color", "date", "datetime-local", "file", "hidden", "image", "month", "radio", "range", "reset", "submit", "time", "week"].includes(String(target.type || "text").toLowerCase());
+}
+
+function controllerTextInput() {
+  return controllerTextState.inputId ? document.getElementById(controllerTextState.inputId) : null;
+}
+
+function controllerTextLabel(input) {
+  const label = input?.id
+    ? [...document.querySelectorAll("label[for]")].find((candidate) => candidate.htmlFor === input.id)
+    : null;
+  return label?.textContent?.trim() || input?.getAttribute("aria-label") || input?.placeholder || "Text";
+}
+
+function controllerTextCharacters() {
+  const letters = controllerTextState.uppercase ? "ABCDEFGHIJKLMNOPQRSTUVWXYZ" : "abcdefghijklmnopqrstuvwxyz";
+  return controllerTextState.roomCode ? "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789" : `${letters}0123456789-_.!?`;
+}
+
+function openControllerTextEntry(input) {
+  if (!controllerKeyboardRoot || !input?.id) return;
+  controllerTextState.inputId = input.id;
+  controllerTextState.value = String(input.value || "");
+  controllerTextState.originalValue = controllerTextState.value;
+  controllerTextState.roomCode = input.name === "code" || input.id === "join-code";
+  controllerTextState.uppercase = controllerTextState.roomCode || input.autocapitalize === "characters";
+  renderControllerTextEntry();
+}
+
+function syncControllerTextEntry() {
+  if (!controllerTextState.inputId) return;
+  const input = controllerTextInput();
+  if (!input) {
+    resetControllerTextEntry();
+    return;
+  }
+  input.value = controllerTextState.value;
+  renderControllerTextEntry();
+}
+
+function renderControllerTextEntry({ focusKey = "", focusAction = "" } = {}) {
+  if (!controllerKeyboardRoot) return;
+  const input = controllerTextInput();
+  if (!input) {
+    resetControllerTextEntry();
+    return;
+  }
+  const value = controllerTextState.value;
+  const keys = [...controllerTextCharacters()].map((key) => `
+    <button class="controller-keyboard-key" type="button" data-action="controller-key" data-key="${escapeHtml(key)}">${escapeHtml(key)}</button>`).join("");
+  const modifiers = controllerTextState.roomCode ? "" : `
+      <button class="controller-keyboard-action" type="button" data-action="controller-key-shift">${controllerTextState.uppercase ? "abc" : "ABC"}</button>
+      <button class="controller-keyboard-action" type="button" data-action="controller-key-space">Space</button>`;
+  controllerKeyboardRoot.innerHTML = `
+    <section class="controller-keyboard-dialog" role="dialog" aria-modal="true" aria-labelledby="controller-keyboard-title">
+      <div class="controller-keyboard-panel">
+        <p class="controller-keyboard-kicker">Controller keyboard</p>
+        <h2 class="controller-keyboard-title" id="controller-keyboard-title">${escapeHtml(controllerTextLabel(input))}</h2>
+        <p class="controller-keyboard-help">D-pad or left stick moves the cursor. A types or chooses. B cancels.</p>
+        <output class="controller-keyboard-value ${value ? "" : "empty"}" aria-live="polite">${value ? escapeHtml(value) : "Enter text"}</output>
+        <div class="controller-keyboard-keys">${keys}</div>
+        <div class="controller-keyboard-actions">
+          ${modifiers}
+          <button class="controller-keyboard-action" type="button" data-action="controller-key-backspace">Delete</button>
+          <button class="controller-keyboard-action" type="button" data-action="controller-key-clear">Clear</button>
+          <button class="controller-keyboard-action" type="button" data-action="controller-key-cancel">Cancel</button>
+          <button class="controller-keyboard-action done" type="button" data-action="controller-key-done">Done</button>
+        </div>
+      </div>
+    </section>`;
+  setControllerHoverTarget(null);
+  if (controllerState.active) {
+    requestAnimationFrame(() => {
+      const buttons = [...controllerKeyboardRoot.querySelectorAll("button")];
+      const target = (focusKey && buttons.find((button) => button.dataset.key === focusKey))
+        || (focusAction && buttons.find((button) => button.dataset.action === focusAction))
+        || buttons.find((button) => button.dataset.action === "controller-key")
+        || buttons[0];
+      if (target) focusControllerTarget(target);
+    });
+  }
+}
+
+function appendControllerText(character) {
+  const input = controllerTextInput();
+  if (!input || !character) return false;
+  const value = controllerTextState.roomCode ? character.toUpperCase() : character;
+  const maximumLength = Number(input.maxLength);
+  if (maximumLength >= 0 && controllerTextState.value.length + value.length > maximumLength) {
+    showToast(`This field allows up to ${maximumLength} characters.`);
+    return false;
+  }
+  controllerTextState.value += value;
+  applyControllerTextValue();
+  return true;
+}
+
+function applyControllerTextValue({ changed = false } = {}) {
+  const input = controllerTextInput();
+  if (!input) return;
+  input.value = controllerTextState.value;
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+  if (changed) input.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+function handleControllerKeyboardAction(button) {
+  const action = button.dataset.action;
+  if (action === "controller-key") {
+    const key = button.dataset.key || "";
+    if (controllerTextCharacters().includes(key) && appendControllerText(key)) {
+      renderControllerTextEntry({ focusKey: key });
+    }
+    return;
+  }
+  if (action === "controller-key-shift") {
+    controllerTextState.uppercase = !controllerTextState.uppercase;
+    renderControllerTextEntry({ focusAction: action });
+    return;
+  }
+  if (action === "controller-key-space") {
+    if (appendControllerText(" ")) renderControllerTextEntry({ focusAction: action });
+    return;
+  }
+  if (action === "controller-key-backspace") {
+    controllerTextState.value = [...controllerTextState.value].slice(0, -1).join("");
+    applyControllerTextValue();
+    renderControllerTextEntry({ focusAction: action });
+    return;
+  }
+  if (action === "controller-key-clear") {
+    controllerTextState.value = "";
+    applyControllerTextValue();
+    renderControllerTextEntry({ focusAction: action });
+    return;
+  }
+  if (action === "controller-key-cancel") closeControllerTextEntry({ save: false });
+  if (action === "controller-key-done") closeControllerTextEntry({ save: true });
+}
+
+function closeControllerTextEntry({ save }) {
+  const input = controllerTextInput();
+  if (input) {
+    controllerTextState.value = save ? controllerTextState.value : controllerTextState.originalValue;
+    applyControllerTextValue({ changed: save });
+  }
+  resetControllerTextEntry();
+  if (input && controllerState.active) requestAnimationFrame(() => focusControllerTarget(input));
+}
+
+function resetControllerTextEntry() {
+  controllerTextState.inputId = "";
+  controllerTextState.value = "";
+  controllerTextState.originalValue = "";
+  controllerTextState.uppercase = false;
+  controllerTextState.roomCode = false;
+  controllerKeyboardRoot?.replaceChildren();
+}
+
+function cycleControllerSelect(select, direction = 1) {
+  const options = [...select.options].filter((option) => !option.disabled);
+  if (!options.length) return;
+  const currentIndex = Math.max(0, options.findIndex((option) => option.value === select.value));
+  const nextIndex = (currentIndex + direction + options.length) % options.length;
+  select.value = options[nextIndex].value;
+  select.dispatchEvent(new Event("input", { bubbles: true }));
+  select.dispatchEvent(new Event("change", { bubbles: true }));
+  focusControllerTarget(select);
 }
 
 boot();

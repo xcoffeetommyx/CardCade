@@ -566,6 +566,72 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   background: linear-gradient(140deg, #ffffff, #77c8ff 68%, #3474ca);
   clip-path: polygon(7% 0, 95% 52%, 59% 62%, 74% 96%, 57% 100%, 41% 67%, 18% 91%);
 }
+#controller-keyboard-root { position: fixed; z-index: 1950; inset: 0; pointer-events: none; }
+.controller-keyboard-dialog {
+  position: absolute;
+  inset: 0;
+  padding: calc(var(--safe-top) + 1rem) calc(var(--safe-right) + 1rem) calc(var(--safe-bottom) + 1rem) calc(var(--safe-left) + 1rem);
+  display: grid;
+  place-items: center;
+  background: rgba(1, 8, 18, .82);
+  backdrop-filter: blur(5px);
+  pointer-events: auto;
+}
+.controller-keyboard-panel {
+  width: min(760px, 100%);
+  max-height: 100%;
+  overflow: auto;
+  padding: clamp(1rem, 3vw, 1.45rem);
+  border: 2px solid #5b91c4;
+  border-radius: 15px;
+  color: var(--ink);
+  background: linear-gradient(145deg, #122d4e, #08182d);
+  box-shadow: 8px 9px 0 rgba(0, 0, 0, .55), inset 0 0 0 1px rgba(180, 224, 255, .16);
+}
+.controller-keyboard-kicker { margin: 0 0 .28rem; color: #8ecfff; font: 800 .68rem "Courier New", monospace; letter-spacing: .12em; text-transform: uppercase; }
+.controller-keyboard-title { margin: 0; font-size: clamp(1.35rem, 4vw, 2rem); }
+.controller-keyboard-help { margin: .42rem 0 .85rem; color: #b8c8d9; font-size: .85rem; line-height: 1.4; }
+.controller-keyboard-value {
+  min-height: 48px;
+  margin-bottom: .85rem;
+  padding: .72rem .85rem;
+  display: block;
+  overflow-wrap: anywhere;
+  border: 1px solid #50779f;
+  border-radius: 8px;
+  color: #ffffff;
+  background: rgba(3, 12, 25, .72);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06);
+  font: 800 1rem "Courier New", monospace;
+}
+.controller-keyboard-value.empty { color: #91a7bf; font-style: italic; }
+.controller-keyboard-keys { display: grid; grid-template-columns: repeat(auto-fill, minmax(2.5rem, 1fr)); gap: .42rem; }
+.controller-keyboard-key,
+.controller-keyboard-action {
+  min-height: 46px;
+  border: 2px solid #365d84;
+  border-radius: 8px;
+  color: var(--ink);
+  background: linear-gradient(180deg, #193b60, #0b2039);
+  box-shadow: 2px 3px 0 rgba(0, 0, 0, .42);
+  cursor: pointer;
+  font: 900 .92rem "Courier New", monospace;
+}
+.controller-keyboard-key:hover,
+.controller-keyboard-action:hover { border-color: #8cd0ff; background: #20517f; }
+.controller-keyboard-actions { margin-top: .75rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(112px, 1fr)); gap: .42rem; }
+.controller-keyboard-action { padding: .4rem .55rem; font-size: .76rem; }
+.controller-keyboard-action.done { border-color: #ff9088; background: linear-gradient(180deg, #d64b58, #99263c); }
+@media (max-width: 520px) {
+  .controller-keyboard-dialog { padding: calc(var(--safe-top) + .55rem) calc(var(--safe-right) + .55rem) calc(var(--safe-bottom) + .55rem) calc(var(--safe-left) + .55rem); }
+  .controller-keyboard-panel { padding: .85rem; border-radius: 11px; }
+  .controller-keyboard-help { margin-bottom: .65rem; font-size: .76rem; }
+  .controller-keyboard-value { min-height: 42px; margin-bottom: .65rem; padding: .58rem .65rem; }
+  .controller-keyboard-keys { grid-template-columns: repeat(auto-fill, minmax(2.25rem, 1fr)); gap: .32rem; }
+  .controller-keyboard-key,
+  .controller-keyboard-action { min-height: 40px; }
+  .controller-keyboard-actions { margin-top: .6rem; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .32rem; }
+}
 .controller-hover:not(.playing-card),
 .controller-focus:not(.playing-card) {
   outline: 3px solid #81d5ff !important;
