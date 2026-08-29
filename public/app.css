@@ -26,21 +26,21 @@
 
 @font-face {
   font-family: "Cardcade Pixel";
-  src: url("/assets/fonts/cardcade-pixel-ranks.woff2") format("woff2");
+  src: url("assets/fonts/cardcade-pixel-ranks.woff2") format("woff2");
   font-display: swap;
   unicode-range: U+0032, U+0035;
 }
 
 @font-face {
   font-family: "Cardcade Pixel";
-  src: url("/assets/fonts/pixelify-sans-latin.woff2") format("woff2");
+  src: url("assets/fonts/pixelify-sans-latin.woff2") format("woff2");
   font-display: swap;
   unicode-range: U+0000-0031, U+0033-0034, U+0036-10FFFF;
 }
 
 @font-face {
   font-family: "Cardcade Ranks";
-  src: url("/assets/fonts/cardcade-pixel-ranks.woff2") format("woff2");
+  src: url("assets/fonts/cardcade-pixel-ranks.woff2") format("woff2");
   font-display: swap;
 }
 

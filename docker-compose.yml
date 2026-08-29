@@ -1,10 +1,12 @@
 services:
   cardcade:
+    container_name: cardcade
     build: .
     restart: unless-stopped
     environment:
       HOST: 0.0.0.0
       PORT: 4380
+      BASE_PATH: /cardcade
       DB_FILE: /app/data/cardcade.sqlite3
     ports:
       - "0.0.0.0:${CARDCADE_PORT:-4380}:4380"
@@ -19,3 +21,4 @@ services:
 
 volumes:
   cardcade-data:
+    name: cardcade-data

@@ -9,6 +9,12 @@ const systemBannerMessage = document.querySelector("#system-banner-message");
 const systemBannerAction = systemBanner?.querySelector('[data-action="apply-app-update"]');
 const juanPrismRevealRoot = document.querySelector("#juan-prism-reveal-root");
 
+const appBasePath = location.pathname.replace(/\/+$/, "") === "/cardcade" ? "/cardcade" : "";
+
+function appPath(path) {
+  return `${appBasePath}${path.startsWith("/") ? path : `/${path}`}`;
+}
+
 const storageKeys = {
   name: "cardcade.playerName.v1",
   room: "cardcade.roomSession.v1",
@@ -55,7 +61,8 @@ const pwaState = {
   deferredInstallPrompt: null,
   serviceWorkerRegistration: null,
   updateAvailable: false,
-  updateRequested: false
+  updateRequested: false,
+  updateReloading: false
 };
 
 const threeSevenRules = globalThis.ThreeSevenRules;
@@ -146,7 +153,7 @@ function showToast(message) {
 async function api(path, options = {}) {
   let response;
   try {
-    response = await fetch(path, {
+    response = await fetch(appPath(path), {
       ...options,
       headers: { "Content-Type": "application/json", ...(options.headers || {}) }
     });
@@ -230,10 +237,56 @@ function markAppUpdateAvailable(registration) {
   renderShellStatus();
 }
 
+function reloadAfterAppUpdate() {
+  if (!pwaState.updateRequested || pwaState.updateReloading) return;
+  pwaState.updateRequested = false;
+  pwaState.updateReloading = true;
+  pwaState.updateAvailable = false;
+  renderShellStatus();
+  location.reload();
+}
+
+function restoreAppUpdateButton(button, message) {
+  pwaState.updateRequested = false;
+  pwaState.updateReloading = false;
+  pwaState.updateAvailable = true;
+  if (button) button.disabled = false;
+  renderShellStatus();
+  if (message) showToast(message);
+}
+
+function activateWaitingWorker(registration, button) {
+  const waiting = registration?.waiting;
+  if (!waiting) return false;
+
+  pwaState.updateRequested = true;
+  if (button) button.disabled = true;
+  const onStateChange = () => {
+    if (waiting.state === "activated") {
+      waiting.removeEventListener("statechange", onStateChange);
+      reloadAfterAppUpdate();
+    } else if (waiting.state === "redundant") {
+      waiting.removeEventListener("statechange", onStateChange);
+      restoreAppUpdateButton(button, "Cardcade could not apply that update. Try again.");
+    }
+  };
+  waiting.addEventListener("statechange", onStateChange);
+  waiting.postMessage({ type: "SKIP_WAITING" });
+
+  // A few mobile browsers do not deliver controllerchange reliably. Give the
+  // worker time to activate, then reload so the old page can release control
+  // and the waiting worker can take over.
+  setTimeout(() => {
+    if (!pwaState.updateRequested || pwaState.updateReloading) return;
+    reloadAfterAppUpdate();
+  }, 3_000);
+  return true;
+}
+
 async function registerCardcadeServiceWorker() {
   if (!("serviceWorker" in navigator)) return;
   try {
-    const registration = await navigator.serviceWorker.register("/sw.js");
+    const registration = await navigator.serviceWorker.register(appPath("/sw.js"));
     pwaState.serviceWorkerRegistration = registration;
     if (registration.waiting) markAppUpdateAvailable(registration);
     registration.addEventListener("updatefound", () => {
@@ -285,9 +338,7 @@ function setupPwaShell() {
     }
   });
   navigator.serviceWorker?.addEventListener("controllerchange", () => {
-    if (!pwaState.updateRequested) return;
-    pwaState.updateRequested = false;
-    location.reload();
+    reloadAfterAppUpdate();
   });
   registerCardcadeServiceWorker();
 }
@@ -2168,7 +2219,7 @@ function connectRoom(session) {
   state.socketIntentionalClose = false;
   setRoomConnection("reconnecting");
   const protocol = location.protocol === "https:" ? "wss:" : "ws:";
-  const socket = new WebSocket(`${protocol}//${location.host}/ws`);
+  const socket = new WebSocket(`${protocol}//${location.host}${appPath("/ws")}`);
   state.socket = socket;
   socket.addEventListener("open", () => {
     socket.send(JSON.stringify({ type: "authenticate", code: session.code, token: session.token }));
@@ -2331,15 +2382,22 @@ document.addEventListener("click", async (event) => {
     else installDialog?.removeAttribute("open");
   }
   if (action === "apply-app-update") {
-    const waiting = pwaState.serviceWorkerRegistration?.waiting;
-    if (!waiting) {
-      pwaState.serviceWorkerRegistration?.update().catch(() => {});
-      showToast("Cardcade is checking for the latest build.");
-    } else {
-      button.disabled = true;
-      pwaState.updateRequested = true;
-      waiting.postMessage({ type: "SKIP_WAITING" });
+    const registration = pwaState.serviceWorkerRegistration;
+    if (activateWaitingWorker(registration, button)) return;
+    if (!registration) {
+      restoreAppUpdateButton(button, "Cardcade is still checking for an update.");
+      return;
     }
+    button.disabled = true;
+    registration.update().then(() => {
+      if (activateWaitingWorker(registration, button)) return;
+      button.disabled = false;
+      pwaState.updateAvailable = false;
+      renderShellStatus();
+      showToast("Cardcade is already up to date.");
+    }).catch(() => {
+      restoreAppUpdateButton(button, "Cardcade could not check for an update. Try again.");
+    });
   }
   if (action === "home") navigate("home");
   if (action === "open-solo") {

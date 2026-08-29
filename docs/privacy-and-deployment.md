@@ -25,6 +25,14 @@ The Compose service publishes Cardcade on the host's network interfaces for trus
 
 Configure Tailscale Serve or Funnel on the server itself and keep that machine-specific command and hostname in a private server runbook outside this repository. Host firewall rules and network trust determine who can reach the direct LAN port.
 
+Cardcade is mounted at `/cardcade` on the host's supported public Funnel port. The current machine-level route is:
+
+```text
+https://<machine>.<tailnet>.ts.net:10000/cardcade/ → http://127.0.0.1:4380
+```
+
+The `/cardcade` base path is intentional: Tailscale Funnel only permits public HTTPS on ports `443`, `8443`, and `10000`, and port `10000` is already shared with the legacy ThreeSeven service at `/`.
+
 This arrangement provides:
 
 - one Docker instance for the launcher, rooms, and all game modules;

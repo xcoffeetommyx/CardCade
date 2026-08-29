@@ -11,19 +11,20 @@
     <meta name="apple-mobile-web-app-title" content="Cardcade">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="format-detection" content="telephone=no">
-    <link rel="manifest" href="/manifest.webmanifest">
-    <link rel="icon" href="/icon.svg" type="image/svg+xml">
-    <link rel="apple-touch-icon" sizes="180x180" href="/assets/pwa/apple-touch-icon-180.png">
-    <link rel="apple-touch-startup-image" href="/assets/pwa/splash-750x1334.png" media="screen and (device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
-    <link rel="apple-touch-startup-image" href="/assets/pwa/splash-1080x2340.png" media="screen and (device-width: 360px) and (device-height: 780px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
-    <link rel="apple-touch-startup-image" href="/assets/pwa/splash-1125x2436.png" media="screen and (device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
-    <link rel="apple-touch-startup-image" href="/assets/pwa/splash-828x1792.png" media="screen and (device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
-    <link rel="apple-touch-startup-image" href="/assets/pwa/splash-1242x2688.png" media="screen and (device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
-    <link rel="apple-touch-startup-image" href="/assets/pwa/splash-1170x2532.png" media="screen and (device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
-    <link rel="apple-touch-startup-image" href="/assets/pwa/splash-1284x2778.png" media="screen and (device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
-    <link rel="apple-touch-startup-image" href="/assets/pwa/splash-1179x2556.png" media="screen and (device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
-    <link rel="apple-touch-startup-image" href="/assets/pwa/splash-1290x2796.png" media="screen and (device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
-    <link rel="stylesheet" href="/app.css?v=31">
+    <base href="/cardcade/">
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" href="icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" sizes="180x180" href="assets/pwa/apple-touch-icon-180.png">
+    <link rel="apple-touch-startup-image" href="assets/pwa/splash-750x1334.png" media="screen and (device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="assets/pwa/splash-1080x2340.png" media="screen and (device-width: 360px) and (device-height: 780px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="assets/pwa/splash-1125x2436.png" media="screen and (device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="assets/pwa/splash-828x1792.png" media="screen and (device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="assets/pwa/splash-1242x2688.png" media="screen and (device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="assets/pwa/splash-1170x2532.png" media="screen and (device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="assets/pwa/splash-1284x2778.png" media="screen and (device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="assets/pwa/splash-1179x2556.png" media="screen and (device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="assets/pwa/splash-1290x2796.png" media="screen and (device-width: 430px) and (device-height: 932px) and (orientation: portrait)">
+    <link rel="stylesheet" href="app.css?v=31">
     <title>Cardcade</title>
   </head>
   <body>
@@ -86,17 +87,17 @@
       <div id="install-dialog-copy"></div>
       <button class="action-button primary" type="button" data-action="dismiss-install-help">Got it</button>
     </dialog>
-    <script src="/shared/three-seven-rules.js?v=3"></script>
-    <script src="/shared/thirteen-rules.js?v=1"></script>
-    <script src="/shared/card-presentation.js?v=4"></script>
-    <script src="/shared/card-skins.js?v=4"></script>
-    <script src="/shared/standard-52.js?v=3"></script>
-    <script src="/shared/blackjack-rules.js?v=1"></script>
-    <script src="/shared/holdem-rules.js?v=1"></script>
-    <script src="/shared/five-card-draw-rules.js?v=1"></script>
-    <script src="/shared/hot-seat-flow.js?v=1"></script>
-    <script src="/shared/juan-deck.js?v=2"></script>
-    <script src="/shared/juan-rules.js?v=2"></script>
-    <script type="module" src="/app.js?v=32"></script>
+    <script src="shared/three-seven-rules.js?v=3"></script>
+    <script src="shared/thirteen-rules.js?v=1"></script>
+    <script src="shared/card-presentation.js?v=4"></script>
+    <script src="shared/card-skins.js?v=4"></script>
+    <script src="shared/standard-52.js?v=3"></script>
+    <script src="shared/blackjack-rules.js?v=1"></script>
+    <script src="shared/holdem-rules.js?v=1"></script>
+    <script src="shared/five-card-draw-rules.js?v=1"></script>
+    <script src="shared/hot-seat-flow.js?v=1"></script>
+    <script src="shared/juan-deck.js?v=2"></script>
+    <script src="shared/juan-rules.js?v=2"></script>
+    <script type="module" src="app.js?v=34"></script>
   </body>
 </html>

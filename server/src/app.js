@@ -18,6 +18,12 @@ const moduleDirectory = path.dirname(fileURLToPath(import.meta.url));
 const defaultPublicRoot = path.resolve(moduleDirectory, "../../public");
 const defaultSharedRoot = path.resolve(moduleDirectory, "../../shared");
 
+function normalizeBasePath(value = "") {
+  const pathValue = String(value).trim();
+  if (!pathValue || pathValue === "/") return "";
+  return `/${pathValue.replace(/^\/+|\/+$/g, "")}`;
+}
+
 const mimeTypes = new Map([
   [".css", "text/css; charset=utf-8"],
   [".html", "text/html; charset=utf-8"],
@@ -121,8 +127,10 @@ export function createCardcadeServer({
   snapshotStore = null,
   publicRoot = defaultPublicRoot,
   sharedRoot = defaultSharedRoot,
+  basePath = process.env.BASE_PATH || "",
   botTurnDelayMs = 1_100
 } = {}) {
+  const mountPath = normalizeBasePath(basePath);
   const gameRegistry = registry ?? new GameRegistry({ deckFamilies, games });
   const rooms = roomStore ?? new RoomStore({ registry: gameRegistry });
   const threeSeven = threeSevenRuntime ?? new ThreeSevenRuntime();
@@ -146,19 +154,28 @@ export function createCardcadeServer({
   const httpServer = createServer(async (request, response) => {
     applySecurityHeaders(response);
     const url = new URL(request.url, "http://cardcade.local");
+    const pathname = mountPath && (url.pathname === mountPath || url.pathname.startsWith(`${mountPath}/`))
+      ? url.pathname.slice(mountPath.length) || "/"
+      : url.pathname;
 
     try {
-      if (request.method === "GET" && url.pathname === "/health") {
+      if (mountPath && request.method === "GET" && url.pathname === mountPath) {
+        response.writeHead(308, { Location: `${mountPath}/` });
+        response.end();
+        return;
+      }
+
+      if (request.method === "GET" && pathname === "/health") {
         sendJson(response, 200, { ok: true, service: "cardcade" });
         return;
       }
 
-      if (request.method === "GET" && url.pathname === "/api/catalog") {
+      if (request.method === "GET" && pathname === "/api/catalog") {
         sendJson(response, 200, gameRegistry.catalog());
         return;
       }
 
-      if (request.method === "POST" && url.pathname === "/api/rooms") {
+      if (request.method === "POST" && pathname === "/api/rooms") {
         const body = await readJson(request);
         const session = rooms.createRoom({ name: body.name });
         persistRoom(session.code);
@@ -166,7 +183,7 @@ export function createCardcadeServer({
         return;
       }
 
-      const soloMatch = url.pathname.match(/^\/api\/solo\/([a-z0-9-]+)$/i);
+      const soloMatch = pathname.match(/^\/api\/solo\/([a-z0-9-]+)$/i);
       if (request.method === "POST" && soloMatch) {
         const body = await readJson(request);
         const gameId = soloMatch[1].toLowerCase();
@@ -193,7 +210,7 @@ export function createCardcadeServer({
         return;
       }
 
-      const hotSeatMatch = url.pathname.match(/^\/api\/hot-seat\/([a-z0-9-]+)$/i);
+      const hotSeatMatch = pathname.match(/^\/api\/hot-seat\/([a-z0-9-]+)$/i);
       if (request.method === "POST" && hotSeatMatch) {
         const body = await readJson(request);
         const gameId = hotSeatMatch[1].toLowerCase();
@@ -268,7 +285,7 @@ export function createCardcadeServer({
         return;
       }
 
-      const joinMatch = url.pathname.match(/^\/api\/rooms\/([A-Z0-9]+)\/join$/i);
+      const joinMatch = pathname.match(/^\/api\/rooms\/([A-Z0-9]+)\/join$/i);
       if (request.method === "POST" && joinMatch) {
         const body = await readJson(request);
         const session = rooms.joinRoom(joinMatch[1], { name: body.name });
@@ -277,7 +294,7 @@ export function createCardcadeServer({
         return;
       }
 
-      const reconnectMatch = url.pathname.match(/^\/api\/rooms\/([A-Z0-9]+)\/reconnect$/i);
+      const reconnectMatch = pathname.match(/^\/api\/rooms\/([A-Z0-9]+)\/reconnect$/i);
       if (request.method === "POST" && reconnectMatch) {
         const body = await readJson(request);
         const session = rooms.reconnect(reconnectMatch[1], body.token);
@@ -290,7 +307,7 @@ export function createCardcadeServer({
         return;
       }
 
-      const closeHotSeatMatch = url.pathname.match(/^\/api\/hot-seat\/([A-Z0-9]+)\/close$/i);
+      const closeHotSeatMatch = pathname.match(/^\/api\/hot-seat\/([A-Z0-9]+)\/close$/i);
       if (request.method === "POST" && closeHotSeatMatch) {
         const body = await readJson(request);
         closeSharedDeviceRoom(closeHotSeatMatch[1], body.token);
@@ -298,13 +315,13 @@ export function createCardcadeServer({
         return;
       }
 
-      if (url.pathname.startsWith("/api/")) {
+      if (pathname.startsWith("/api/")) {
         sendJson(response, 404, { error: { code: "NOT_FOUND", message: "That Cardcade API route does not exist." } });
         return;
       }
 
-      if (url.pathname.startsWith("/shared/")) {
-        const sharedPath = url.pathname.slice("/shared".length) || "/";
+      if (pathname.startsWith("/shared/")) {
+        const sharedPath = pathname.slice("/shared".length) || "/";
         if (!serveStatic(request, response, sharedRoot, sharedPath, { spaFallback: false })) {
           response.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
           response.end("Not found");
@@ -312,7 +329,7 @@ export function createCardcadeServer({
         return;
       }
 
-      if (!serveStatic(request, response, publicRoot, url.pathname)) {
+      if (!serveStatic(request, response, publicRoot, pathname)) {
         response.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
         response.end("Not found");
       }
@@ -566,7 +583,10 @@ export function createCardcadeServer({
 
   httpServer.on("upgrade", (request, socket, head) => {
     const url = new URL(request.url, "http://cardcade.local");
-    if (url.pathname !== "/ws") {
+    const pathname = mountPath && (url.pathname === mountPath || url.pathname.startsWith(`${mountPath}/`))
+      ? url.pathname.slice(mountPath.length) || "/"
+      : url.pathname;
+    if (pathname !== "/ws") {
       socket.destroy();
       return;
     }
