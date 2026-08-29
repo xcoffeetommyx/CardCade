@@ -24,9 +24,12 @@ test("appearance settings are versioned, family-scoped, and local-only", () => {
   assert.match(app, /appearance: "cardcade\.appearance\.v1"/);
   assert.match(app, /function loadAppearancePreferences/);
   assert.match(app, /function saveAppearancePreferences/);
+  assert.match(app, /function selectedTableSkin/);
   assert.match(app, /Object\.keys\(cardSkins\.DEFAULT_SKIN_IDS\)\.map\(renderSkinSetting\)/);
   assert.match(app, /data-skin-family=/);
-  assert.match(app, /Appearance is saved only on this device and never changes a room or its rules/);
+  assert.match(app, /data-table-skin/);
+  assert.match(app, /Choose a table skin and a card skin for each deck family/);
+  assert.match(app, /tableSkin: String\(data\.get\("tableSkin"\) \|\| ""\)/);
   assert.doesNotMatch(app.match(/function saveAppearancePreferences[\s\S]*?\n}/)?.[0] || "", /sendRoom|socket|api\(/);
   assert.match(css, /\.appearance-family-grid/);
   assert.match(css, /@media \(max-width: 520px\)[\s\S]*?\.appearance-family-grid \{ grid-template-columns: 1fr; \}/);
@@ -59,7 +62,7 @@ test("modern Standard 52 artwork scales equally in hands and table piles", () =>
 test("default felt and Cardcade Pixel backs stay consistent across game modes", () => {
   const css = read("public/app.css");
 
-  assert.match(css, /\.standard-card-game \{[\s\S]*?--table-green: #0f4635;[\s\S]*?--table-green-deep: #092b23;[\s\S]*?--table-border: #315a54;/);
+  assert.match(css, /\.standard-card-game,\s*\.table-skin-classic-green \{[\s\S]*?--table-green: #0f4635;[\s\S]*?--table-green-deep: #092b23;[\s\S]*?--table-border: #315a54;/);
   assert.match(css, /\.game-table \{[\s\S]*?border: 2px solid var\(--table-border\);[\s\S]*?var\(--table-green-deep\)/);
   assert.doesNotMatch(css, /\.blackjack-game\s*\{[^}]*?--table-green/);
   assert.doesNotMatch(css, /\.holdem-game\s*\{[^}]*?--table-green/);
@@ -71,6 +74,25 @@ test("default felt and Cardcade Pixel backs stay consistent across game modes", 
   assert.match(css, /\.draw-stack\.card-skin-cardcade-pixel::before/);
   assert.match(css, /\.blackjack-card-back b \{ display: none; \}/);
   assert.match(css, /\.draw-card-back\.card-skin-cardcade-pixel::after \{ content: none; \}/);
+});
+
+test("table skins are independently previewed and applied to every game table", () => {
+  const app = read("public/app.js");
+  const css = read("public/app.css");
+
+  assert.match(app, /function renderTableSkinPreview/);
+  assert.match(app, /function renderTableSkinSetting/);
+  assert.match(app, /data-table-skin-preview/);
+  assert.match(app, /data-table-skin-setting/);
+  for (const gameClass of ["blackjack-game", "holdem-game", "five-card-draw-game", "juan-game"]) {
+    assert.match(app, new RegExp("standard-card-game \\$\\{activeTableAppearanceClass\\(\\)\\} " + gameClass));
+  }
+  assert.match(app, /standard-card-game \$\{activeTableAppearanceClass\(\)\}" data-game-id="\$\{escapeHtml\(game\.gameId\)\}"/);
+  for (const className of ["table-skin-classic-green", "table-skin-midnight-blue", "table-skin-burgundy-velvet"]) {
+    assert.match(css, new RegExp(`\\.${className} \\{[\\s\\S]*?--table-green:`));
+  }
+  assert.match(css, /\.table-skin-preview \{[\s\S]*?var\(--table-green-light\)[\s\S]*?var\(--table-green-deep\)/);
+  assert.match(css, /\.game-table \{[\s\S]*?var\(--table-grid\)[\s\S]*?var\(--table-felt-shadow\)/);
 });
 
 test("every game shell uses the shared 3s and 7s table UI", () => {

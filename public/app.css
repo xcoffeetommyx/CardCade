@@ -487,6 +487,8 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 .appearance-settings-heading { margin-bottom: .85rem; display: flex; justify-content: space-between; gap: 1rem; align-items: start; }
 .appearance-settings-heading strong, .appearance-settings-heading p { display: block; }
 .appearance-settings-heading p { max-width: 470px; margin: .2rem 0 0; color: var(--muted); font-size: .76rem; line-height: 1.45; }
+.table-skin-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: .75rem; }
+.appearance-section-label { margin: 1rem 0 .55rem; color: var(--muted); font: 800 .62rem "Cardcade Pixel", "Courier New", monospace; letter-spacing: .1em; text-transform: uppercase; }
 .appearance-family-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: .75rem; }
 .skin-setting { min-width: 0; padding: .8rem; border: 1px solid var(--line); border-radius: 10px; background: #07152a; }
 .skin-setting-heading { margin-bottom: .7rem; display: flex; justify-content: space-between; gap: .7rem; align-items: start; }
@@ -513,6 +515,26 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 .skin-preview-juan-prism b { font: 900 1.8rem "Cardcade Pixel", monospace; }
 .skin-preview-juan-back { color: #fffaf0; background: linear-gradient(135deg, rgba(255,255,255,.08), transparent 46%), #0b1c34; font: 900 .68rem "Cardcade Pixel", monospace; letter-spacing: .1em; }
 .skin-description { min-height: 2.8em; margin: .65rem 0 0; color: var(--muted); font-size: .68rem; line-height: 1.4; }
+.table-skin-preview {
+  position: relative;
+  min-height: 112px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 2px solid var(--table-border);
+  border-radius: 12px;
+  color: var(--table-preview-ink);
+  background:
+    linear-gradient(var(--table-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--table-grid) 1px, transparent 1px),
+    radial-gradient(circle at 50% 120%, var(--table-green-light), var(--table-green) 58%, var(--table-green-deep));
+  background-size: 4px 4px, 4px 4px, auto;
+  box-shadow: inset 0 0 30px var(--table-felt-shadow), 4px 5px 0 rgba(0,0,0,.32);
+  isolation: isolate;
+}
+.table-skin-preview::before { content: ""; position: absolute; z-index: -1; inset: 10px; border: 1px solid var(--table-preview-line); border-radius: 999px; box-shadow: inset 0 0 0 1px rgba(255,255,255,.04); }
+.table-skin-preview > span { position: relative; z-index: 1; padding: .35rem .55rem; border: 1px solid var(--table-preview-line); border-radius: 999px; background: rgba(4,12,23,.38); font: 800 .62rem "Cardcade Pixel", "Courier New", monospace; letter-spacing: .09em; text-transform: uppercase; }
+.table-skin-preview > i { position: absolute; z-index: 1; width: 26px; height: 26px; border: 2px solid var(--table-preview-line); border-radius: 50%; background: rgba(255,255,255,.055); box-shadow: 0 0 0 999px rgba(255,255,255,.012); }
 .legacy-mode-setting { align-items: flex-start; }
 .legacy-mode-copy { min-width: 0; }
 .legacy-mode-setting > input { flex: 0 0 auto; margin-top: .2rem; }
@@ -648,11 +670,19 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 .playing-game .site-shell { padding-top: var(--safe-top); }
 .playing-game main { padding: var(--game-main-top) 0 var(--game-main-bottom); }
 
-.standard-card-game {
+.standard-card-game,
+.table-skin-classic-green {
   --table-green: #0f4635;
   --table-green-light: #176249;
   --table-green-deep: #092b23;
   --table-border: #315a54;
+  --table-grid: rgba(255,255,255,.018);
+  --table-felt-shadow: rgba(0,0,0,.28);
+  --table-preview-ink: #d8efe5;
+  --table-preview-line: rgba(184,235,211,.42);
+}
+
+.standard-card-game {
   --game-card-width: clamp(86px, 24vw, 112px);
   --game-card-height: calc(var(--game-card-width) * 1.42);
   min-height: calc(var(--game-viewport-height) - var(--safe-top) - var(--game-main-top) - var(--game-main-bottom));
@@ -661,6 +691,28 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   gap: 10px;
   color: #f5f0e4;
   font-family: ui-sans-serif, system-ui, sans-serif;
+}
+
+.table-skin-midnight-blue {
+  --table-green: #103a5d;
+  --table-green-light: #216b98;
+  --table-green-deep: #061d35;
+  --table-border: #3b7094;
+  --table-grid: rgba(182,229,255,.024);
+  --table-felt-shadow: rgba(1,10,25,.42);
+  --table-preview-ink: #d7efff;
+  --table-preview-line: rgba(181,225,255,.5);
+}
+
+.table-skin-burgundy-velvet {
+  --table-green: #5a2031;
+  --table-green-light: #8d3a52;
+  --table-green-deep: #2d0d18;
+  --table-border: #985168;
+  --table-grid: rgba(255,224,227,.023);
+  --table-felt-shadow: rgba(30,0,9,.42);
+  --table-preview-ink: #ffe5e8;
+  --table-preview-line: rgba(255,211,219,.48);
 }
 
 .standard-card-game h2, .standard-card-game h3,
@@ -773,11 +825,11 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   border: 2px solid var(--table-border);
   border-radius: 18px;
   background:
-    linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px),
+    linear-gradient(var(--table-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--table-grid) 1px, transparent 1px),
     radial-gradient(circle at 50% 110%, var(--table-green-light), var(--table-green) 58%, var(--table-green-deep));
   background-size: 4px 4px, 4px 4px, auto;
-  box-shadow: inset 0 0 55px rgba(0,0,0,.28), 5px 5px 0 rgba(0,0,0,.38);
+  box-shadow: inset 0 0 55px var(--table-felt-shadow), 5px 5px 0 rgba(0,0,0,.38);
 }
 .game-status { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; }
 .game-status strong, .game-status small { display: block; }

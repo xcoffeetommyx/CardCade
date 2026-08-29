@@ -33,7 +33,7 @@ test("Blackjack uses the shared physical cards, fan, and private hand model", ()
   assert.match(app, /blackjack_surrender/);
   assert.match(app, /blackjack_insurance/);
   assert.match(app, /match\.phase === "dealer-turn"/);
-  assert.match(app, /standard-card-game blackjack-game/);
+  assert.match(app, /standard-card-game \$\{activeTableAppearanceClass\(\)\} blackjack-game/);
   assert.match(css, /\.blackjack-card-back/);
   assert.match(css, /\.blackjack-hand-summaries/);
   assert.match(css, /\.blackjack-actions/);

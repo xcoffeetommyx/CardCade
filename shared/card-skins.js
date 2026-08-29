@@ -68,10 +68,35 @@
     "standard-52": "cardcade-pixel",
     "color-action": "juan-minimal"
   });
-  const APPEARANCE_VERSION = 2;
+  const TABLE_SKINS = Object.freeze([
+    Object.freeze({
+      id: "classic-green",
+      name: "Classic Green",
+      description: "Cardcade's original tournament-green felt with a deep emerald rail.",
+      className: "table-skin-classic-green"
+    }),
+    Object.freeze({
+      id: "midnight-blue",
+      name: "Midnight Blue",
+      description: "A cool blue felt with a dark navy rail for a late-night arcade table.",
+      className: "table-skin-midnight-blue"
+    }),
+    Object.freeze({
+      id: "burgundy-velvet",
+      name: "Burgundy Velvet",
+      description: "A warm burgundy felt with a rich wine-colored rail.",
+      className: "table-skin-burgundy-velvet"
+    })
+  ]);
+  const DEFAULT_TABLE_SKIN_ID = "classic-green";
+  const APPEARANCE_VERSION = 3;
 
   function skinsForFamily(deckFamilyId) {
     return SKINS.filter((skin) => skin.deckFamilyId === deckFamilyId);
+  }
+
+  function tableSkins() {
+    return TABLE_SKINS;
   }
 
   function skinById(skinId) {
@@ -88,6 +113,18 @@
     return defaultSkinForFamily(deckFamilyId);
   }
 
+  function tableSkinById(tableSkinId) {
+    return TABLE_SKINS.find((skin) => skin.id === tableSkinId) || null;
+  }
+
+  function defaultTableSkin() {
+    return tableSkinById(DEFAULT_TABLE_SKIN_ID);
+  }
+
+  function resolveTableSkin(requestedTableSkinId = null) {
+    return tableSkinById(requestedTableSkinId) || defaultTableSkin();
+  }
+
   function normalizeAppearance(value = null) {
     const requestedSkins = value && typeof value === "object" && value.skins && typeof value.skins === "object"
       ? value.skins
@@ -96,9 +133,11 @@
       deckFamilyId,
       resolveSkin(deckFamilyId, requestedSkins[deckFamilyId])?.id || DEFAULT_SKIN_IDS[deckFamilyId]
     ]));
+    const requestedTableSkin = value && typeof value === "object" ? value.tableSkin : null;
     return Object.freeze({
       version: APPEARANCE_VERSION,
       skins: Object.freeze(skins),
+      tableSkin: resolveTableSkin(requestedTableSkin)?.id || DEFAULT_TABLE_SKIN_ID,
       // Legacy Mode is deliberately separate from the skin registry. It is a
       // local presentation override for Standard 52 faces and hand geometry;
       // it can never become part of rules, rooms, or synchronized game state.
@@ -109,11 +148,17 @@
   return Object.freeze({
     SKINS,
     DEFAULT_SKIN_IDS,
+    TABLE_SKINS,
+    DEFAULT_TABLE_SKIN_ID,
     APPEARANCE_VERSION,
     skinsForFamily,
+    tableSkins,
     skinById,
     defaultSkinForFamily,
     resolveSkin,
+    tableSkinById,
+    defaultTableSkin,
+    resolveTableSkin,
     normalizeAppearance
   });
 });

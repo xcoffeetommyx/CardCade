@@ -152,10 +152,11 @@ function loadAppearancePreferences() {
   }
 }
 
-function saveAppearancePreferences({ skins: requestedSkins, legacyMode = false }) {
+function saveAppearancePreferences({ skins: requestedSkins, tableSkin: requestedTableSkin = null, legacyMode = false }) {
   appearancePreferences = cardSkins.normalizeAppearance({
     version: cardSkins.APPEARANCE_VERSION,
     skins: requestedSkins,
+    tableSkin: requestedTableSkin,
     legacyMode
   });
   localStorage.setItem(storageKeys.appearance, JSON.stringify(appearancePreferences));
@@ -808,6 +809,14 @@ function selectedCardSkin(deckFamilyId) {
   return cardSkins?.resolveSkin(deckFamilyId, appearancePreferences.skins[deckFamilyId]) || null;
 }
 
+function selectedTableSkin() {
+  return cardSkins?.resolveTableSkin(appearancePreferences.tableSkin) || null;
+}
+
+function activeTableAppearanceClass() {
+  return selectedTableSkin()?.className || "table-skin-classic-green";
+}
+
 function standardLegacyModeEnabled() {
   return appearancePreferences.legacyMode === true
     && deckFamilyIdForGame() === "standard-52";
@@ -1041,7 +1050,7 @@ function renderBlackjackGame() {
   const currentHandCards = activeHand?.cards || [];
 
   return `
-    <section class="standard-card-game blackjack-game" data-game-id="blackjack">
+    <section class="standard-card-game ${activeTableAppearanceClass()} blackjack-game" data-game-id="blackjack">
       <header class="game-topbar">
         <button class="back-button" type="button" data-action="leave-game" aria-label="${state.gameMode === "multiplayer" ? "Return to room lobby" : "Leave game"}">←</button>
         <div><span class="family-kicker">${state.gameMode === "solo" ? "Solo table" : state.gameMode === "hot-seat" ? "Hot Seat table" : `Room ${escapeHtml(state.room.code)}`}</span><h2>Blackjack</h2><p>Round ${match.round} · ${escapeHtml(match.lastMoveText)}</p></div>
@@ -1171,7 +1180,7 @@ function renderHoldemGame() {
     : "Best five cards from seven";
 
   return `
-    <section class="standard-card-game holdem-game" data-game-id="holdem">
+    <section class="standard-card-game ${activeTableAppearanceClass()} holdem-game" data-game-id="holdem">
       <header class="game-topbar">
         <button class="back-button" type="button" data-action="leave-game" aria-label="${state.gameMode === "multiplayer" ? "Return to room lobby" : "Leave game"}">←</button>
         <div><span class="family-kicker">${state.gameMode === "solo" ? "Solo table" : state.gameMode === "hot-seat" ? "Hot Seat table" : `Room ${escapeHtml(state.room.code)}`}</span><h2>Texas Hold'em</h2><p>Hand ${match.round} · ${escapeHtml(match.lastMoveText)}</p></div>
@@ -1336,7 +1345,7 @@ function renderFiveCardDrawGame() {
   const tableLabel = match.showdown?.revealed ? "Showdown" : "Private draw";
 
   return `
-    <section class="standard-card-game five-card-draw-game" data-game-id="five-card-draw">
+    <section class="standard-card-game ${activeTableAppearanceClass()} five-card-draw-game" data-game-id="five-card-draw">
       <header class="game-topbar">
         <button class="back-button" type="button" data-action="leave-game" aria-label="${state.gameMode === "multiplayer" ? "Return to room lobby" : "Leave game"}">←</button>
         <div><span class="family-kicker">${state.gameMode === "solo" ? "Solo table" : state.gameMode === "hot-seat" ? "Hot Seat table" : `Room ${escapeHtml(state.room.code)}`}</span><h2>Five Card Draw</h2><p>Hand ${match.round} · ${escapeHtml(match.lastMoveText)}</p></div>
@@ -1413,7 +1422,7 @@ function renderStandardGame() {
   const tableCount = game.gameId === "three-seven" ? `Stock ${match.drawCount}` : "13-card deal";
 
   return `
-    <section class="standard-card-game" data-game-id="${escapeHtml(game.gameId)}">
+    <section class="standard-card-game ${activeTableAppearanceClass()}" data-game-id="${escapeHtml(game.gameId)}">
       <header class="game-topbar">
         <button class="back-button" type="button" data-action="leave-game" aria-label="${state.gameMode === "multiplayer" ? "Return to room lobby" : "Leave game"}">←</button>
         <div><span class="family-kicker">${state.gameMode === "solo" ? "Solo table" : state.gameMode === "hot-seat" ? "Hot Seat table" : `Room ${escapeHtml(state.room.code)}`}</span><h2>${escapeHtml(title)}</h2><p>${roundLabel} · ${escapeHtml(match.lastMoveText)}</p></div>
@@ -1633,7 +1642,7 @@ function renderJuanGame() {
   state.dealtHandOwners.add(handOwner);
 
   return `
-    <section class="standard-card-game juan-game" data-game-id="juan" data-active-color="${escapeHtml(match.activeColor)}">
+    <section class="standard-card-game ${activeTableAppearanceClass()} juan-game" data-game-id="juan" data-active-color="${escapeHtml(match.activeColor)}">
       <header class="game-topbar">
         <button class="back-button" type="button" data-action="leave-game" aria-label="${state.gameMode === "multiplayer" ? "Return to room lobby" : "Leave game"}">←</button>
         <div><span class="family-kicker">${state.gameMode === "solo" ? "Solo table" : state.gameMode === "hot-seat" ? "Hot Seat table" : `Room ${escapeHtml(state.room.code)}`}</span><h2>JUAN</h2><p>Race to one · ${escapeHtml(match.lastMoveText)}</p></div>
@@ -1780,6 +1789,31 @@ function renderSkinSetting(deckFamilyId) {
     </article>`;
 }
 
+function renderTableSkinPreview(tableSkin) {
+  return `
+    <div class="table-skin-preview ${tableSkin.className}" data-table-skin-preview role="img" aria-label="${escapeHtml(tableSkin.name)} card table preview">
+      <span>Table felt</span><i aria-hidden="true"></i>
+    </div>`;
+}
+
+function renderTableSkinSetting() {
+  const skins = cardSkins.tableSkins();
+  const selected = selectedTableSkin();
+  if (!selected || !skins.length) return "";
+  return `
+    <article class="skin-setting table-skin-setting" data-table-skin-setting>
+      <div class="skin-setting-heading"><span><strong>Card table</strong><small>All game modes</small></span><span class="badge">${skins.length} skin${skins.length === 1 ? "" : "s"}</span></div>
+      <div class="field">
+        <label for="settings-table-skin">Table skin</label>
+        <select id="settings-table-skin" name="tableSkin" data-table-skin>
+          ${skins.map((skin) => `<option value="${escapeHtml(skin.id)}" ${skin.id === selected.id ? "selected" : ""}>${escapeHtml(skin.name)}</option>`).join("")}
+        </select>
+      </div>
+      ${renderTableSkinPreview(selected)}
+      <p class="skin-description" data-table-skin-description>${escapeHtml(selected.description)}</p>
+    </article>`;
+}
+
 function renderLegacyModePreview() {
   return `
     <span class="legacy-mode-preview" role="img" aria-label="Legacy illustrated court card and blue patterned back preview">
@@ -1800,7 +1834,9 @@ function renderSettings() {
       <form data-form="settings">
         <div class="field"><label for="settings-name">Default player name</label><input id="settings-name" name="name" maxlength="24" value="${escapeHtml(playerName())}" autocomplete="nickname"></div>
         <section class="appearance-settings" aria-labelledby="appearance-settings-title">
-          <div class="appearance-settings-heading"><span><strong id="appearance-settings-title">Card appearance</strong><p>Each deck family keeps its own skin. Appearance is saved only on this device and never changes a room or its rules.</p></span><span class="badge">Local only</span></div>
+          <div class="appearance-settings-heading"><span><strong id="appearance-settings-title">Appearance</strong><p>Choose a table skin and a card skin for each deck family. Appearance is saved only on this device and never changes a room or its rules.</p></span><span class="badge">Local only</span></div>
+          <div class="table-skin-grid">${renderTableSkinSetting()}</div>
+          <p class="appearance-section-label">Card decks</p>
           <div class="appearance-family-grid">
             ${Object.keys(cardSkins.DEFAULT_SKIN_IDS).map(renderSkinSetting).join("")}
           </div>
@@ -2923,6 +2959,16 @@ document.addEventListener("pointermove", (event) => {
 }, { passive: true });
 
 document.addEventListener("change", (event) => {
+  const tableSelect = event.target.closest?.("[data-table-skin]");
+  if (tableSelect) {
+    const tableSkin = cardSkins.resolveTableSkin(tableSelect.value);
+    const setting = tableSelect.closest("[data-table-skin-setting]");
+    const preview = setting?.querySelector("[data-table-skin-preview]");
+    const description = setting?.querySelector("[data-table-skin-description]");
+    if (preview && tableSkin) preview.outerHTML = renderTableSkinPreview(tableSkin);
+    if (description && tableSkin) description.textContent = tableSkin.description;
+    return;
+  }
   const select = event.target.closest?.("[data-skin-family]");
   if (!select) return;
   const deckFamilyId = select.dataset.skinFamily;
@@ -2961,6 +3007,7 @@ document.addEventListener("submit", async (event) => {
           deckFamilyId,
           String(data.get(`skin-${deckFamilyId}`) || "")
         ])),
+        tableSkin: String(data.get("tableSkin") || ""),
         legacyMode: data.get("legacyMode") === "on"
       });
       showToast("Options saved.");

@@ -37,7 +37,7 @@ test("Five Card Draw reuses Cardcade's private fan, physical card flight, and fi
   assert.match(app, /data-hand-owner="\$\{escapeHtml\(handOwner\)\}"/);
   assert.match(app, /match\.phase !== "draw"/);
   assert.match(app, /function layoutStandardHand/);
-  assert.match(app, /standard-card-game five-card-draw-game/);
+  assert.match(app, /standard-card-game \$\{activeTableAppearanceClass\(\)\} five-card-draw-game/);
   assert.match(css, /\.five-card-draw-table-zone/);
   assert.match(css, /\.draw-card-back/);
   assert.match(css, /\.five-card-draw-actions/);

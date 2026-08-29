@@ -33,7 +33,7 @@ test("Texas Hold'em reuses the shared card fan for hole cards and community card
   assert.match(app, /holdem_next_hand/);
   assert.match(app, /function layoutActivePiles/);
   assert.match(app, /function layoutStandardHand/);
-  assert.match(app, /standard-card-game holdem-game/);
+  assert.match(app, /standard-card-game \$\{activeTableAppearanceClass\(\)\} holdem-game/);
   assert.match(css, /\.holdem-board-zone/);
   assert.match(css, /\.holdem-actions/);
   assert.match(css, /\.poker-hole-back/);
