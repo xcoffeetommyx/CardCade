@@ -483,7 +483,12 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 .setting-row { padding: 1rem; display: flex; justify-content: space-between; gap: 1rem; align-items: center; border: 1px solid var(--line); border-radius: 10px; }
 .setting-row p { margin: .2rem 0 0; color: var(--muted); font-size: .78rem; }
 .setting-row input[type="checkbox"] { width: 24px; height: 24px; accent-color: var(--coral); }
+.settings-submenu-button { width: 100%; min-height: 82px; color: var(--ink); background: #0a1d34; font: inherit; text-align: left; cursor: pointer; }
+.settings-submenu-button:hover { border-color: var(--blue); background: #102a48; }
+.settings-submenu-button:focus-visible { outline: 3px solid #81d5ff; outline-offset: 3px; }
+.settings-submenu-arrow { flex: 0 0 auto; color: var(--blue); font: 900 1.7rem/1 "Cardcade Pixel", "Courier New", monospace; }
 .appearance-settings { margin: 1.25rem 0; padding: 1rem; border: 1px solid var(--line); border-radius: 12px; background: rgba(5,16,33,.42); }
+.appearance-settings-screen { margin-top: 0; }
 .appearance-settings-heading { margin-bottom: .85rem; display: flex; justify-content: space-between; gap: 1rem; align-items: start; }
 .appearance-settings-heading strong, .appearance-settings-heading p { display: block; }
 .appearance-settings-heading p { max-width: 470px; margin: .2rem 0 0; color: var(--muted); font-size: .76rem; line-height: 1.45; }

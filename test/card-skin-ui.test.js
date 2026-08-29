@@ -35,6 +35,22 @@ test("appearance settings are versioned, family-scoped, and local-only", () => {
   assert.match(css, /@media \(max-width: 520px\)[\s\S]*?\.appearance-family-grid \{ grid-template-columns: 1fr; \}/);
 });
 
+test("Options moves table and card appearance into a dedicated submenu", () => {
+  const app = read("public/app.js");
+  const css = read("public/app.css");
+  const mainSettings = app.match(/function renderSettings\(\)[\s\S]*?(?=function renderAppearanceSettings)/)?.[0] || "";
+
+  assert.match(app, /function renderAppearanceSettings/);
+  assert.match(mainSettings, /data-action="open-appearance-settings"/);
+  assert.doesNotMatch(mainSettings, /data-(?:skin-family|table-skin)|name="legacyMode"/);
+  assert.match(app, /screenHeader\("Appearance & skins", "Choose a table skin and a card skin for each deck family\.", "open-settings"\)/);
+  assert.match(app, /"appearance-settings": renderAppearanceSettings/);
+  assert.match(app, /if \(action === "open-appearance-settings"\) navigate\("appearance-settings"\);/);
+  assert.match(app, /if \(formType === "appearance-settings"\) \{[\s\S]*?saveAppearancePreferences/);
+  assert.match(css, /\.settings-submenu-button \{/);
+  assert.match(css, /\.appearance-settings-screen \{ margin-top: 0; \}/);
+});
+
 test("faces and all hidden-card contexts use the shared skin boundary", () => {
   const app = read("public/app.js");
 

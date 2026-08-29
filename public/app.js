@@ -1827,14 +1827,31 @@ function renderLegacyModePreview() {
 
 function renderSettings() {
   const reducedMotion = localStorage.getItem(storageKeys.reducedMotion) === "true";
-  const legacyMode = appearancePreferences.legacyMode === true;
   return `
     ${screenHeader("Options", "Readable first, physical second, pixelated with restraint.")}
     <div class="form-panel">
       <form data-form="settings">
         <div class="field"><label for="settings-name">Default player name</label><input id="settings-name" name="name" maxlength="24" value="${escapeHtml(playerName())}" autocomplete="nickname"></div>
-        <section class="appearance-settings" aria-labelledby="appearance-settings-title">
-          <div class="appearance-settings-heading"><span><strong id="appearance-settings-title">Appearance</strong><p>Choose a table skin and a card skin for each deck family. Appearance is saved only on this device and never changes a room or its rules.</p></span><span class="badge">Local only</span></div>
+        <div class="settings-grid">
+          <button class="setting-row settings-submenu-button" type="button" data-action="open-appearance-settings">
+            <span><strong>Appearance &amp; skins</strong><p>Choose table felt, card decks, and Legacy Mode.</p></span><span class="settings-submenu-arrow" aria-hidden="true">›</span>
+          </button>
+          <label class="setting-row"><span><strong>Reduce card motion</strong><p>Use gentler transitions when game modules are connected.</p></span><input type="checkbox" name="reducedMotion" ${reducedMotion ? "checked" : ""}></label>
+          <div class="setting-row"><span><strong>Sound</strong><p>Audio controls arrive with the shared game runtime.</p></span><span class="badge">Coming later</span></div>
+        </div>
+        <button class="action-button primary" type="submit" style="margin-top:1rem">Save options</button>
+      </form>
+    </div>`;
+}
+
+function renderAppearanceSettings() {
+  const legacyMode = appearancePreferences.legacyMode === true;
+  return `
+    ${screenHeader("Appearance & skins", "Choose a table skin and a card skin for each deck family.", "open-settings")}
+    <div class="form-panel">
+      <form data-form="appearance-settings">
+        <section class="appearance-settings appearance-settings-screen" aria-labelledby="appearance-settings-title">
+          <div class="appearance-settings-heading"><span><strong id="appearance-settings-title">Table and card appearance</strong><p>Appearance is saved only on this device and never changes a room or its rules.</p></span><span class="badge">Local only</span></div>
           <div class="table-skin-grid">${renderTableSkinSetting()}</div>
           <p class="appearance-section-label">Card decks</p>
           <div class="appearance-family-grid">
@@ -1846,10 +1863,8 @@ function renderSettings() {
             <span class="legacy-mode-copy"><strong>Legacy mode</strong><p>Use the original 3s &amp; 7s and Thirteen illustrated Standard 52 cards in a smaller, flat scrolling hand. Your selected modern skin stays remembered, JUAN is unchanged, and this never enters online room state.</p>${renderLegacyModePreview()}</span>
             <input type="checkbox" name="legacyMode" ${legacyMode ? "checked" : ""}>
           </label>
-          <label class="setting-row"><span><strong>Reduce card motion</strong><p>Use gentler transitions when game modules are connected.</p></span><input type="checkbox" name="reducedMotion" ${reducedMotion ? "checked" : ""}></label>
-          <div class="setting-row"><span><strong>Sound</strong><p>Audio controls arrive with the shared game runtime.</p></span><span class="badge">Coming later</span></div>
         </div>
-        <button class="action-button primary" type="submit" style="margin-top:1rem">Save options</button>
+        <button class="action-button primary" type="submit" style="margin-top:1rem">Save appearance</button>
       </form>
     </div>`;
 }
@@ -1864,7 +1879,8 @@ function render() {
     room: renderRoom,
     game: renderCurrentGame,
     "hot-seat-handoff": renderHotSeatHandoff,
-    settings: renderSettings
+    settings: renderSettings,
+    "appearance-settings": renderAppearanceSettings
   };
   document.body.classList.toggle("playing-game", ["game", "hot-seat-handoff"].includes(state.screen));
   document.body.classList.toggle("home-screen", state.screen === "home");
@@ -2553,6 +2569,7 @@ document.addEventListener("click", async (event) => {
   }
   if (action === "open-multiplayer") navigate("multiplayer");
   if (action === "open-settings") navigate("settings");
+  if (action === "open-appearance-settings") navigate("appearance-settings");
   if (action === "back-to-library") navigate("library");
   if (action === "multiplayer-tab") { state.multiplayerTab = button.dataset.tab; render(); }
   if (action === "select-deck-family") {
@@ -3002,6 +3019,10 @@ document.addEventListener("submit", async (event) => {
     if (formType === "settings") {
       savePlayerName(data.get("name"));
       localStorage.setItem(storageKeys.reducedMotion, data.get("reducedMotion") === "on" ? "true" : "false");
+      showToast("Options saved.");
+      navigate("home");
+    }
+    if (formType === "appearance-settings") {
       saveAppearancePreferences({
         skins: Object.fromEntries(Object.keys(cardSkins.DEFAULT_SKIN_IDS).map((deckFamilyId) => [
           deckFamilyId,
@@ -3010,8 +3031,8 @@ document.addEventListener("submit", async (event) => {
         tableSkin: String(data.get("tableSkin") || ""),
         legacyMode: data.get("legacyMode") === "on"
       });
-      showToast("Options saved.");
-      navigate("home");
+      showToast("Appearance saved.");
+      navigate("settings");
     }
   } catch (error) {
     showToast(error.message);
