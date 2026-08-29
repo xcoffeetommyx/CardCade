@@ -26,6 +26,19 @@ test("long table combinations use the shared adaptive fan pile", () => {
   assert.match(css, /\.playing-card\.played\s*\{[\s\S]*?transition: none/);
 });
 
+test("modern hands honor the card directly under the pointer", () => {
+  const app = read("public/app.js");
+  const handLayoutStart = app.indexOf("function layoutStandardHand()");
+  const handLayoutEnd = app.indexOf("function toggleStandardCard", handLayoutStart);
+  assert.ok(handLayoutStart >= 0 && handLayoutEnd > handLayoutStart);
+  const handLayout = app.slice(handLayoutStart, handLayoutEnd);
+
+  assert.match(handLayout, /const targetCard = event\.target\.closest\?\.\("\[data-game-card\]"\);/);
+  assert.match(handLayout, /if \(!targetCard \|\| !hand\.contains\(targetCard\)\) return;/);
+  assert.match(handLayout, /toggleStandardCard\(targetCard\.dataset\.gameCard\);/);
+  assert.doesNotMatch(handLayout, /fanIndexAtPoint/);
+});
+
 test("table seats render the last public card instead of player initials", () => {
   const app = read("public/app.js");
   assert.match(app, /function renderSeatLastCard/);
