@@ -19,9 +19,9 @@ function pngSize(file) {
 
 test("manifest provides standalone identity and installable PNG icons", () => {
   const manifest = JSON.parse(readPublic("manifest.webmanifest").toString("utf8"));
-  assert.equal(manifest.id, "/");
-  assert.equal(manifest.start_url, "/");
-  assert.equal(manifest.scope, "/");
+  assert.equal(manifest.id, "./");
+  assert.equal(manifest.start_url, "./");
+  assert.equal(manifest.scope, "./");
   assert.equal(manifest.display, "standalone");
   assert.equal(manifest.background_color, "#06101f");
 
@@ -64,7 +64,10 @@ test("mobile shell exposes deliberate update and offline behavior", () => {
   const css = readPublic("app.css").toString("utf8");
 
   assert.match(worker, /SKIP_WAITING/);
-  assert.match(worker, /url\.pathname === "\/api\/catalog"/);
+  assert.match(worker, /const APP_ROOT = self\.registration\.scope/);
+  assert.match(worker, /const CATALOG_PATH =/);
+  assert.match(worker, /url\.pathname === CATALOG_PATH/);
+  assert.match(worker, /new URL\(path, APP_ROOT\)/);
   assert.match(worker, /event\.request\.mode === "navigate"/);
   assert.doesNotMatch(worker.match(/self\.addEventListener\("install"[\s\S]*?\n}\);/)?.[0] || "", /skipWaiting/);
   assert.match(app, /beforeinstallprompt/);

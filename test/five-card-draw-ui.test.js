@@ -9,9 +9,9 @@ const read = (file) => readFileSync(path.join(root, file), "utf8");
 
 test("Five Card Draw loads its shared rules before Cardcade's application module", () => {
   const html = read("public/index.html");
-  const holdEmRulesIndex = html.indexOf("/shared/holdem-rules.js");
-  const drawRulesIndex = html.indexOf("/shared/five-card-draw-rules.js");
-  const appIndex = html.indexOf("/app.js");
+  const holdEmRulesIndex = html.indexOf('src="shared/holdem-rules.js');
+  const drawRulesIndex = html.indexOf('src="shared/five-card-draw-rules.js');
+  const appIndex = html.indexOf('src="app.js');
 
   assert.ok(holdEmRulesIndex > 0);
   assert.ok(drawRulesIndex > holdEmRulesIndex);

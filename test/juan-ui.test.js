@@ -9,9 +9,9 @@ const read = (file) => readFileSync(path.join(root, file), "utf8");
 
 test("the JUAN browser modules load in deck-before-rules order", () => {
   const html = read("public/index.html");
-  const deckIndex = html.indexOf("/shared/juan-deck.js");
-  const rulesIndex = html.indexOf("/shared/juan-rules.js");
-  const appIndex = html.indexOf("/app.js");
+  const deckIndex = html.indexOf('src="shared/juan-deck.js');
+  const rulesIndex = html.indexOf('src="shared/juan-rules.js');
+  const appIndex = html.indexOf('src="app.js');
   assert.ok(deckIndex > 0);
   assert.ok(rulesIndex > deckIndex);
   assert.ok(appIndex > rulesIndex);

@@ -9,8 +9,8 @@ const read = (file) => readFileSync(path.join(root, file), "utf8");
 
 test("Blackjack loads its browser rules before the Cardcade application", () => {
   const html = read("public/index.html");
-  const rulesIndex = html.indexOf("/shared/blackjack-rules.js");
-  const appIndex = html.indexOf("/app.js");
+  const rulesIndex = html.indexOf('src="shared/blackjack-rules.js');
+  const appIndex = html.indexOf('src="app.js');
 
   assert.ok(rulesIndex > 0);
   assert.ok(appIndex > rulesIndex);

@@ -9,12 +9,12 @@ const read = (file) => readFileSync(path.join(root, file), "utf8");
 
 test("the browser loads the skin registry before the table renderer", () => {
   const html = read("public/index.html");
-  const registryIndex = html.indexOf('/shared/card-skins.js?v=4');
-  const appIndex = html.indexOf('/app.js?v=32');
+  const registryIndex = html.indexOf('src="shared/card-skins.js');
+  const appIndex = html.indexOf('src="app.js');
 
   assert.ok(registryIndex >= 0);
   assert.ok(appIndex > registryIndex);
-  assert.match(read("public/sw.js"), /\/shared\/card-skins\.js\?v=4/);
+  assert.match(read("public/sw.js"), /"shared\/card-skins\.js\?v=\d+"/);
 });
 
 test("appearance settings are versioned, family-scoped, and local-only", () => {

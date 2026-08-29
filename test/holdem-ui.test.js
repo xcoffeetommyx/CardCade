@@ -9,8 +9,8 @@ const read = (file) => readFileSync(path.join(root, file), "utf8");
 
 test("Texas Hold'em loads its rules before Cardcade's application module", () => {
   const html = read("public/index.html");
-  const rulesIndex = html.indexOf("/shared/holdem-rules.js");
-  const appIndex = html.indexOf("/app.js");
+  const rulesIndex = html.indexOf('src="shared/holdem-rules.js');
+  const appIndex = html.indexOf('src="app.js');
 
   assert.ok(rulesIndex > 0);
   assert.ok(appIndex > rulesIndex);
