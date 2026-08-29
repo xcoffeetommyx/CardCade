@@ -814,6 +814,15 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
     z-index: 180 !important;
   }
 }
+.playing-card.selectable.controller-hover:not(.selected) {
+  --card-lift: var(--fan-hover-lift, 18px);
+  z-index: 180 !important;
+}
+.playing-card.selectable.controller-focus {
+  outline: 3px solid #81d5ff;
+  outline-offset: 4px;
+  z-index: 190 !important;
+}
 .playing-card:focus-visible { outline: 4px solid #70c6ff; outline-offset: 4px; }
 .card-corner { position: absolute; z-index: 2; top: 7px; left: 8px; top: 5.5cqh; left: 7cqw; display: grid; justify-items: center; font-family: "Cardcade Ranks", "Courier New", monospace; font-style: normal; line-height: .78; }
 .card-corner strong { font-size: clamp(1.25rem, 4vw, 1.8rem); font-size: 18cqh; }
@@ -2106,6 +2115,7 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   will-change: transform;
 }
 .game-hand.legacy-flat-hand .playing-card.selected { transform: translateY(-18px); }
+.game-hand.legacy-flat-hand .playing-card.selectable.controller-hover:not(.selected) { transform: translateY(-8px); }
 .game-hand.legacy-flat-hand .playing-card.selectable:active { transform: translateY(-4px) scale(.99); }
 @media (hover: hover) and (pointer: fine) {
   .game-hand.legacy-flat-hand .playing-card.selectable:hover:not(.selected) { transform: translateY(-8px); }

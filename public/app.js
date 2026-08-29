@@ -3037,6 +3037,7 @@ function controllerTargetScope() {
 function controllerTargets(scope = controllerTargetScope()) {
   const selector = [
     "button:not([disabled]):not(.playing-card)",
+    ".playing-card.selectable:not([disabled])",
     "input:not([disabled]):not([type=hidden])",
     "select:not([disabled])",
     "textarea:not([disabled])"
@@ -3053,7 +3054,7 @@ function controllerTargets(scope = controllerTargetScope()) {
 function controllerTargetAtPoint(clientX = controllerState.cursorX, clientY = controllerState.cursorY) {
   const scope = controllerTargetScope();
   const element = document.elementFromPoint(clientX, clientY);
-  const target = element?.closest?.("button:not([disabled]):not(.playing-card), input:not([disabled]):not([type=hidden]), select:not([disabled]), textarea:not([disabled])");
+  const target = element?.closest?.("button:not([disabled]):not(.playing-card), .playing-card.selectable:not([disabled]), input:not([disabled]):not([type=hidden]), select:not([disabled]), textarea:not([disabled])");
   return target && scope.contains(target) && controllerTargets(scope).includes(target) ? target : null;
 }
 
@@ -3081,6 +3082,11 @@ function moveControllerFocus(direction) {
   const current = controllerState.hoveredTarget && targets.includes(controllerState.hoveredTarget)
     ? controllerState.hoveredTarget
     : controllerTargetAtPoint();
+  const cardNeighbor = controllerCardNeighbor(current, direction);
+  if (cardNeighbor) {
+    focusControllerTarget(cardNeighbor);
+    return;
+  }
   const currentRect = current?.getBoundingClientRect();
   const origin = currentRect
     ? { x: (currentRect.left + currentRect.right) / 2, y: (currentRect.top + currentRect.bottom) / 2 }
@@ -3091,13 +3097,29 @@ function moveControllerFocus(direction) {
   });
   const next = controllerInput.directionalTarget(candidates, origin, direction)?.target;
   if (!next) return;
-  next.scrollIntoView?.({ block: "nearest", inline: "nearest" });
-  const rect = next.getBoundingClientRect();
+  focusControllerTarget(next);
+}
+
+function controllerCardNeighbor(current, direction) {
+  if (!current?.matches?.(".playing-card.selectable") || !["left", "right"].includes(direction)) return null;
+  const hand = current.closest(".game-hand");
+  if (!hand) return null;
+  const cards = controllerTargets(hand)
+    .filter((target) => target.matches(".playing-card.selectable"))
+    .sort((left, right) => Number(left.dataset.fanIndex) - Number(right.dataset.fanIndex));
+  const index = cards.indexOf(current);
+  if (index < 0) return null;
+  return cards[index + (direction === "left" ? -1 : 1)] || null;
+}
+
+function focusControllerTarget(target) {
+  target.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+  const rect = target.getBoundingClientRect();
   controllerState.cursorX = Math.round((rect.left + rect.right) / 2);
   controllerState.cursorY = Math.round((rect.top + rect.bottom) / 2);
   clampControllerCursor();
   showControllerCursor();
-  setControllerHoverTarget(next, { focus: true });
+  setControllerHoverTarget(target, { focus: true });
 }
 
 function activateControllerTarget() {

@@ -31,3 +31,17 @@ test("controller inputs use a virtual cursor, d-pad navigation, and safe A/B act
   assert.match(app, /screen-head \.back-button/);
   assert.match(css, /\.controller-hover:not\(\.playing-card\)/);
 });
+
+test("controller cursor and d-pad support selectable fanned cards across decks", () => {
+  const app = read("public/app.js");
+  const css = read("public/app.css");
+
+  assert.match(app, /\.playing-card\.selectable:not\(\[disabled\]\)/);
+  assert.match(app, /function controllerCardNeighbor/);
+  assert.match(app, /current\.closest\("\.game-hand"\)/);
+  assert.match(app, /Number\(left\.dataset\.fanIndex\) - Number\(right\.dataset\.fanIndex\)/);
+  assert.match(app, /target\.click\?\.\(\)/);
+  assert.match(css, /\.playing-card\.selectable\.controller-hover:not\(\.selected\)/);
+  assert.match(css, /\.playing-card\.selectable\.controller-focus/);
+  assert.match(css, /\.game-hand\.legacy-flat-hand \.playing-card\.selectable\.controller-hover:not\(\.selected\)/);
+});
