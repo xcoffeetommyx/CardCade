@@ -547,16 +547,24 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 
 /* ---------- Shared physical-card table ---------- */
 .playing-game .topbar, .playing-game .site-shell > footer { display: none; }
-.playing-game .site-shell { width: min(1420px, calc(100% - 24px)); }
+.playing-game {
+  --game-viewport-height: 100vh;
+  --game-main-top: 12px;
+  --game-main-bottom: max(14px, var(--safe-bottom));
+}
+@supports (height: 100svh) {
+  .playing-game { --game-viewport-height: 100svh; }
+}
+.playing-game .site-shell { width: min(1420px, calc(100% - 24px)); min-height: var(--game-viewport-height); }
 .playing-game .site-shell { padding-top: var(--safe-top); }
-.playing-game main { padding: 12px 0 max(14px, var(--safe-bottom)); }
+.playing-game main { padding: var(--game-main-top) 0 var(--game-main-bottom); }
 
 .standard-card-game {
   --table-green: #0f4635;
   --table-green-light: #176249;
   --game-card-width: clamp(86px, 24vw, 112px);
   --game-card-height: calc(var(--game-card-width) * 1.42);
-  min-height: calc(100vh - 26px);
+  min-height: calc(var(--game-viewport-height) - var(--safe-top) - var(--game-main-top) - var(--game-main-bottom));
   display: grid;
   grid-template-columns: 1fr;
   gap: 10px;
@@ -613,17 +621,25 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   min-height: 78px;
   padding: 9px;
   display: grid;
-  grid-template-columns: 44px 1fr auto;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
   gap: 9px;
   align-items: center;
+  min-width: 0;
   border: 2px solid var(--line);
   border-radius: 12px;
   background: rgba(9, 25, 45, .88);
   transition: border-color 140ms ease, transform 140ms ease;
 }
 .game-seat.active { border-color: var(--mint); transform: translateY(-2px); box-shadow: 0 0 18px rgba(84, 223, 177, .12); }
-.game-seat strong, .game-seat small { display: block; }
-.game-seat small { margin-top: 3px; color: var(--muted); font-size: .7rem; }
+.game-seat-copy { min-width: 0; }
+.game-seat-copy > strong, .game-seat-copy > small {
+  min-width: 0;
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.game-seat-copy > small { margin-top: 3px; color: var(--muted); font-size: .7rem; }
 .mini-deck { width: 36px; height: 48px; display: grid; place-items: center; border: 2px solid #46688c; border-radius: 5px; color: #cbe4ff; background: repeating-linear-gradient(45deg, #112948 0 4px, #1b3b62 4px 7px); box-shadow: 3px 3px 0 #020710; font: 800 .72rem "Cardcade Pixel", monospace; }
 .seat-last-card {
   position: relative;
@@ -2015,7 +2031,7 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   .game-score { min-width: 54px; padding: 4px; grid-template-columns: 1fr; gap: 0; }
   .suit-ladder { gap: 8px; padding-inline: 8px; }
   .game-opponents { gap: 5px; }
-  .game-seat { min-height: 68px; grid-template-columns: 34px 1fr; padding: 6px; gap: 6px; }
+  .game-seat { min-height: 68px; grid-template-columns: 34px minmax(0, 1fr); padding: 6px; gap: 6px; }
   .game-seat .player-avatar { width: 34px; height: 34px; }
   .game-seat .mini-deck { display: none; }
   .game-table { min-height: 190px; padding: 10px; }
@@ -2190,6 +2206,32 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   .draw-stack > small, .draw-discard-pile > small { font-size: .55rem; }
   .five-card-draw-hand { min-height: 240px; }
   .five-card-draw-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+  /* A browser tab's address bar can remove enough visible height to create a
+     small, distracting document scroll at the table. Keep the game compact
+     on phone-width screens instead of making the player scroll to their hand
+     or controls. */
+  .playing-game .standard-card-game {
+    --game-card-width: clamp(60px, 18vw, 76px);
+    gap: 6px;
+  }
+  .playing-game .game-topbar { min-height: 54px; padding-block: 4px; }
+  .playing-game :is(.suit-ladder, .blackjack-rule-bar, .holdem-rule-bar, .five-card-draw-rule-bar) { min-height: 40px; padding-block: 5px; }
+  .playing-game .game-opponents { gap: 4px; }
+  .playing-game .game-seat { min-height: 60px; }
+  .playing-game .game-table { min-height: 140px; padding: 8px; }
+  .playing-game .active-pile { min-height: 92px; }
+  .playing-game .playing-card.played { flex-basis: 64px; width: 64px; height: 91px; }
+  .playing-game .physical-hand,
+  .playing-game .blackjack-hand,
+  .playing-game .holdem-hand,
+  .playing-game .five-card-draw-hand { min-height: 0; padding: 8px 8px 0; }
+  .playing-game .game-hand { min-height: 0; }
+  .playing-game .game-actions { padding: 5px; }
+  .playing-game .game-actions button { min-height: 44px; }
+  .playing-game :is(.blackjack-dealer-zone, .holdem-board-zone, .five-card-draw-table-zone) { min-height: 100px; }
+  .playing-game :is(.blackjack-dealer-pile, .holdem-board) { min-height: 92px !important; }
+  .playing-game :is(.blackjack-dealer-pile, .holdem-board) .playing-card.played { width: 60px; height: 85px; }
 }
 
 @media (max-width: 520px) and (min-height: 620px) {
@@ -2216,7 +2258,7 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 
 @media (max-width: 520px) and (orientation: portrait) {
   .standard-card-game {
-    --game-card-width: clamp(78px, 22vw, 94px);
+    --game-card-width: clamp(60px, 18vw, 76px);
     --game-card-height: calc(var(--game-card-width) * 1.42);
   }
 }

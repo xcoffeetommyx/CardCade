@@ -995,7 +995,7 @@ function renderBlackjackGame() {
         ${opponents.map((player) => `
           <article class="game-seat ${match.activeSeat === player.seat ? "active" : ""}">
             ${renderSeatLastCard(player, "blackjack")}
-            <span><strong>${escapeHtml(player.name)}</strong><small>${formatPoints(player.score)} pts · ${player.cardCount} card${player.cardCount === 1 ? "" : "s"}${player.lastAction ? ` · ${escapeHtml(player.lastAction.label)}` : ""}</small></span>
+            <span class="game-seat-copy" title="${escapeHtml(player.name)}"><strong>${escapeHtml(player.name)}</strong><small>${formatPoints(player.score)} pts · ${player.cardCount} card${player.cardCount === 1 ? "" : "s"}${player.lastAction ? ` · ${escapeHtml(player.lastAction.label)}` : ""}</small></span>
             ${renderMiniCardBack("standard-52", player.cardCount, { ariaLabel: `${player.cardCount} cards` })}
           </article>`).join("")}
       </div>
@@ -1129,7 +1129,7 @@ function renderHoldemGame() {
         ${opponents.map((player) => `
           <article class="game-seat ${match.activeSeat === player.seat ? "active" : ""} ${player.folded ? "folded" : ""} ${player.allIn ? "all-in" : ""} ${player.eliminated ? "eliminated" : ""}">
             ${renderHoldemSeatCard(player)}
-            <span><strong>${escapeHtml(player.name)}${player.seat === match.dealerSeat ? " · D" : ""}</strong><small>${formatPoints(player.stack)} pts · ${escapeHtml(holdemPlayerStatus(player))}${player.lastAction ? ` · ${escapeHtml(player.lastAction.label)}` : ""}</small></span>
+            <span class="game-seat-copy" title="${escapeHtml(player.name)}"><strong>${escapeHtml(player.name)}${player.seat === match.dealerSeat ? " · D" : ""}</strong><small>${formatPoints(player.stack)} pts · ${escapeHtml(holdemPlayerStatus(player))}${player.lastAction ? ` · ${escapeHtml(player.lastAction.label)}` : ""}</small></span>
             ${renderMiniCardBack("standard-52", player.holeCardCount, { ariaLabel: `${player.holeCardCount} private cards` })}
           </article>`).join("")}
       </div>
@@ -1264,7 +1264,7 @@ function renderFiveCardDrawGame() {
         ${opponents.map((player) => `
           <article class="game-seat ${match.activeSeat === player.seat ? "active" : ""} ${player.folded ? "folded" : ""} ${player.allIn ? "all-in" : ""} ${player.eliminated ? "eliminated" : ""}">
             ${renderFiveCardDrawSeatCard(player)}
-            <span><strong>${escapeHtml(player.name)}${player.seat === match.dealerSeat ? " · D" : ""}</strong><small>${formatPoints(player.stack)} pts · ${escapeHtml(fiveCardDrawPlayerStatus(player))}${player.lastAction ? ` · ${escapeHtml(player.lastAction.label)}` : ""}</small></span>
+            <span class="game-seat-copy" title="${escapeHtml(player.name)}"><strong>${escapeHtml(player.name)}${player.seat === match.dealerSeat ? " · D" : ""}</strong><small>${formatPoints(player.stack)} pts · ${escapeHtml(fiveCardDrawPlayerStatus(player))}${player.lastAction ? ` · ${escapeHtml(player.lastAction.label)}` : ""}</small></span>
             ${renderMiniCardBack("standard-52", player.cardCount, { ariaLabel: `${player.cardCount} private cards` })}
           </article>`).join("")}
       </div>
@@ -1340,7 +1340,7 @@ function renderStandardGame() {
         ${opponents.map((player) => `
           <article class="game-seat ${match.activeSeat === player.seat ? "active" : ""}">
             ${renderSeatLastCard(player, game.gameId)}
-            <span><strong>${escapeHtml(player.name)}</strong><small>${player.finished ? `${placeLabel(player.place)} place` : `${player.cardCount} cards${player.passed ? " · passed" : ""}`}</small></span>
+            <span class="game-seat-copy" title="${escapeHtml(player.name)}"><strong>${escapeHtml(player.name)}</strong><small>${player.finished ? `${placeLabel(player.place)} place` : `${player.cardCount} cards${player.passed ? " · passed" : ""}`}</small></span>
             ${renderMiniCardBack("standard-52", Math.min(player.cardCount, 7), { ariaHidden: true })}
           </article>`).join("")}
       </div>
@@ -1561,7 +1561,7 @@ function renderJuanGame() {
         ${opponents.map((player) => `
           <article class="game-seat ${match.activeSeat === player.seat ? "active" : ""} ${player.juan ? "juan-alert" : ""}">
             ${renderSeatLastCard(player, "juan")}
-            <span><strong>${escapeHtml(player.name)}</strong><small>${player.juan ? "JUAN! · 1 card" : `${player.cardCount} cards`}</small></span>
+            <span class="game-seat-copy" title="${escapeHtml(player.name)}"><strong>${escapeHtml(player.name)}</strong><small>${player.juan ? "JUAN! · 1 card" : `${player.cardCount} cards`}</small></span>
             ${renderMiniCardBack("color-action", Math.min(player.cardCount, 7), { ariaHidden: true })}
           </article>`).join("")}
       </div>
@@ -1872,8 +1872,10 @@ function layoutStandardHand() {
   const cardWidth = cards[0].offsetWidth;
   const cardHeight = cards[0].offsetHeight || cardWidth * 1.42;
   if (!containerWidth || !cardWidth) return;
-  const compactLandscape = innerWidth > innerHeight && innerHeight <= 640;
-  const portraitPhone = innerWidth <= 520 && innerHeight > innerWidth;
+  const viewportWidth = window.visualViewport?.width || innerWidth;
+  const viewportHeight = window.visualViewport?.height || innerHeight;
+  const compactLandscape = viewportWidth > viewportHeight && viewportHeight <= 640;
+  const portraitPhone = viewportWidth <= 520 && viewportHeight > viewportWidth;
   const layout = cardPresentation.calculateFanLayout({
     count: cards.length,
     containerWidth,
@@ -1882,9 +1884,9 @@ function layoutStandardHand() {
     sidePadding: portraitPhone ? 12 : 8,
     minimumVisibleIndex: Math.max(16, cardWidth * 0.2),
     maximumRotation: compactLandscape ? 8 : 11,
-    curveRatio: compactLandscape ? 0.06 : 0.12,
-    focusLiftRatio: compactLandscape ? 0.22 : 0.48,
-    selectedLiftRatio: compactLandscape ? 0.14 : 0.28
+    curveRatio: compactLandscape ? 0.06 : portraitPhone ? 0.09 : 0.12,
+    focusLiftRatio: compactLandscape ? 0.22 : portraitPhone ? 0.24 : 0.48,
+    selectedLiftRatio: compactLandscape ? 0.14 : portraitPhone ? 0.18 : 0.28
   });
   hand.style.height = `${layout.rowHeight}px`;
   hand.dataset.density = layout.density;
@@ -2803,12 +2805,18 @@ document.addEventListener("keydown", (event) => {
   toggleStandardCard(card.dataset.gameCard);
 });
 
-window.addEventListener("resize", () => {
-  if (state.screen === "game") requestAnimationFrame(() => {
+let gameTableLayoutFrame = null;
+function scheduleGameTableLayout() {
+  if (state.screen !== "game" || gameTableLayoutFrame !== null) return;
+  gameTableLayoutFrame = requestAnimationFrame(() => {
+    gameTableLayoutFrame = null;
     layoutActivePiles();
     layoutStandardHand();
   });
-});
+}
+
+window.addEventListener("resize", scheduleGameTableLayout);
+window.visualViewport?.addEventListener("resize", scheduleGameTableLayout);
 
 document.addEventListener("change", (event) => {
   const select = event.target.closest?.("[data-skin-family]");

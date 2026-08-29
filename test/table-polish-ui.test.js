@@ -33,3 +33,17 @@ test("table seats render the last public card instead of player initials", () =>
   assert.match(app, /renderSeatLastCard\(player, game\.gameId\)/);
   assert.match(app, /renderSeatLastCard\(player, "juan"\)/);
 });
+
+test("mobile tables use the visible viewport and keep long player names inside their seats", () => {
+  const app = read("public/app.js");
+  const css = read("public/app.css");
+
+  assert.match(css, /--game-viewport-height: 100svh/);
+  assert.match(css, /min-height: calc\(var\(--game-viewport-height\) - var\(--safe-top\) - var\(--game-main-top\) - var\(--game-main-bottom\)\)/);
+  assert.match(css, /grid-template-columns: 44px minmax\(0, 1fr\) auto/);
+  assert.match(css, /\.game-seat-copy \{ min-width: 0; \}/);
+  assert.match(css, /\.game-seat-copy > strong, \.game-seat-copy > small \{[\s\S]*?text-overflow: ellipsis;[\s\S]*?white-space: nowrap;/);
+  assert.match(css, /\.playing-game \.standard-card-game \{[\s\S]*?--game-card-width: clamp\(60px, 18vw, 76px\)/);
+  assert.match(app, /class="game-seat-copy" title="\$\{escapeHtml\(player\.name\)\}"/);
+  assert.match(app, /window\.visualViewport\?\.addEventListener\("resize", scheduleGameTableLayout\)/);
+});
