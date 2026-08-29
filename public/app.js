@@ -3021,7 +3021,7 @@ function scrollControllerPage(deltaX, deltaY) {
 
 function renderControllerCursor() {
   if (!controllerCursor) return;
-  controllerCursor.style.transform = `translate3d(${controllerState.cursorX}px, ${controllerState.cursorY}px, 0)`;
+  controllerCursor.style.transform = `translate3d(${controllerState.cursorX - 15}px, ${controllerState.cursorY - 15}px, 0)`;
 }
 
 function showControllerCursor() {

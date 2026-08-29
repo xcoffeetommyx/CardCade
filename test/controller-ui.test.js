@@ -15,7 +15,8 @@ test("the controller cursor is loaded before Cardcade and cached for offline use
 
   assert.ok(controllerIndex >= 0 && controllerIndex < appIndex);
   assert.match(html, /id="controller-cursor"/);
-  assert.match(html, /<svg viewBox="0 0 28 31"[^>]*><path d="M3 2V24L9 18L13 27L18 25L14 16H25Z"/);
+  assert.match(html, /<svg viewBox="0 0 30 30"/);
+  assert.match(html, /class="controller-cursor-outline" d="M15 2V10M15 20V28M2 15H10M20 15H28"/);
   assert.match(html, /id="controller-keyboard-root"/);
   assert.match(worker, /"shared\/controller-input\.js\?v=3"/);
 });
@@ -35,7 +36,9 @@ test("controller inputs use a virtual cursor, d-pad navigation, and safe A/B act
   assert.match(app, /prismCancel\.click\(\)/);
   assert.match(app, /screen-head \.back-button/);
   assert.match(css, /\.controller-hover:not\(\.playing-card\)/);
-  assert.match(css, /\.controller-cursor path \{ fill: #fff; stroke: #02050b;/);
+  assert.match(app, /controllerState\.cursorX - 15/);
+  assert.match(css, /\.controller-cursor-outline \{ stroke: #02050b; stroke-width: 4\.5;/);
+  assert.match(css, /\.controller-cursor-fill \{ stroke: #fff; stroke-width: 1\.8;/);
 });
 
 test("controller cursor and d-pad support selectable fanned cards across decks", () => {
