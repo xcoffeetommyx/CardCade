@@ -946,6 +946,14 @@ function renderBlackjackHandSummary(hand, index, active) {
     </article>`;
 }
 
+function renderBlackjackInsurancePrompt(disabled) {
+  return `
+    <section class="blackjack-insurance-prompt" aria-live="assertive" aria-label="Insurance decision">
+      <span class="family-kicker">Dealer shows an Ace</span><strong>Take insurance for half a table point?</strong><small>It pays 2:1 only if the hole card completes dealer Blackjack.</small>
+      <div class="button-row"><button class="action-button" type="button" data-action="blackjack-insurance" data-take="false" ${disabled ? "disabled" : ""}>No insurance</button><button class="action-button primary" type="button" data-action="blackjack-insurance" data-take="true" ${disabled ? "disabled" : ""}>Take insurance</button></div>
+    </section>`;
+}
+
 function renderBlackjackGame() {
   const view = state.gameView;
   if (!view || !blackjackRules) return `<div class="empty-state">Dealing the Blackjack table…</div>`;
@@ -999,8 +1007,9 @@ function renderBlackjackGame() {
             ${renderMiniCardBack("standard-52", player.cardCount, { ariaLabel: `${player.cardCount} cards` })}
           </article>`).join("")}
       </div>
-      <section class="game-table blackjack-table">
+      <section class="game-table blackjack-table ${isInsuranceTurn ? "insurance-pending" : ""}">
         <div class="game-status"><span><strong>${escapeHtml(playerStatus)}</strong><small>${escapeHtml(match.lastMoveText)}</small></span><span class="badge">${match.dealer?.revealed ? escapeHtml(match.dealer.label || "Dealer") : "Dealer upcard"}</span></div>
+        ${isInsuranceTurn ? renderBlackjackInsurancePrompt(state.gameActionLock) : ""}
         <div class="blackjack-dealer-zone">
           <div class="blackjack-dealer-copy"><span>Dealer</span><strong>${escapeHtml(dealerLabel)}</strong></div>
           <div class="active-pile cards-pile blackjack-dealer-pile" aria-label="Dealer cards">${dealerCards.map((card, index) => renderPlayingCard(card, index, { played: true, enter: dealerIsNew })).join("")}${Array.from({ length: dealerHiddenCount }, (_, index) => renderBlackjackCardBack(dealerCards.length + index, { enter: dealerIsNew })).join("")}</div>
@@ -1011,11 +1020,6 @@ function renderBlackjackGame() {
         <div class="blackjack-hand-summaries">${(view.hands || []).map((hand, index) => renderBlackjackHandSummary(hand, index, isYourTurn && index === activeHandIndex)).join("")}</div>
         <div class="game-hand" data-hand-owner="${escapeHtml(handOwner)}" aria-label="${standardHandAriaLabel("Your current fanned Blackjack hand", "Your current flat legacy Blackjack hand")}">${currentHandCards.map((card, index) => renderPlayingCard(card, index, { dealt: isDealing })).join("")}</div>
       </section>
-      ${isInsuranceTurn ? `
-        <section class="blackjack-insurance-prompt" aria-live="polite">
-          <span class="family-kicker">Dealer shows an Ace</span><strong>Take insurance for half a table point?</strong><small>It pays 2:1 only if the hole card completes dealer Blackjack.</small>
-          <div class="button-row"><button class="action-button" type="button" data-action="blackjack-insurance" data-take="false" ${state.gameActionLock ? "disabled" : ""}>No insurance</button><button class="action-button primary" type="button" data-action="blackjack-insurance" data-take="true" ${state.gameActionLock ? "disabled" : ""}>Take insurance</button></div>
-        </section>` : ""}
       <nav class="game-actions blackjack-actions">
         <button type="button" data-action="blackjack-hint" ${isYourTurn || isInsuranceTurn ? "" : "disabled"}>Hint</button>
         <button type="button" data-action="blackjack-action" data-blackjack-action="blackjack_hit" ${isYourTurn && actions.hit && !state.gameActionLock ? "" : "disabled"}>Hit</button>
@@ -1199,6 +1203,35 @@ function renderFiveCardDrawSeatCard(player) {
   return `<span class="seat-last-card standard-seat-card card-skin-face ${activeCardAppearanceClass("standard-52")} ${red ? "red" : "black"}" aria-label="Revealed ${escapeHtml(standard52.cardLong(card))}"><strong>${escapeHtml(card.rank)}</strong><i>${suit}</i></span>`;
 }
 
+function renderFiveCardDrawShowdownCard(card) {
+  const suit = standard52.SUIT_SYMBOL[card.suit];
+  const red = card.suit === "H" || card.suit === "D";
+  return `<span class="draw-showdown-card ${red ? "red" : "black"}" aria-label="${escapeHtml(standard52.cardLong(card))}"><strong>${escapeHtml(card.rank)}</strong><i>${suit}</i></span>`;
+}
+
+function renderFiveCardDrawShowdown(match) {
+  if (!match.showdown?.revealed) return "";
+  const winnerSeats = new Set(match.showdown.winnerSeats || []);
+  const evaluations = new Map((match.showdown.evaluations || []).map((entry) => [entry.seat, entry]));
+  const entries = match.players
+    .filter((player) => Array.isArray(player.revealedCards) && player.revealedCards.length)
+    .map((player) => ({ player, evaluation: evaluations.get(player.seat), winner: winnerSeats.has(player.seat) }))
+    .sort((left, right) => Number(right.winner) - Number(left.winner) || left.player.seat - right.player.seat);
+  if (!entries.length) return "";
+
+  return `
+    <section class="five-card-draw-showdown" aria-label="Showdown hands">
+      <span class="family-kicker">Showdown hands</span>
+      <div class="five-card-draw-showdown-list">
+        ${entries.map(({ player, evaluation, winner }) => `
+          <article class="five-card-draw-showdown-hand ${winner ? "winner" : ""}">
+            <div class="draw-showdown-copy"><strong>${escapeHtml(player.name)}${winner ? " · Winner" : ""}</strong><small>${escapeHtml(evaluation?.label || "Five-card hand")}</small></div>
+            <div class="draw-showdown-cards" aria-label="${escapeHtml(player.name)}: ${escapeHtml(evaluation?.label || "five-card hand")}">${player.revealedCards.map(renderFiveCardDrawShowdownCard).join("")}</div>
+          </article>`).join("")}
+      </div>
+    </section>`;
+}
+
 function fiveCardDrawPlayerStatus(player) {
   if (player.eliminated) return "out of points";
   if (player.folded) return "folded";
@@ -1251,6 +1284,7 @@ function renderFiveCardDrawGame() {
     : match.phase === "draw"
       ? "Choose zero to five cards. Replacements stay private."
       : "Every player is building one private five-card hand.";
+  const tableLabel = match.showdown?.revealed ? "Showdown" : "Private draw";
 
   return `
     <section class="standard-card-game five-card-draw-game" data-game-id="five-card-draw">
@@ -1271,7 +1305,7 @@ function renderFiveCardDrawGame() {
       <section class="game-table five-card-draw-table">
         <div class="game-status"><span><strong>${escapeHtml(playerStatus)}</strong><small>${fiveCardDrawPhaseLabel(match.phase)} · ${match.currentBet ? `${formatPoints(match.currentBet)} to match` : match.phase === "draw" ? "replacements are private" : "table is checked"}</small></span><span class="badge">Pot ${formatPoints(match.pot)}</span></div>
         <div class="five-card-draw-table-zone">
-          <div class="five-card-draw-copy"><span>Private draw</span><strong>${escapeHtml(showdownDetail)}</strong></div>
+          <div class="five-card-draw-copy"><span>${tableLabel}</span><strong>${escapeHtml(showdownDetail)}</strong></div>
           <div class="five-card-draw-piles" aria-label="Draw and discard piles">
             <div class="draw-stack ${activeCardAppearanceClass("standard-52")}" aria-label="${match.stockCount} cards in draw pile">${renderCardBack({ deckFamilyId: "standard-52", context: "draw-stock", className: "draw-card-back", ariaHidden: true, parts: [{ tag: "i", text: "CC" }] })}<strong>Draw</strong><small>${match.stockCount} cards</small></div>
             <div class="active-pile draw-discard-pile ${activeCardAppearanceClass("standard-52")}" aria-label="${match.discardCount} private discards">${renderCardBack({ deckFamilyId: "standard-52", context: "discard", className: "draw-card-back discard", ariaHidden: true, parts: [{ tag: "i", text: "↻" }] })}<strong>Discard</strong><small>${match.discardCount} card${match.discardCount === 1 ? "" : "s"}</small></div>
@@ -1295,7 +1329,7 @@ function renderFiveCardDrawGame() {
         </nav>`}
       ${match.roundOver ? `
         <div class="round-result five-card-draw-result">
-          <div><span class="family-kicker">${match.matchOver ? "Table winner" : `Hand ${match.round} settled`}</span><h3>${escapeHtml(match.lastMoveText)}</h3><p>${match.players.map((player) => `${escapeHtml(player.name)} · ${formatPoints(player.stack)} pts${player.eliminated ? " · out" : ""}`).join(" · ")}</p></div>
+          <div><span class="family-kicker">${match.matchOver ? "Table winner" : `Hand ${match.round} settled`}</span><h3>${escapeHtml(match.lastMoveText)}</h3><p>${match.players.map((player) => `${escapeHtml(player.name)} · ${formatPoints(player.stack)} pts${player.eliminated ? " · out" : ""}`).join(" · ")}</p>${renderFiveCardDrawShowdown(match)}</div>
           ${match.matchOver ? `<button class="action-button" type="button" data-action="leave-game">Return to Cardcade</button>` : `<button class="action-button primary" type="button" data-action="five-card-draw-next-hand" ${isHost ? "" : "disabled"}>${isHost ? "Deal next hand" : "Waiting for host"}</button>`}
         </div>` : ""}
     </section>`;

@@ -129,6 +129,9 @@ test("Five Card Draw showdown evaluates exactly the private five-card hands and 
   assert.equal(match.players[1].stack, 90);
   const view = game.viewFor(match, 0, new Map([[0, true], [1, true]]));
   assert.equal(view.state.players[1].revealedCards.length, 5);
+  assert.deepEqual(view.state.players[1].revealedCards.map((candidate) => candidate.id), ["KS", "KH", "QD", "JC", "3S"]);
+  assert.deepEqual(view.state.showdown.winnerSeats, [0]);
+  assert.equal(view.state.showdown.evaluations.find((entry) => entry.seat === 0).label, "Pair");
 
   game.nextHand(match);
   assert.equal(match.round, 2);

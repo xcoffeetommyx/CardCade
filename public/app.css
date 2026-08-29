@@ -888,6 +888,9 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   background: #0c1d34;
   box-shadow: 9px 11px 0 rgba(0,0,0,.55), 0 0 0 9999px rgba(1,6,13,.58);
   transform: translateX(-50%);
+  max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 20px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 .round-result p { color: var(--muted); line-height: 1.5; }
 
@@ -919,6 +922,7 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 .blackjack-rule-bar strong { color: #fff0bd; }
 .blackjack-opponents .game-seat.active { border-color: var(--blackjack-gold); box-shadow: 0 0 18px rgba(240, 197, 83, .16); }
 .blackjack-table { border-color: #697949; }
+.blackjack-table.insurance-pending { grid-template-rows: auto auto 1fr; }
 .blackjack-table .game-status .badge { border-color: #887a42; color: #f7e7b1; background: rgba(48, 46, 20, .72); }
 .blackjack-dealer-zone {
   min-height: 158px;
@@ -1000,6 +1004,9 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 .blackjack-hand-summary span { color: #9aafc8; font: 800 .6rem "Cardcade Pixel", "Courier New", monospace; text-transform: uppercase; }
 .blackjack-hand-summary strong { margin-top: 2px; font-size: .72rem; }
 .blackjack-insurance-prompt {
+  position: relative;
+  z-index: 1;
+  margin-top: 8px;
   padding: 13px;
   display: grid;
   gap: 5px;
@@ -1197,6 +1204,39 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 .five-card-draw-actions button.primary { border-color: #d498ff; color: #fff3ff; background: linear-gradient(#a964c5, #663979); }
 .five-card-draw-actions button.danger { border-color: #c87072; color: #ffc8c8; background: #4b1e2b; }
 .five-card-draw-result { border-color: #a870a4; }
+.five-card-draw-showdown { margin-top: 14px; display: grid; gap: 7px; }
+.five-card-draw-showdown-list { display: grid; gap: 7px; }
+.five-card-draw-showdown-hand {
+  min-width: 0;
+  padding: 8px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 9px;
+  align-items: center;
+  border: 1px solid rgba(196, 154, 220, .48);
+  border-radius: 10px;
+  background: rgba(37, 21, 58, .58);
+}
+.five-card-draw-showdown-hand.winner { border-color: var(--draw-copper); background: linear-gradient(100deg, rgba(133, 80, 113, .74), rgba(53, 31, 75, .82)); box-shadow: inset 0 0 0 1px rgba(255,225,165,.14); }
+.draw-showdown-copy { min-width: 0; }
+.draw-showdown-copy strong, .draw-showdown-copy small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.draw-showdown-copy strong { font-size: .78rem; }
+.draw-showdown-copy small { margin-top: 3px; color: #ead5e6; font-size: .68rem; }
+.draw-showdown-cards { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 3px; }
+.draw-showdown-card {
+  width: 32px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border: 2px solid #eee0ca;
+  border-radius: 5px;
+  color: #294f7b;
+  background: #f5eedf;
+  box-shadow: 2px 3px 0 rgba(0,0,0,.35);
+}
+.draw-showdown-card.red { color: #bd2936; }
+.draw-showdown-card strong { font: 400 .85rem/.82 "Cardcade Ranks", "Courier New", monospace; }
+.draw-showdown-card i { margin-top: -4px; font: normal .62rem Georgia, serif; }
 
 /* ---------- JUAN color/action table ---------- */
 .juan-game {
@@ -2206,6 +2246,20 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   .draw-stack > small, .draw-discard-pile > small { font-size: .55rem; }
   .five-card-draw-hand { min-height: 240px; }
   .five-card-draw-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .five-card-draw-showdown-hand { grid-template-columns: 1fr; gap: 6px; }
+  .draw-showdown-cards { justify-content: flex-start; }
+
+  .playing-game .blackjack-insurance-prompt {
+    position: fixed;
+    z-index: 900;
+    top: calc(var(--safe-top) + 8px);
+    left: 50%;
+    width: min(480px, calc(100% - var(--safe-left) - var(--safe-right) - 20px));
+    max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 16px);
+    overflow-y: auto;
+    transform: translateX(-50%);
+    box-shadow: 7px 8px 0 rgba(0,0,0,.5), 0 0 0 9999px rgba(1,6,13,.38);
+  }
 
   /* A browser tab's address bar can remove enough visible height to create a
      small, distracting document scroll at the table. Keep the game compact

@@ -47,3 +47,19 @@ test("mobile tables use the visible viewport and keep long player names inside t
   assert.match(app, /class="game-seat-copy" title="\$\{escapeHtml\(player\.name\)\}"/);
   assert.match(app, /window\.visualViewport\?\.addEventListener\("resize", scheduleGameTableLayout\)/);
 });
+
+test("showdowns reveal full Five Card Draw hands and Blackjack insurance stays in view", () => {
+  const app = read("public/app.js");
+  const css = read("public/app.css");
+
+  assert.match(app, /function renderFiveCardDrawShowdownCard/);
+  assert.match(app, /function renderFiveCardDrawShowdown/);
+  assert.match(app, /player\.revealedCards\.map\(renderFiveCardDrawShowdownCard\)/);
+  assert.match(app, /winnerSeats = new Set\(match\.showdown\.winnerSeats/);
+  assert.match(app, /renderFiveCardDrawShowdown\(match\)/);
+  assert.match(css, /\.five-card-draw-showdown-hand\.winner/);
+  assert.match(app, /function renderBlackjackInsurancePrompt/);
+  assert.match(app, /blackjack-table \$\{isInsuranceTurn \? "insurance-pending"/);
+  assert.match(css, /\.blackjack-table\.insurance-pending/);
+  assert.match(css, /\.playing-game \.blackjack-insurance-prompt \{[\s\S]*?position: fixed;/);
+});
