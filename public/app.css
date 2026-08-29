@@ -789,7 +789,8 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 .card-corner strong { font-size: clamp(1.25rem, 4vw, 1.8rem); }
 .card-corner i { margin-top: 4px; font: normal 1.05rem Georgia, serif; }
 .card-corner.bottom { top: auto; left: auto; right: 8px; bottom: 7px; transform: rotate(180deg); }
-.card-center { position: absolute; inset: 0; display: grid; place-items: center; font: 4.1rem Georgia, serif; filter: drop-shadow(2px 3px 0 rgba(0,0,0,.09)); }
+.card-center { position: absolute; display: grid; place-items: center; filter: drop-shadow(2px 3px 0 rgba(0,0,0,.09)); }
+.card-center:not(.court) { inset: 27% 16%; font: normal clamp(1.45rem, 5vw, 2.35rem)/.8 Georgia, serif; }
 .card-center.court { inset: 22% 13% 8%; filter: drop-shadow(2px 3px 0 rgba(0,0,0,.12)); }
 .card-center.court svg { width: 100%; height: 100%; overflow: visible; }
 .playing-card.played {
@@ -809,7 +810,7 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   margin: 0;
 }
 .playing-card.inert { cursor: default; }
-.playing-card.played .card-center { font-size: 2.8rem; }
+.playing-card.played .card-center:not(.court) { font-size: clamp(1.35rem, 4vw, 1.85rem); }
 .playing-card.played.enter { animation: cardPileIn .22s cubic-bezier(.2,.8,.3,1.1) both; }
 .playing-card.dealt { animation: cardFanDeal .38s cubic-bezier(.18,.82,.25,1.05) both; }
 .playing-card.drawn { animation: cardFanDraw .42s cubic-bezier(.18,.82,.25,1.05) both; }

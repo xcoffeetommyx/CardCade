@@ -44,6 +44,14 @@ test("faces and all hidden-card contexts use the shared skin boundary", () => {
   }
 });
 
+test("modern Standard 52 center suits stay within the space between corner indices", () => {
+  const css = read("public/app.css");
+
+  assert.match(css, /\.card-center:not\(\.court\) \{[\s\S]*?inset: 27% 16%;[\s\S]*?clamp\(1\.45rem, 5vw, 2\.35rem\)/);
+  assert.match(css, /\.playing-card\.played \.card-center:not\(\.court\) \{ font-size: clamp\(1\.35rem, 4vw, 1\.85rem\); \}/);
+  assert.doesNotMatch(css, /\.card-center \{[^}]*font: 4\.1rem/);
+});
+
 test("alternate standard skins cover faces, backs, stacks, and previews without leaking into JUAN", () => {
   const css = read("public/app.css");
 
