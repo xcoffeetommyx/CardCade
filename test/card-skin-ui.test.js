@@ -69,8 +69,33 @@ test("default felt and Cardcade Pixel backs stay consistent across game modes", 
 
   assert.match(css, /\.card-back\.card-skin-cardcade-pixel \{/);
   assert.match(css, /\.draw-stack\.card-skin-cardcade-pixel::before/);
-  assert.match(css, /\.blackjack-card-back\.card-skin-cardcade-pixel b \{ display: none; \}/);
+  assert.match(css, /\.blackjack-card-back b \{ display: none; \}/);
   assert.match(css, /\.draw-card-back\.card-skin-cardcade-pixel::after \{ content: none; \}/);
+});
+
+test("every game shell uses the shared 3s and 7s table UI", () => {
+  const css = read("public/app.css");
+
+  assert.match(css, /:is\(\.suit-ladder, \.blackjack-rule-bar, \.holdem-rule-bar, \.five-card-draw-rule-bar\) \{/);
+  assert.match(css, /\.game-actions button\.primary \{ border-color: #ff8580;/);
+  assert.match(css, /\.game-actions button\.danger \{ border-color: #c87072;/);
+  assert.match(css, /:is\(\.holdem-opponents, \.five-card-draw-opponents\) \.game-seat\.all-in \{ border-color: var\(--blue\);/);
+  assert.match(css, /\.juan-game \.game-seat\.juan-alert \{ border-color: var\(--coral\);/);
+  assert.doesNotMatch(css, /--(?:blackjack|holdem|draw)-/);
+  for (const selector of [
+    "blackjack-actions button.primary",
+    "holdem-actions button.primary",
+    "five-card-draw-actions button.primary",
+    "blackjack-table .game-status .badge",
+    "holdem-table .game-status .badge",
+    "five-card-draw-table .game-status .badge",
+    "blackjack-result",
+    "holdem-result",
+    "five-card-draw-result",
+    "juan-result"
+  ]) {
+    assert.doesNotMatch(css, new RegExp(`\\.${selector.replaceAll(".", "\\.")}\\s*\\{`));
+  }
 });
 
 test("the Standard 52 settings preview leaves clear space around its corner mark", () => {

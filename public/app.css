@@ -665,7 +665,8 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 
 .standard-card-game h2, .standard-card-game h3,
 .standard-card-game button, .standard-card-game .family-kicker,
-.selection-status, .suit-ladder {
+.selection-status, .suit-ladder, .blackjack-rule-bar,
+.holdem-rule-bar, .five-card-draw-rule-bar {
   font-family: "Cardcade Pixel", "Courier New", monospace;
 }
 
@@ -683,7 +684,7 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 .game-score span { color: var(--muted); font-size: .68rem; text-transform: uppercase; }
 .game-score strong { font-size: 1.25rem; }
 
-.suit-ladder {
+:is(.suit-ladder, .blackjack-rule-bar, .holdem-rule-bar, .five-card-draw-rule-bar) {
   min-height: 50px;
   padding: 8px 14px;
   display: flex;
@@ -698,7 +699,8 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   font-size: .7rem;
   letter-spacing: .08em;
 }
-.suit-ladder > i { color: #61738b; font-style: normal; }
+:is(.suit-ladder, .blackjack-rule-bar, .holdem-rule-bar, .five-card-draw-rule-bar) > i { color: #61738b; font-style: normal; }
+:is(.blackjack-rule-bar, .holdem-rule-bar, .five-card-draw-rule-bar) > strong { color: #d8e1ec; }
 .suit-rank { display: inline-flex; gap: 5px; align-items: center; color: #d8e1ec; font-size: 1.1rem; }
 .suit-rank b { color: #72859e; font-size: .7rem; }
 .suit-rank.high { color: #ff6469; }
@@ -976,6 +978,7 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 }
 .game-actions button { min-height: 52px; border: 2px solid var(--line); border-radius: 9px; color: var(--ink); background: #10243f; font-weight: 800; }
 .game-actions button.primary { border-color: #ff8580; background: linear-gradient(#d94752, #a82840); }
+.game-actions button.danger { border-color: #c87072; color: #ffc8c8; background: #4b1e2b; }
 .game-actions button:disabled { opacity: .38; }
 
 .round-result {
@@ -1024,32 +1027,7 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 .final-standings li.winner small { color: #ffe6a5; }
 
 /* ---------- Blackjack dealer table ---------- */
-.blackjack-game {
-  --blackjack-gold: #f0c553;
-  --blackjack-gold-deep: #a77a1c;
-}
-.blackjack-rule-bar {
-  min-height: 48px;
-  padding: 8px 14px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 7px 12px;
-  align-items: center;
-  justify-content: center;
-  border: 2px solid #75632f;
-  border-radius: 13px;
-  color: #e7d498;
-  background: linear-gradient(100deg, rgba(81, 70, 27, .5), rgba(16, 27, 20, .88));
-  font: 800 .66rem "Cardcade Pixel", "Courier New", monospace;
-  letter-spacing: .055em;
-  text-align: center;
-  text-transform: uppercase;
-}
-.blackjack-rule-bar i { color: var(--blackjack-gold); font-style: normal; }
-.blackjack-rule-bar strong { color: #fff0bd; }
-.blackjack-opponents .game-seat.active { border-color: var(--blackjack-gold); box-shadow: 0 0 18px rgba(240, 197, 83, .16); }
 .blackjack-table.insurance-pending { grid-template-rows: auto auto 1fr; }
-.blackjack-table .game-status .badge { border-color: #887a42; color: #f7e7b1; background: rgba(48, 46, 20, .72); }
 .blackjack-dealer-zone {
   min-height: 158px;
   display: grid;
@@ -1058,9 +1036,9 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   align-items: center;
   justify-items: center;
 }
-.blackjack-dealer-copy { min-width: 0; color: #d8e7d0; text-align: center; }
+.blackjack-dealer-copy { min-width: 0; color: #d8e1ec; text-align: center; }
 .blackjack-dealer-copy span, .blackjack-dealer-copy strong { display: block; }
-.blackjack-dealer-copy span { color: #e9ca66; font: 800 .72rem "Cardcade Pixel", "Courier New", monospace; letter-spacing: .1em; text-transform: uppercase; }
+.blackjack-dealer-copy span { color: var(--blue); font: 800 .72rem "Cardcade Pixel", "Courier New", monospace; letter-spacing: .1em; text-transform: uppercase; }
 .blackjack-dealer-copy strong { max-width: 260px; margin-top: 6px; font-size: .78rem; line-height: 1.35; }
 .blackjack-dealer-pile {
   width: min(100%, 340px) !important;
@@ -1069,21 +1047,22 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 }
 .blackjack-card-back {
   display: block;
-  border-color: #f2e7cf;
-  color: #f2d36a;
+  border-color: #46688c;
+  color: #cbe4ff;
   background:
-    repeating-linear-gradient(45deg, transparent 0 5px, rgba(118, 177, 220, .16) 5px 7px),
-    repeating-linear-gradient(-45deg, transparent 0 5px, rgba(240, 197, 83, .12) 5px 7px),
-    linear-gradient(145deg, #0e2a4a, #08192e);
-  box-shadow: 5px 7px 0 rgba(0,0,0,.5), inset 0 0 0 2px rgba(133, 184, 231, .2);
+    linear-gradient(135deg, rgba(255,255,255,.08), transparent 38%, rgba(0,0,0,.14)),
+    repeating-linear-gradient(45deg, transparent 0 6px, rgba(105,174,242,.18) 6px 8px),
+    repeating-linear-gradient(-45deg, transparent 0 6px, rgba(203,228,255,.08) 6px 8px),
+    linear-gradient(145deg, #1b3b62, #112948);
+  box-shadow: 5px 7px 0 rgba(0,0,0,.48), inset 0 0 0 2px rgba(105,174,242,.16);
 }
 .blackjack-card-back::before {
   content: "";
   position: absolute;
   inset: 8px;
-  border: 2px solid rgba(240, 211, 106, .72);
+  border: 2px solid rgba(203,228,255,.58);
   border-radius: 5px;
-  box-shadow: inset 0 0 0 2px rgba(126, 183, 227, .28);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.12);
 }
 .blackjack-card-back i {
   position: absolute;
@@ -1091,22 +1070,12 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   z-index: 1;
   display: grid;
   place-items: center;
-  color: #f5e4a4;
+  color: #cbe4ff;
   font: 900 1.3rem "Cardcade Pixel", "Courier New", monospace;
   letter-spacing: .08em;
   text-shadow: 2px 3px 0 rgba(0,0,0,.5);
 }
-.blackjack-card-back b {
-  position: absolute;
-  z-index: 1;
-  width: 46%;
-  height: 28%;
-  left: 27%;
-  top: 36%;
-  border: 2px solid rgba(240, 211, 106, .72);
-  border-radius: 50%;
-  transform: rotate(-28deg);
-}
+.blackjack-card-back b { display: none; }
 .blackjack-hand { min-height: 286px; }
 .blackjack-hand-summaries {
   position: relative;
@@ -1124,7 +1093,7 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   color: #dce5f0;
   background: rgba(4, 13, 25, .32);
 }
-.blackjack-hand-summary.active { border-color: #e4c15b; box-shadow: inset 0 0 0 1px rgba(240, 197, 83, .18); }
+.blackjack-hand-summary.active { border-color: var(--mint); box-shadow: inset 0 0 0 1px rgba(84,223,177,.18); }
 .blackjack-hand-summary.complete { opacity: .78; }
 .blackjack-hand-summary span, .blackjack-hand-summary strong { display: block; }
 .blackjack-hand-summary span { color: #9aafc8; font: 800 .6rem "Cardcade Pixel", "Courier New", monospace; text-transform: uppercase; }
@@ -1136,60 +1105,33 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   padding: 13px;
   display: grid;
   gap: 5px;
-  border: 2px solid #b89437;
+  border: 2px solid var(--line-bright);
   border-radius: 13px;
-  color: #f6e9bd;
-  background: linear-gradient(110deg, rgba(103, 77, 20, .9), rgba(31, 31, 18, .95));
+  color: var(--ink);
+  background: linear-gradient(110deg, rgba(20, 58, 82, .9), rgba(7, 22, 40, .95));
   box-shadow: 5px 5px 0 rgba(0,0,0,.38);
   text-align: center;
 }
 .blackjack-insurance-prompt strong { font-size: 1rem; }
-.blackjack-insurance-prompt small { color: #ddcf9a; font-size: .72rem; }
+.blackjack-insurance-prompt small { color: var(--muted); font-size: .72rem; }
 .blackjack-insurance-prompt .button-row { margin-top: 4px; justify-content: center; }
 .blackjack-actions { grid-template-columns: repeat(6, minmax(0, 1fr)); }
-.blackjack-actions button.primary { border-color: #f4ca58; color: #16120a; background: linear-gradient(#f3ce68, #c7942d); }
-.blackjack-actions button.danger { border-color: #c87072; color: #ffc8c8; background: #4b1e2b; }
-.blackjack-result { border-color: #b89437; }
 
 /* ---------- Texas Hold'em fixed-limit table ---------- */
-.holdem-game {
-  --holdem-violet: #a58bff;
-  --holdem-violet-deep: #5e498e;
-}
-.holdem-rule-bar {
-  min-height: 48px;
-  padding: 8px 14px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 7px 12px;
-  align-items: center;
-  justify-content: center;
-  border: 2px solid #615483;
-  border-radius: 13px;
-  color: #ddd2ff;
-  background: linear-gradient(100deg, rgba(72, 54, 112, .54), rgba(13, 32, 40, .9));
-  font: 800 .66rem "Cardcade Pixel", "Courier New", monospace;
-  letter-spacing: .055em;
-  text-align: center;
-  text-transform: uppercase;
-}
-.holdem-rule-bar i { color: var(--holdem-violet); font-style: normal; }
-.holdem-rule-bar strong { color: #f1edff; }
-.holdem-opponents .game-seat.active { border-color: var(--holdem-violet); box-shadow: 0 0 18px rgba(165, 139, 255, .18); }
-.holdem-opponents .game-seat.folded { opacity: .58; filter: saturate(.65); }
-.holdem-opponents .game-seat.all-in { border-color: #f0c553; box-shadow: 0 0 15px rgba(240, 197, 83, .16); }
-.holdem-opponents .game-seat.eliminated { opacity: .45; }
+:is(.holdem-opponents, .five-card-draw-opponents) .game-seat.folded { opacity: .58; filter: saturate(.65); }
+:is(.holdem-opponents, .five-card-draw-opponents) .game-seat.all-in { border-color: var(--blue); box-shadow: 0 0 15px rgba(79,167,255,.16); }
+:is(.holdem-opponents, .five-card-draw-opponents) .game-seat.eliminated { opacity: .45; }
 .poker-hole-back {
-  color: #e8ddff;
-  border-color: #e9e1d3;
+  color: #cbe4ff;
+  border-color: #46688c;
   background:
-    repeating-linear-gradient(45deg, transparent 0 4px, rgba(165,139,255,.22) 4px 6px),
-    repeating-linear-gradient(-45deg, transparent 0 4px, rgba(96,210,185,.12) 4px 6px),
-    #18284b;
+    linear-gradient(135deg, rgba(255,255,255,.08), transparent 38%, rgba(0,0,0,.14)),
+    repeating-linear-gradient(45deg, transparent 0 6px, rgba(105,174,242,.18) 6px 8px),
+    repeating-linear-gradient(-45deg, transparent 0 6px, rgba(203,228,255,.08) 6px 8px),
+    linear-gradient(145deg, #1b3b62, #112948);
 }
-.poker-hole-back::before { content: ""; position: absolute; inset: 6px; border: 1px solid rgba(232,221,255,.64); border-radius: 3px; }
+.poker-hole-back::before { content: ""; position: absolute; inset: 6px; border: 1px solid rgba(203,228,255,.58); border-radius: 3px; }
 .poker-hole-back i { position: relative; z-index: 1; font: 900 .86rem "Cardcade Pixel", "Courier New", monospace; font-style: normal; text-shadow: 2px 2px 0 rgba(0,0,0,.48); }
-.holdem-table .game-status .badge { border-color: #7465a2; color: #e5ddff; background: rgba(51, 38, 79, .74); }
 .holdem-board-zone {
   min-height: 164px;
   display: grid;
@@ -1198,55 +1140,24 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   align-items: center;
   justify-items: center;
 }
-.holdem-board-copy { min-width: 0; color: #d6e9e0; text-align: center; }
+.holdem-board-copy { min-width: 0; color: #d8e1ec; text-align: center; }
 .holdem-board-copy span, .holdem-board-copy strong { display: block; }
-.holdem-board-copy span { color: #c9b7ff; font: 800 .7rem "Cardcade Pixel", "Courier New", monospace; letter-spacing: .1em; text-transform: uppercase; }
+.holdem-board-copy span { color: var(--blue); font: 800 .7rem "Cardcade Pixel", "Courier New", monospace; letter-spacing: .1em; text-transform: uppercase; }
 .holdem-board-copy strong { max-width: 290px; margin-top: 6px; font-size: .75rem; line-height: 1.38; }
 .holdem-board { width: min(100%, 430px) !important; min-height: 144px !important; }
 .holdem-board .empty-pile { min-width: min(300px, 90%); padding: 18px 10px; }
 .holdem-hand { min-height: 286px; }
 .holdem-actions { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-.holdem-actions button.primary { border-color: #aa91ff; color: #f5f1ff; background: linear-gradient(#846bd1, #584493); }
-.holdem-actions button.danger { border-color: #c87072; color: #ffc8c8; background: #4b1e2b; }
-.holdem-result { border-color: #8270ae; }
 
 /* ---------- Five Card Draw fixed-limit table ---------- */
-.five-card-draw-game {
-  --draw-plum: #d59aff;
-  --draw-plum-deep: #70478e;
-  --draw-copper: #e7af6d;
-}
-.five-card-draw-rule-bar {
-  min-height: 48px;
-  padding: 8px 14px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 7px 12px;
-  align-items: center;
-  justify-content: center;
-  border: 2px solid #785471;
-  border-radius: 13px;
-  color: #f5dffb;
-  background: linear-gradient(100deg, rgba(91, 49, 94, .58), rgba(27, 25, 47, .92));
-  font: 800 .66rem "Cardcade Pixel", "Courier New", monospace;
-  letter-spacing: .055em;
-  text-align: center;
-  text-transform: uppercase;
-}
-.five-card-draw-rule-bar i { color: var(--draw-copper); font-style: normal; }
-.five-card-draw-rule-bar strong { color: #fff0dd; }
-.five-card-draw-opponents .game-seat.active { border-color: var(--draw-plum); box-shadow: 0 0 18px rgba(213,154,255,.18); }
-.five-card-draw-opponents .game-seat.folded { opacity: .58; filter: saturate(.65); }
-.five-card-draw-opponents .game-seat.all-in { border-color: #f0c553; box-shadow: 0 0 15px rgba(240,197,83,.16); }
-.five-card-draw-opponents .game-seat.eliminated { opacity: .45; }
 .draw-hole-back {
-  color: #ffe4c3;
+  color: #cbe4ff;
   background:
-    repeating-linear-gradient(45deg, transparent 0 4px, rgba(229,160,255,.23) 4px 6px),
-    repeating-linear-gradient(-45deg, transparent 0 4px, rgba(255,195,111,.12) 4px 6px),
-    #2c1c47;
+    linear-gradient(135deg, rgba(255,255,255,.08), transparent 38%, rgba(0,0,0,.14)),
+    repeating-linear-gradient(45deg, transparent 0 6px, rgba(105,174,242,.18) 6px 8px),
+    repeating-linear-gradient(-45deg, transparent 0 6px, rgba(203,228,255,.08) 6px 8px),
+    linear-gradient(145deg, #1b3b62, #112948);
 }
-.five-card-draw-table .game-status .badge { border-color: #9e668f; color: #ffe4c2; background: rgba(80, 38, 73, .74); }
 .five-card-draw-table-zone {
   min-height: 164px;
   display: grid;
@@ -1255,9 +1166,9 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   align-items: center;
   justify-items: center;
 }
-.five-card-draw-copy { min-width: 0; color: #f4e0dd; text-align: center; }
+.five-card-draw-copy { min-width: 0; color: #d8e1ec; text-align: center; }
 .five-card-draw-copy span, .five-card-draw-copy strong { display: block; }
-.five-card-draw-copy span { color: #e9b5ff; font: 800 .7rem "Cardcade Pixel", "Courier New", monospace; letter-spacing: .1em; text-transform: uppercase; }
+.five-card-draw-copy span { color: var(--blue); font: 800 .7rem "Cardcade Pixel", "Courier New", monospace; letter-spacing: .1em; text-transform: uppercase; }
 .five-card-draw-copy strong { max-width: 300px; margin-top: 6px; font-size: .75rem; line-height: 1.38; }
 .five-card-draw-piles { min-width: 0; display: flex; align-items: center; justify-content: center; gap: clamp(18px, 5vw, 56px); }
 .draw-stack, .draw-discard-pile {
@@ -1269,7 +1180,7 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   align-items: center;
   justify-content: center;
   gap: 2px;
-  color: #f6e7d6;
+  color: #d8e1ec;
   text-align: center;
 }
 .draw-stack::before, .draw-stack::after {
@@ -1277,10 +1188,10 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   position: absolute;
   width: 73px;
   height: 103px;
-  border: 2px solid rgba(255,231,198,.42);
+  border: 2px solid rgba(105,174,242,.42);
   border-radius: 9px;
-  background: #21183d;
-  box-shadow: inset 0 0 0 2px rgba(214,146,255,.14);
+  background: #112948;
+  box-shadow: inset 0 0 0 2px rgba(105,174,242,.14);
 }
 .draw-stack::before { transform: translate(-6px, 5px) rotate(-4deg); opacity: .58; }
 .draw-stack::after { transform: translate(6px, 4px) rotate(4deg); opacity: .72; }
@@ -1291,31 +1202,25 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   height: 104px;
   display: grid;
   place-items: center;
-  border: 3px solid #eee0ca;
+  border: 3px solid #46688c;
   border-radius: 10px;
-  color: #f7e5ff;
+  color: #cbe4ff;
   background:
-    linear-gradient(135deg, rgba(255,255,255,.14) 0 10%, transparent 10% 50%, rgba(255,255,255,.1) 50% 60%, transparent 60%),
-    repeating-linear-gradient(45deg, transparent 0 4px, rgba(228,153,255,.18) 4px 6px),
-    #332156;
-  box-shadow: 5px 7px 0 rgba(0,0,0,.38), inset 0 0 0 3px rgba(247,220,255,.22);
+    linear-gradient(135deg, rgba(255,255,255,.08), transparent 38%, rgba(0,0,0,.14)),
+    repeating-linear-gradient(45deg, transparent 0 6px, rgba(105,174,242,.18) 6px 8px),
+    repeating-linear-gradient(-45deg, transparent 0 6px, rgba(203,228,255,.08) 6px 8px),
+    linear-gradient(145deg, #1b3b62, #112948);
+  box-shadow: 5px 7px 0 rgba(0,0,0,.48), inset 0 0 0 2px rgba(105,174,242,.16);
   transform: rotate(-2deg);
 }
-.draw-card-back::after { content: ""; position: absolute; inset: 7px; border: 1px solid rgba(255,234,212,.67); border-radius: 4px; }
+.draw-card-back::after { content: ""; position: absolute; inset: 7px; border: 1px solid rgba(203,228,255,.58); border-radius: 4px; }
 .draw-card-back i { position: relative; z-index: 1; font: 900 .94rem "Cardcade Pixel", "Courier New", monospace; font-style: normal; text-shadow: 2px 2px 0 rgba(0,0,0,.45); }
-.draw-card-back.discard { transform: rotate(4deg); background:
-  linear-gradient(135deg, rgba(255,255,255,.12) 0 10%, transparent 10% 50%, rgba(255,255,255,.09) 50% 60%, transparent 60%),
-  repeating-linear-gradient(-45deg, transparent 0 4px, rgba(237,173,99,.2) 4px 6px),
-  #4b2948;
-}
+.draw-card-back.discard { transform: rotate(4deg); }
 .draw-stack > strong, .draw-discard-pile > strong { position: relative; z-index: 3; margin-top: 4px; font: 800 .64rem "Cardcade Pixel", "Courier New", monospace; letter-spacing: .07em; text-transform: uppercase; }
-.draw-stack > small, .draw-discard-pile > small { position: relative; z-index: 3; color: #ceb9ca; font-size: .64rem; }
+.draw-stack > small, .draw-discard-pile > small { position: relative; z-index: 3; color: var(--muted); font-size: .64rem; }
 .five-card-draw-hand { min-height: 286px; }
 .five-card-draw-actions { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .five-card-draw-actions.draw-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.five-card-draw-actions button.primary { border-color: #d498ff; color: #fff3ff; background: linear-gradient(#a964c5, #663979); }
-.five-card-draw-actions button.danger { border-color: #c87072; color: #ffc8c8; background: #4b1e2b; }
-.five-card-draw-result { border-color: #a870a4; }
 .five-card-draw-showdown { margin-top: 14px; display: grid; gap: 7px; }
 .five-card-draw-showdown-list { display: grid; gap: 7px; }
 .five-card-draw-showdown-hand {
@@ -1325,15 +1230,15 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 9px;
   align-items: center;
-  border: 1px solid rgba(196, 154, 220, .48);
+  border: 1px solid var(--line);
   border-radius: 10px;
-  background: rgba(37, 21, 58, .58);
+  background: rgba(8, 24, 43, .72);
 }
-.five-card-draw-showdown-hand.winner { border-color: var(--draw-copper); background: linear-gradient(100deg, rgba(133, 80, 113, .74), rgba(53, 31, 75, .82)); box-shadow: inset 0 0 0 1px rgba(255,225,165,.14); }
+.five-card-draw-showdown-hand.winner { border-color: #f0c553; background: linear-gradient(135deg, rgba(240,197,83,.18), rgba(13,32,58,.94)); box-shadow: inset 0 0 0 1px rgba(255,225,165,.14); }
 .draw-showdown-copy { min-width: 0; }
 .draw-showdown-copy strong, .draw-showdown-copy small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .draw-showdown-copy strong { font-size: .78rem; }
-.draw-showdown-copy small { margin-top: 3px; color: #ead5e6; font-size: .68rem; }
+.draw-showdown-copy small { margin-top: 3px; color: var(--muted); font-size: .68rem; }
 .draw-showdown-cards { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 3px; }
 .draw-showdown-card {
   width: 32px;
@@ -1389,8 +1294,8 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 
 .juan-game .game-opponents { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
 .juan-game .game-seat { min-height: 66px; }
-.juan-game .game-seat.juan-alert { border-color: #f2bf3d; box-shadow: 0 0 20px rgba(242,191,61,.14); }
-.juan-game .game-seat.juan-alert small { color: #ffd76c; }
+.juan-game .game-seat.juan-alert { border-color: var(--coral); box-shadow: 0 0 20px rgba(255,94,98,.14); }
+.juan-game .game-seat.juan-alert small { color: #ffaaa8; }
 
 .game-seat.placement-first,
 .game-score.placement-first,
@@ -1749,7 +1654,6 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 @keyframes prismBurst { 0% { opacity: 0; transform: translate(-50%, -50%) scale(.05); } 28% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -50%) scale(1); } }
 @keyframes prismRevealCard { 0% { opacity: 0; transform: translateY(80px) rotate(-18deg) scale(.55); } 24%, 78% { opacity: 1; transform: translateY(0) rotate(-3deg) scale(1); } 100% { opacity: 0; transform: translateY(-22px) rotate(3deg) scale(.94); } }
 @keyframes prismRevealCopy { 0% { opacity: 0; transform: translateX(24px); } 18%, 78% { opacity: 1; transform: translateX(0); } 100% { opacity: 0; transform: translateX(-8px); } }
-.juan-result { border-color: #f2bf3d; }
 
 .hot-seat-handoff {
   min-height: calc(100svh - 28px);
@@ -1822,7 +1726,6 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 }
 .card-back.card-skin-cardcade-pixel > :is(i, b, span, strong) { z-index: 2; color: inherit; }
 .card-back.card-skin-cardcade-pixel > :is(span, strong) { position: relative; }
-.blackjack-card-back.card-skin-cardcade-pixel b { display: none; }
 .draw-card-back.card-skin-cardcade-pixel::after { content: none; }
 .draw-stack.card-skin-cardcade-pixel::before,
 .draw-stack.card-skin-cardcade-pixel::after {
@@ -1939,8 +1842,6 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 .card-back.card-skin-royal-violet > :is(i, b, span, strong) { z-index: 2; color: inherit; }
 .card-back.card-skin-casino-gold > :is(span, strong),
 .card-back.card-skin-royal-violet > :is(span, strong) { position: relative; }
-.blackjack-card-back.card-skin-casino-gold b,
-.blackjack-card-back.card-skin-royal-violet b { border-color: var(--skin-keyline); }
 .draw-card-back.card-skin-casino-gold::after,
 .draw-card-back.card-skin-royal-violet::after { content: none; }
 .draw-stack.card-skin-casino-gold::before,
@@ -2159,7 +2060,6 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 }
 .blackjack-card-back.card-style-legacy-standard::before,
 .draw-card-back.card-style-legacy-standard::after { border-color: rgba(116,184,255,.58); box-shadow: none; }
-.blackjack-card-back.card-style-legacy-standard b { border-color: rgba(116,184,255,.52); }
 .draw-card-back.discard.card-style-legacy-standard { background: linear-gradient(45deg, rgba(112,184,255,.28) 25%, transparent 25% 75%, rgba(112,184,255,.28) 75%), linear-gradient(45deg, rgba(112,184,255,.28) 25%, transparent 25% 75%, rgba(112,184,255,.28) 75%), #142644; background-position: 0 0, 4px 4px; background-size: 8px 8px; }
 .draw-stack.card-style-legacy-standard::before,
 .draw-stack.card-style-legacy-standard::after { border-color: rgba(116,184,255,.48); background: linear-gradient(45deg, rgba(112,184,255,.28) 25%, transparent 25% 75%, rgba(112,184,255,.28) 75%), linear-gradient(45deg, rgba(112,184,255,.28) 25%, transparent 25% 75%, rgba(112,184,255,.28) 75%), #142644; background-position: 0 0, 4px 4px; background-size: 8px 8px; box-shadow: inset 0 0 0 1px rgba(116,184,255,.16); }
@@ -2246,7 +2146,7 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   .game-topbar h2 { font-size: 1.2rem; }
   .game-topbar p { max-width: 62vw; }
   .game-score { min-width: 54px; padding: 4px; grid-template-columns: 1fr; gap: 0; }
-  .suit-ladder { gap: 8px; padding-inline: 8px; }
+  :is(.suit-ladder, .blackjack-rule-bar, .holdem-rule-bar, .five-card-draw-rule-bar) { gap: 8px; padding-inline: 8px; }
   .game-opponents { gap: 5px; }
   .game-seat { min-height: 68px; grid-template-columns: 34px minmax(0, 1fr); padding: 6px; gap: 6px; }
   .game-seat .player-avatar { width: 34px; height: 34px; }
