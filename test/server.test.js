@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import { WebSocket } from "ws";
 import standard52 from "../shared/standard-52.js";
@@ -48,9 +49,9 @@ function nextMessage(socket, predicate = () => true) {
   });
 }
 
-function openSocket(origin, session, expectedType = "room_state") {
+function openSocket(origin, session, expectedType = "room_state", socketPath = "/ws") {
   return new Promise((resolve, reject) => {
-    const socket = new WebSocket(origin.replace("http", "ws") + "/ws");
+    const socket = new WebSocket(origin.replace("http", "ws") + socketPath);
     socket.once("open", () => {
       const stateMessage = nextMessage(socket, (message) => message.type === expectedType);
       socket.send(JSON.stringify({ type: "authenticate", code: session.code, token: session.token }));
@@ -58,6 +59,13 @@ function openSocket(origin, session, expectedType = "room_state") {
     });
     socket.once("error", reject);
   });
+}
+
+function serviceWorkerShellPaths() {
+  const worker = readFileSync(new URL("../public/sw.js", import.meta.url), "utf8");
+  const shell = worker.match(/const APP_SHELL = \[([\s\S]*?)\]\.map/);
+  assert.ok(shell, "service worker must define its pre-cached application shell");
+  return [...shell[1].matchAll(/"([^"]*)"/g)].map(([, assetPath]) => assetPath);
 }
 
 function scriptedBlackjackShuffle(topToBottom) {
@@ -117,6 +125,47 @@ test("health, catalog, and launcher are served from one process", async (t) => {
   assert.match(manifest.headers.get("content-type"), /application\/manifest\+json/);
   const appIcon = await fetch(`${origin}/assets/pwa/icon-192.png`);
   assert.equal(appIcon.headers.get("content-type"), "image/png");
+});
+
+test("the Funnel subpath serves the complete HTTP and WebSocket application", async (t) => {
+  const { origin } = await startServer(t, { basePath: "/cardcade" });
+
+  const redirect = await fetch(`${origin}/cardcade`, { redirect: "manual" });
+  assert.equal(redirect.status, 308);
+  assert.equal(redirect.headers.get("location"), "/cardcade/");
+
+  const launcher = await fetch(`${origin}/cardcade/`);
+  assert.equal(launcher.status, 200);
+  assert.match(await launcher.text(), /<base href="\/cardcade\/">/);
+
+  const [styles, appScript, manifest, sharedRules, catalog] = await Promise.all([
+    fetch(`${origin}/cardcade/app.css?v=35`),
+    fetch(`${origin}/cardcade/app.js?v=39`),
+    fetch(`${origin}/cardcade/manifest.webmanifest`),
+    fetch(`${origin}/cardcade/shared/thirteen-rules.js?v=2`),
+    fetch(`${origin}/cardcade/api/catalog`)
+  ]);
+  assert.match(styles.headers.get("content-type"), /text\/css/);
+  assert.match(appScript.headers.get("content-type"), /text\/javascript/);
+  assert.match(manifest.headers.get("content-type"), /application\/manifest\+json/);
+  assert.match(sharedRules.headers.get("content-type"), /text\/javascript/);
+  assert.equal(catalog.status, 200);
+  assert.equal((await catalog.json()).families[0].id, "standard-52");
+
+  const shellResponses = await Promise.all(serviceWorkerShellPaths().map(async (assetPath) => ({
+    assetPath,
+    response: await fetch(new URL(assetPath, `${origin}/cardcade/`))
+  })));
+  for (const { assetPath, response } of shellResponses) {
+    assert.equal(response.status, 200, `Funnel shell asset ${assetPath || "/"} must be served`);
+  }
+
+  const host = (await jsonRequest(origin, "/cardcade/api/rooms", {
+    method: "POST",
+    body: JSON.stringify({ name: "Funnel Host" })
+  })).body;
+  const socket = await openSocket(origin, host, "room_state", "/cardcade/ws");
+  t.after(() => socket.terminate());
 });
 
 test("HTTP room creation and joining return private sessions", async (t) => {

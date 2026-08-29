@@ -70,6 +70,7 @@ test("mobile shell exposes deliberate update and offline behavior", () => {
   assert.match(worker, /new URL\(path, APP_ROOT\)/);
   assert.match(worker, /event\.request\.mode === "navigate"/);
   assert.doesNotMatch(worker.match(/self\.addEventListener\("install"[\s\S]*?\n}\);/)?.[0] || "", /skipWaiting/);
+  assert.match(app, /new URL\(document\.baseURI\)\.pathname/);
   assert.match(app, /beforeinstallprompt/);
   assert.match(app, /controllerchange/);
   assert.match(app, /addEventListener\("offline"/);

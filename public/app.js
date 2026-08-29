@@ -9,7 +9,7 @@ const systemBannerMessage = document.querySelector("#system-banner-message");
 const systemBannerAction = systemBanner?.querySelector('[data-action="apply-app-update"]');
 const juanPrismRevealRoot = document.querySelector("#juan-prism-reveal-root");
 
-const appBasePath = location.pathname.replace(/\/+$/, "") === "/cardcade" ? "/cardcade" : "";
+const appBasePath = new URL(document.baseURI).pathname.replace(/\/+$/, "") || "";
 
 function appPath(path) {
   return `${appBasePath}${path.startsWith("/") ? path : `/${path}`}`;
