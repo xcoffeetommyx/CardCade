@@ -96,6 +96,7 @@ test("health, catalog, and launcher are served from one process", async (t) => {
   assert.match(launcherBody, /shared\/hot-seat-flow\.js/);
   assert.match(launcherBody, /shared\/juan-deck\.js/);
   assert.match(launcherBody, /shared\/juan-rules\.js/);
+  assert.match(launcherBody, /shared\/controller-input\.js/);
 
   const thirteenRules = await fetch(`${origin}/shared/thirteen-rules.js`);
   assert.equal(thirteenRules.status, 200);
@@ -139,8 +140,8 @@ test("the Funnel subpath serves the complete HTTP and WebSocket application", as
   assert.match(await launcher.text(), /<base href="\/cardcade\/">/);
 
   const [styles, appScript, manifest, sharedRules, catalog] = await Promise.all([
-    fetch(`${origin}/cardcade/app.css?v=37`),
-    fetch(`${origin}/cardcade/app.js?v=40`),
+    fetch(`${origin}/cardcade/app.css?v=38`),
+    fetch(`${origin}/cardcade/app.js?v=41`),
     fetch(`${origin}/cardcade/manifest.webmanifest`),
     fetch(`${origin}/cardcade/shared/thirteen-rules.js?v=2`),
     fetch(`${origin}/cardcade/api/catalog`)

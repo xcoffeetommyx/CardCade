@@ -8,6 +8,7 @@ const systemBanner = document.querySelector("#system-banner");
 const systemBannerMessage = document.querySelector("#system-banner-message");
 const systemBannerAction = systemBanner?.querySelector('[data-action="apply-app-update"]');
 const juanPrismRevealRoot = document.querySelector("#juan-prism-reveal-root");
+const controllerCursor = document.querySelector("#controller-cursor");
 
 const appBasePath = new URL(document.baseURI).pathname.replace(/\/+$/, "") || "";
 
@@ -76,7 +77,15 @@ const juanRules = globalThis.JuanRules;
 const blackjackRules = globalThis.CardcadeBlackjackRules;
 const holdemRules = globalThis.CardcadeHoldemRules;
 const fiveCardDrawRules = globalThis.CardcadeFiveCardDrawRules;
+const controllerInput = globalThis.CardcadeControllerInput;
 let appearancePreferences = loadAppearancePreferences();
+
+const controllerState = {
+  cursorX: Math.round(innerWidth / 2),
+  cursorY: Math.round(innerHeight / 2),
+  active: false,
+  input: null
+};
 
 const standardGameAdapters = {
   "three-seven": {
@@ -2889,6 +2898,12 @@ function scheduleGameTableLayout() {
 
 window.addEventListener("resize", scheduleGameTableLayout);
 window.visualViewport?.addEventListener("resize", scheduleGameTableLayout);
+window.addEventListener("resize", () => clampControllerCursor());
+
+document.addEventListener("pointermove", (event) => {
+  if (!event.isTrusted) return;
+  hideControllerCursor();
+}, { passive: true });
 
 document.addEventListener("change", (event) => {
   const select = event.target.closest?.("[data-skin-family]");
@@ -2943,12 +2958,55 @@ document.addEventListener("submit", async (event) => {
 
 async function boot() {
   setupPwaShell();
+  setupControllerCursor();
   try {
     state.catalog = await api("/api/catalog");
     render();
   } catch (error) {
     app.innerHTML = `<div class="empty-state"><h2>Cardcade could not start.</h2><p class="error-text">${escapeHtml(error.message)}</p></div>`;
   }
+}
+
+function setupControllerCursor() {
+  if (!controllerCursor || !controllerInput?.createGamepadInput) return;
+  controllerState.input = controllerInput.createGamepadInput({
+    onMove: ({ x, y }) => moveControllerCursor(x, y),
+    onActivity: showControllerCursor
+  });
+  controllerState.input.start();
+}
+
+function clampControllerCursor() {
+  controllerState.cursorX = Math.round(Math.min(Math.max(0, controllerState.cursorX), Math.max(0, innerWidth - 1)));
+  controllerState.cursorY = Math.round(Math.min(Math.max(0, controllerState.cursorY), Math.max(0, innerHeight - 1)));
+  renderControllerCursor();
+}
+
+function moveControllerCursor(deltaX, deltaY) {
+  controllerState.cursorX += Number(deltaX) || 0;
+  controllerState.cursorY += Number(deltaY) || 0;
+  clampControllerCursor();
+  showControllerCursor();
+}
+
+function renderControllerCursor() {
+  if (!controllerCursor) return;
+  controllerCursor.style.transform = `translate3d(${controllerState.cursorX}px, ${controllerState.cursorY}px, 0)`;
+}
+
+function showControllerCursor() {
+  if (!controllerCursor) return;
+  controllerState.active = true;
+  controllerCursor.hidden = false;
+  document.body.classList.add("controller-active");
+  renderControllerCursor();
+}
+
+function hideControllerCursor() {
+  if (!controllerCursor || !controllerState.active) return;
+  controllerState.active = false;
+  controllerCursor.hidden = true;
+  document.body.classList.remove("controller-active");
 }
 
 boot();
