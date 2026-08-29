@@ -742,6 +742,20 @@ function placeLabel(place) {
   return `${place}th`;
 }
 
+function placementForPlayer(match, player) {
+  const explicitPlace = Number(player?.place);
+  if (Number.isInteger(explicitPlace) && explicitPlace > 0) return explicitPlace;
+  const placementIndex = Array.isArray(match?.placements) ? match.placements.indexOf(player?.seat) : -1;
+  return placementIndex >= 0 ? placementIndex + 1 : null;
+}
+
+function placementClassFor(place) {
+  if (place === 1) return "placement-first";
+  if (place === 2) return "placement-second";
+  if (place === 3) return "placement-third";
+  return "";
+}
+
 function playedCardStyle(index, { animate = false, dealt = false } = {}) {
   const declarations = [];
   if (animate || dealt) declarations.push(`animation-delay:${Math.min(index, dealt ? 12 : 5) * (dealt ? 24 : 35)}ms`);
@@ -1344,6 +1358,7 @@ function renderStandardGame() {
   const viewer = state.room?.players.find((player) => player.isYou);
   const viewerSeat = viewer?.seat;
   const yourPlayer = match.players.find((player) => player.seat === viewerSeat);
+  const yourPlace = placementForPlayer(match, yourPlayer);
   const opponents = match.players.filter((player) => player.seat !== viewerSeat);
   const isYourTurn = match.activeSeat === viewerSeat && !match.roundOver;
   const evaluation = gameSelection();
@@ -1367,16 +1382,19 @@ function renderStandardGame() {
       <header class="game-topbar">
         <button class="back-button" type="button" data-action="leave-game" aria-label="${state.gameMode === "multiplayer" ? "Return to room lobby" : "Leave game"}">←</button>
         <div><span class="family-kicker">${state.gameMode === "solo" ? "Solo table" : state.gameMode === "hot-seat" ? "Hot Seat table" : `Room ${escapeHtml(state.room.code)}`}</span><h2>${escapeHtml(title)}</h2><p>${roundLabel} · ${escapeHtml(match.lastMoveText)}</p></div>
-        <button class="game-score" type="button" disabled><span>Score</span><strong>${yourPlayer?.score ?? 0}</strong></button>
+        <button class="game-score ${placementClassFor(yourPlace)}" type="button" disabled><span>${yourPlace ? `${placeLabel(yourPlace)} place` : "Score"}</span><strong>${yourPlayer?.score ?? 0}</strong></button>
       </header>
       ${gameLadder(game.gameId, match)}
       <div class="game-opponents">
-        ${opponents.map((player) => `
-          <article class="game-seat ${match.activeSeat === player.seat ? "active" : ""}">
+        ${opponents.map((player) => {
+          const playerPlace = placementForPlayer(match, player);
+          return `
+          <article class="game-seat ${match.activeSeat === player.seat ? "active" : ""} ${placementClassFor(playerPlace)}">
             ${renderSeatLastCard(player, game.gameId)}
-            <span class="game-seat-copy" title="${escapeHtml(player.name)}"><strong>${escapeHtml(player.name)}</strong><small>${player.finished ? `${placeLabel(player.place)} place` : `${player.cardCount} cards${player.passed ? " · passed" : ""}`}</small></span>
+            <span class="game-seat-copy" title="${escapeHtml(player.name)}"><strong>${escapeHtml(player.name)}</strong><small>${playerPlace ? `${placeLabel(playerPlace)} place` : `${player.cardCount} cards${player.passed ? " · passed" : ""}`}</small></span>
             ${renderMiniCardBack("standard-52", Math.min(player.cardCount, 7), { ariaHidden: true })}
-          </article>`).join("")}
+          </article>`;
+        }).join("")}
       </div>
       <section class="game-table">
         <div class="game-status"><span><strong>${match.roundOver ? "Round complete" : isYourTurn ? `${escapeHtml(yourPlayer?.name || "You")}, your turn` : `${escapeHtml(activePlayer?.name || "Player")} is thinking`}</strong><small>${tableCount} · ${lead ? `${escapeHtml(lead.playerName)} controls the pile` : "open lead"}</small></span><span class="badge">${lead ? escapeHtml(lead.label) : "Open lead"}</span></div>
@@ -1563,6 +1581,7 @@ function renderJuanGame() {
   const viewer = state.room?.players.find((player) => player.isYou);
   const viewerSeat = viewer?.seat;
   const yourPlayer = match.players.find((player) => player.seat === viewerSeat);
+  const yourPlace = placementForPlayer(match, yourPlayer);
   const opponents = match.players.filter((player) => player.seat !== viewerSeat);
   const isYourTurn = match.activeSeat === viewerSeat && !match.roundOver;
   const activePlayer = match.players.find((player) => player.seat === match.activeSeat);
@@ -1583,7 +1602,7 @@ function renderJuanGame() {
       <header class="game-topbar">
         <button class="back-button" type="button" data-action="leave-game" aria-label="${state.gameMode === "multiplayer" ? "Return to room lobby" : "Leave game"}">←</button>
         <div><span class="family-kicker">${state.gameMode === "solo" ? "Solo table" : state.gameMode === "hot-seat" ? "Hot Seat table" : `Room ${escapeHtml(state.room.code)}`}</span><h2>JUAN</h2><p>Race to one · ${escapeHtml(match.lastMoveText)}</p></div>
-        <button class="game-score" type="button" disabled><span>Score</span><strong>${yourPlayer?.score ?? 0}</strong></button>
+        <button class="game-score ${placementClassFor(yourPlace)}" type="button" disabled><span>${yourPlace ? `${placeLabel(yourPlace)} place` : "Score"}</span><strong>${yourPlayer?.score ?? 0}</strong></button>
       </header>
       <div class="juan-lane-bar">
         <span>Active color</span>
@@ -1592,12 +1611,15 @@ function renderJuanGame() {
         <span class="juan-direction" aria-label="Play direction ${match.direction === 1 ? "forward" : "backward"}">${match.direction === 1 ? "↻" : "↺"}</span>
       </div>
       <div class="game-opponents ${opponents.length <= 3 ? "fit-opponents" : ""}">
-        ${opponents.map((player) => `
-          <article class="game-seat ${match.activeSeat === player.seat ? "active" : ""} ${player.juan ? "juan-alert" : ""}">
+        ${opponents.map((player) => {
+          const playerPlace = placementForPlayer(match, player);
+          return `
+          <article class="game-seat ${match.activeSeat === player.seat ? "active" : ""} ${player.juan ? "juan-alert" : ""} ${placementClassFor(playerPlace)}">
             ${renderSeatLastCard(player, "juan")}
-            <span class="game-seat-copy" title="${escapeHtml(player.name)}"><strong>${escapeHtml(player.name)}</strong><small>${player.juan ? "JUAN! · 1 card" : `${player.cardCount} cards`}</small></span>
+            <span class="game-seat-copy" title="${escapeHtml(player.name)}"><strong>${escapeHtml(player.name)}</strong><small>${playerPlace ? `${placeLabel(playerPlace)} place` : player.juan ? "JUAN! · 1 card" : `${player.cardCount} cards`}</small></span>
             ${renderMiniCardBack("color-action", Math.min(player.cardCount, 7), { ariaHidden: true })}
-          </article>`).join("")}
+          </article>`;
+        }).join("")}
       </div>
       <section class="game-table juan-table">
         <div class="game-status"><span><strong>${match.roundOver ? "Match complete" : isYourTurn ? `${escapeHtml(yourPlayer?.name || "You")}, your turn` : `${escapeHtml(activePlayer?.name || "Player")} is thinking`}</strong><small>Stock ${match.stockCount} · match color or face</small></span><span class="badge">${escapeHtml(juanDeck.COLOR_NAME[match.activeColor])}</span></div>

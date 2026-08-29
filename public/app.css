@@ -1279,6 +1279,35 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 .juan-game .game-seat { min-height: 66px; }
 .juan-game .game-seat.juan-alert { border-color: #f2bf3d; box-shadow: 0 0 20px rgba(242,191,61,.14); }
 .juan-game .game-seat.juan-alert small { color: #ffd76c; }
+
+.game-seat.placement-first,
+.game-score.placement-first,
+.juan-game .game-seat.placement-first {
+  border-color: #f0c553;
+  background: linear-gradient(135deg, rgba(240,197,83,.22), rgba(13,32,58,.96));
+  box-shadow: 0 0 22px rgba(240,197,83,.28);
+}
+.game-seat.placement-second,
+.game-score.placement-second,
+.juan-game .game-seat.placement-second {
+  border-color: #c9d4e3;
+  background: linear-gradient(135deg, rgba(201,212,227,.19), rgba(13,32,58,.96));
+  box-shadow: 0 0 20px rgba(201,212,227,.22);
+}
+.game-seat.placement-third,
+.game-score.placement-third,
+.juan-game .game-seat.placement-third {
+  border-color: #dc9764;
+  background: linear-gradient(135deg, rgba(220,151,100,.2), rgba(13,32,58,.96));
+  box-shadow: 0 0 20px rgba(220,151,100,.24);
+}
+.game-seat.placement-first .game-seat-copy > small,
+.game-score.placement-first span { color: #ffe6a5; }
+.game-seat.placement-second .game-seat-copy > small,
+.game-score.placement-second span { color: #e7eef8; }
+.game-seat.placement-third .game-seat-copy > small,
+.game-score.placement-third span { color: #ffc89f; }
+
 .juan-game .mini-deck, .juan-stock {
   color: #fffaf0;
   background:

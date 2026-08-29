@@ -48,6 +48,22 @@ test("mobile tables use the visible viewport and keep long player names inside t
   assert.match(app, /window\.visualViewport\?\.addEventListener\("resize", scheduleGameTableLayout\)/);
 });
 
+test("shedding tables visibly mark first, second, and third place as players go out", () => {
+  const app = read("public/app.js");
+  const css = read("public/app.css");
+
+  assert.match(app, /function placementForPlayer/);
+  assert.match(app, /function placementClassFor/);
+  assert.match(app, /const yourPlace = placementForPlayer\(match, yourPlayer\);/);
+  assert.match(app, /const playerPlace = placementForPlayer\(match, player\);/);
+  assert.match(app, /class="game-score \$\{placementClassFor\(yourPlace\)\}"/);
+  assert.match(app, /\$\{placementClassFor\(playerPlace\)\}/);
+  assert.match(app, /\$\{playerPlace \? `\$\{placeLabel\(playerPlace\)\} place`/);
+  assert.match(css, /\.game-seat\.placement-first,[\s\S]*?\.game-score\.placement-first,[\s\S]*?\.juan-game \.game-seat\.placement-first/);
+  assert.match(css, /\.game-seat\.placement-second,[\s\S]*?\.game-score\.placement-second,[\s\S]*?\.juan-game \.game-seat\.placement-second/);
+  assert.match(css, /\.game-seat\.placement-third,[\s\S]*?\.game-score\.placement-third,[\s\S]*?\.juan-game \.game-seat\.placement-third/);
+});
+
 test("showdowns reveal full Five Card Draw hands and Blackjack insurance stays in view", () => {
   const app = read("public/app.js");
   const css = read("public/app.css");
