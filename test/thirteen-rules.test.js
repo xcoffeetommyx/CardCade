@@ -5,7 +5,8 @@ import rules from "../shared/thirteen-rules.js";
 
 const {
   RANKS, SUITS, cardValue, shuffle, sortCards, detectCombo, canBeat,
-  comboDescription, comboShort, getLegalMoves
+  comboDescription, comboShort, getLegalMoves, SCORE_BY_PLACE, TOTAL_ROUNDS,
+  finalStandings, finalWinners
 } = rules;
 
 const deck = standard52.makeDeck();
@@ -24,6 +25,8 @@ test("Thirteen consumes Cardcade's one rules-neutral standard deck", () => {
   assert.deepEqual(SUITS, ["S", "C", "D", "H"]);
   assert.equal(deck.some((card) => "rankValue" in card), false);
   assert.ok(cardValue(byId.get("2H")) > cardValue(byId.get("AS")));
+  assert.deepEqual(SCORE_BY_PLACE, [3, 1, 0, -2]);
+  assert.equal(TOTAL_ROUNDS, 4);
 });
 
 test("Thirteen shuffles a copy without changing the shared deck", () => {
@@ -108,4 +111,19 @@ test("Thirteen filters legal moves against the pile and opening 3♠ requirement
   assert.ok(responses.some((move) => move.type === "single" && move.cards[0].id === "5H"));
   assert.ok(responses.some((move) => move.type === "single" && move.cards[0].id === "2H"));
   assert.ok(responses.every((move) => canBeat(move, current)));
+});
+
+test("Thirteen final standings use points, then counts of top-three finishes", () => {
+  const players = [
+    { name: "A", score: 6, placementHistory: [1, 4, 4, 1] },
+    { name: "B", score: 6, placementHistory: [2, 2, 2, 2] },
+    { name: "C", score: 4, placementHistory: [1, 1, 4, 4] }
+  ];
+  assert.deepEqual(finalStandings(players).map((player) => player.name), ["A", "B", "C"]);
+
+  const tied = [
+    { name: "X", score: 4, placementHistory: [1, 2, 3, 4] },
+    { name: "Y", score: 4, placementHistory: [4, 3, 2, 1] }
+  ];
+  assert.deepEqual(finalWinners(tied).map((player) => player.name), ["X", "Y"]);
 });

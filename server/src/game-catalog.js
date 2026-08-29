@@ -33,7 +33,7 @@ export const games = [
     id: "thirteen",
     name: "Thirteen",
     eyebrow: "Vietnamese climbing game",
-    description: "Race to shed thirteen cards with increasingly strong combinations.",
+    description: "Race to shed thirteen cards across four scored rounds with increasingly strong combinations.",
     deckFamilyId: "standard-52",
     genres: ["climbing", "shedding"],
     modes: ["solo", "multiplayer", "hot-seat"],

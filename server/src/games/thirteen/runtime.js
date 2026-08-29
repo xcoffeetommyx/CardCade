@@ -12,7 +12,7 @@ export class ThirteenRuntime {
     this.#engine = matchEngine;
     for (const record of restoredMatches) {
       if (record?.gameId !== "thirteen" || typeof record.code !== "string" || !record.state?.players) continue;
-      this.#matches.set(record.code, structuredClone(record.state));
+      this.#matches.set(record.code, this.#engine.hydrate(structuredClone(record.state)));
     }
   }
 
@@ -93,15 +93,27 @@ export class ThirteenRuntime {
   #nextRound(roomCode, match, viewer) {
     if (!match.roundOver) throw new GameError("The current round is still in progress.", "ROUND_IN_PROGRESS", 409);
     if (viewer.role !== "host") throw new GameError("Only the host can start the next round.", "HOST_ONLY", 403);
+    const totalRounds = Number.isInteger(match.totalRounds) ? match.totalRounds : 4;
+    if (match.matchOver || match.round >= totalRounds) {
+      throw new GameError("This four-round Thirteen match is complete.", "MATCH_COMPLETE", 409);
+    }
 
     const carryScores = new Map(match.players.map((player) => [player.seat, player.score]));
+    const carryPlacements = new Map(match.players.map((player) => [
+      player.seat,
+      Array.isArray(player.placementHistory) ? player.placementHistory : []
+    ]));
     const players = match.players.map((player) => ({
       seat: player.seat,
       name: player.name,
       type: player.type,
       style: player.style
     }));
-    const nextMatch = this.#engine.createMatch(players, { carryScores, round: match.round + 1 });
+    const nextMatch = this.#engine.createMatch(players, {
+      carryScores,
+      carryPlacements,
+      round: match.round + 1
+    });
     this.#matches.set(roomCode, nextMatch);
     return nextMatch;
   }

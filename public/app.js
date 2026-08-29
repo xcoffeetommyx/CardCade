@@ -756,6 +756,22 @@ function placementClassFor(place) {
   return "";
 }
 
+function renderStandardFinalStandings(match) {
+  const seatOrder = Array.isArray(match.finalStandings) && match.finalStandings.length
+    ? match.finalStandings
+    : match.players
+      .slice()
+      .sort((left, right) => (right.score ?? 0) - (left.score ?? 0))
+      .map((player) => player.seat);
+  const winnerSeats = new Set(Array.isArray(match.winners) ? match.winners : []);
+  return `<ol class="final-standings">${seatOrder.map((seat, index) => {
+    const player = match.players.find((candidate) => candidate.seat === seat);
+    const winner = winnerSeats.has(seat);
+    const score = Number.isFinite(player?.score) ? player.score : 0;
+    return `<li class="${winner ? "winner" : ""}"><span>${index + 1}</span><strong>${escapeHtml(player?.name || "Player")}</strong><small>${score} pts${winner ? " · Winner" : ""}</small></li>`;
+  }).join("")}</ol>`;
+}
+
 function playedCardStyle(index, { animate = false, dealt = false } = {}) {
   const declarations = [];
   if (animate || dealt) declarations.push(`animation-delay:${Math.min(index, dealt ? 12 : 5) * (dealt ? 24 : 35)}ms`);
@@ -1374,7 +1390,7 @@ function renderStandardGame() {
   const isDealing = !state.dealtHandOwners.has(handOwner);
   state.dealtHandOwners.add(handOwner);
   const title = state.room?.game?.name || (game.gameId === "thirteen" ? "Thirteen" : "3s & 7s");
-  const roundLabel = game.gameId === "three-seven" ? `Round ${match.round}/${match.totalRounds}` : `Round ${match.round}`;
+  const roundLabel = Number.isInteger(match.totalRounds) ? `Round ${match.round}/${match.totalRounds}` : `Round ${match.round}`;
   const tableCount = game.gameId === "three-seven" ? `Stock ${match.drawCount}` : "13-card deal";
 
   return `
@@ -1397,7 +1413,7 @@ function renderStandardGame() {
         }).join("")}
       </div>
       <section class="game-table">
-        <div class="game-status"><span><strong>${match.roundOver ? "Round complete" : isYourTurn ? `${escapeHtml(yourPlayer?.name || "You")}, your turn` : `${escapeHtml(activePlayer?.name || "Player")} is thinking`}</strong><small>${tableCount} · ${lead ? `${escapeHtml(lead.playerName)} controls the pile` : "open lead"}</small></span><span class="badge">${lead ? escapeHtml(lead.label) : "Open lead"}</span></div>
+        <div class="game-status"><span><strong>${match.roundOver ? match.matchOver ? "Match complete" : "Round complete" : isYourTurn ? `${escapeHtml(yourPlayer?.name || "You")}, your turn` : `${escapeHtml(activePlayer?.name || "Player")} is thinking`}</strong><small>${tableCount} · ${lead ? `${escapeHtml(lead.playerName)} controls the pile` : "open lead"}</small></span><span class="badge">${lead ? escapeHtml(lead.label) : "Open lead"}</span></div>
         <div class="active-pile ${lead ? "cards-pile" : ""}">${lead ? lead.cards.map((card, index) => renderPlayingCard(card, index, { played: true, enter: pileIsNew })).join("") : `<div class="empty-pile"><strong>No active pile</strong><span>${match.openingRequired ? `Lead must include ${standardCardLabel(match.openingCardId)}.` : "Lead with any legal combination."}</span></div>`}</div>
       </section>
       <section class="physical-hand ${isYourTurn ? "your-turn" : ""}">
@@ -1412,7 +1428,7 @@ function renderStandardGame() {
       </nav>
       ${match.roundOver ? `
         <div class="round-result">
-          <div><span class="family-kicker">${match.matchOver ? "Final standings" : `Round ${match.round} complete`}</span><h3>${escapeHtml(match.lastMoveText)}</h3><p>${match.placements.map((seat, index) => `${index + 1}. ${escapeHtml(match.players.find((player) => player.seat === seat)?.name || "Player")}`).join(" · ")}</p></div>
+          <div><span class="family-kicker">${match.matchOver ? "Final standings" : `Round ${match.round} complete`}</span><h3>${escapeHtml(match.lastMoveText)}</h3>${match.matchOver ? renderStandardFinalStandings(match) : `<p>${match.placements.map((seat, index) => `${index + 1}. ${escapeHtml(match.players.find((player) => player.seat === seat)?.name || "Player")}`).join(" · ")}</p>`}</div>
           ${game.gameId === "three-seven" && !match.matchOver && match.mercyOfferPending && match.mercyLeaderSeat === viewerSeat ? `<div class="button-row"><button class="action-button" data-action="mercy-take-win">Take the win</button><button class="action-button primary" data-action="mercy-double">Double or nothing</button></div>` : ""}
           ${!match.matchOver && !match.mercyOfferPending ? `<button class="action-button primary" type="button" data-action="next-round" ${isHost ? "" : "disabled"}>${isHost ? "Deal next round" : "Waiting for host"}</button>` : ""}
           ${match.matchOver ? `<button class="action-button" type="button" data-action="leave-game">Return to Cardcade</button>` : ""}

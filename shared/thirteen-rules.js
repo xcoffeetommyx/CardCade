@@ -13,6 +13,7 @@
   const SUIT_NAME = Object.freeze({ S: "Spades", C: "Clubs", D: "Diamonds", H: "Hearts" });
   const SUIT_VALUE = Object.freeze({ S: 0, C: 1, D: 2, H: 3 });
   const SCORE_BY_PLACE = Object.freeze([3, 1, 0, -2]);
+  const TOTAL_ROUNDS = 4;
 
   function rankValue(card) {
     return RANKS.indexOf(card.rank);
@@ -212,10 +213,31 @@
     return cost;
   }
 
+  function compareFinalPlayers(left, right) {
+    if (right.score !== left.score) return right.score - left.score;
+    for (let place = 1; place <= 3; place += 1) {
+      const leftCount = (left.placementHistory || []).filter((value) => value === place).length;
+      const rightCount = (right.placementHistory || []).filter((value) => value === place).length;
+      if (rightCount !== leftCount) return rightCount - leftCount;
+    }
+    return 0;
+  }
+
+  function finalStandings(players) {
+    return players.slice().sort(compareFinalPlayers);
+  }
+
+  function finalWinners(players) {
+    const standings = finalStandings(players);
+    if (!standings.length) return [];
+    return standings.filter((player) => compareFinalPlayers(player, standings[0]) === 0);
+  }
+
   return Object.freeze({
-    RANKS, SUITS, SUIT_SYMBOL, SUIT_NAME, SUIT_VALUE, SCORE_BY_PLACE,
+    RANKS, SUITS, SUIT_SYMBOL, SUIT_NAME, SUIT_VALUE, SCORE_BY_PLACE, TOTAL_ROUNDS,
     rankValue, cardValue, cardLabel, cardLong, shuffle, sortCards, comboStrength,
     detectCombo, currentHasTwos, canChop, canBeat, comboDescription, comboShort,
-    getAllCombos, getLegalMoves, isBombCombo, isTwoCombo, moveCost
+    getAllCombos, getLegalMoves, isBombCombo, isTwoCombo, moveCost,
+    compareFinalPlayers, finalStandings, finalWinners
   });
 });

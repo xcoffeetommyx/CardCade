@@ -3,8 +3,9 @@ import test from "node:test";
 import rules from "../shared/thirteen-rules.js";
 import { GameError } from "../server/src/game-error.js";
 import { MatchEngine } from "../server/src/games/thirteen/match-engine.js";
+import { ThirteenRuntime } from "../server/src/games/thirteen/runtime.js";
 
-const { getLegalMoves } = rules;
+const { getLegalMoves, TOTAL_ROUNDS, finalStandings, finalWinners } = rules;
 const human = (seat, name) => ({ seat, name, type: "human" });
 const bot = (seat, name, style = "steady") => ({ seat, name, type: "bot", style });
 const identityShuffle = (deck) => deck.slice();
@@ -17,6 +18,7 @@ test("Thirteen deals thirteen shared standard cards to every occupied seat", () 
   assert.ok(match.players.every((player) => player.hand.length === 13));
   assert.equal(match.activeSeat, 0);
   assert.equal(match.openingRequired, true);
+  assert.equal(match.totalRounds, TOTAL_ROUNDS);
   assert.ok(match.players[0].hand.some((card) => card.id === "3S"));
   assert.ok(match.players.flatMap((player) => player.hand).every((card) => !("rankValue" in card)));
 });
@@ -73,19 +75,9 @@ test("Thirteen converts a departing human seat to a bot without losing its hand"
 test("Thirteen completes a deterministic authoritative round with source scoring", () => {
   const engine = new MatchEngine({ shuffleDeck: identityShuffle });
   const match = engine.createMatch(fullTable());
-  let actions = 0;
-  while (!match.roundOver && actions < 500) {
-    const player = match.players.find((candidate) => candidate.seat === match.activeSeat);
-    const moves = getLegalMoves(player.hand, match.currentLead?.combo || null, match.openingRequired);
-    if (moves.length) {
-      const move = moves.find((candidate) => candidate.count === player.hand.length) || moves[0];
-      engine.play(match, player.seat, move.cards.map((card) => card.id));
-    } else {
-      engine.pass(match, player.seat);
-    }
-    actions += 1;
-  }
+  const actions = playRoundToEnd(engine, match);
   assert.equal(match.roundOver, true);
+  assert.equal(match.matchOver, false);
   assert.equal(match.phase, "complete");
   assert.equal(match.placements.length, 4);
   assert.equal(new Set(match.placements).size, 4);
@@ -100,6 +92,44 @@ test("Thirteen carries running scores into later deals", () => {
   assert.ok(carried.players.every((player) => player.hand.length === 13));
   assert.equal(carried.round, 2);
   assert.equal(carried.roundOver, false);
+});
+
+test("Thirteen ends after four scored rounds and publishes the final standings", () => {
+  const engine = new MatchEngine({ shuffleDeck: identityShuffle });
+  const players = fullTable();
+  let match = engine.createMatch(players);
+
+  for (let round = 1; round <= TOTAL_ROUNDS; round += 1) {
+    playRoundToEnd(engine, match);
+    if (round === TOTAL_ROUNDS) break;
+
+    const carryScores = new Map(match.players.map((player) => [player.seat, player.score]));
+    const carryPlacements = new Map(match.players.map((player) => [player.seat, player.placementHistory]));
+    match = engine.createMatch(players, { carryScores, carryPlacements, round: round + 1 });
+    assert.equal(match.matchOver, false);
+  }
+
+  assert.equal(match.round, TOTAL_ROUNDS);
+  assert.equal(match.roundOver, true);
+  assert.equal(match.matchOver, true);
+  assert.ok(match.players.every((player) => player.placementHistory.length === TOTAL_ROUNDS));
+  assert.deepEqual(match.finalStandings, finalStandings(match.players).map((player) => player.seat));
+  assert.deepEqual(match.winners, finalWinners(match.players).map((player) => player.seat));
+  assert.match(match.lastMoveText, /Thirteen/);
+
+  const view = engine.viewFor(match, 0, new Map([[0, true], [1, true], [2, true], [3, true]]));
+  assert.equal(view.state.totalRounds, TOTAL_ROUNDS);
+  assert.equal(view.state.matchOver, true);
+  assert.deepEqual(view.state.finalStandings, match.finalStandings);
+
+  const runtime = new ThirteenRuntime({
+    restoredMatches: [{ gameId: "thirteen", code: "END13", state: match }]
+  });
+  assertGameError(() => runtime.act({
+    code: "END13",
+    players: [{ seat: 0, isYou: true, role: "host" }]
+  }, { type: "next_round" }), "MATCH_COMPLETE");
+  assertGameError(() => engine.createMatch(players, { round: TOTAL_ROUNDS + 1 }), "INVALID_ROUND");
 });
 
 test("Thirteen publishes only each seat's already-played cards", () => {
@@ -122,4 +152,21 @@ test("Thirteen publishes only each seat's already-played cards", () => {
 
 function assertGameError(action, code) {
   assert.throws(action, (error) => error instanceof GameError && error.code === code);
+}
+
+function playRoundToEnd(engine, match) {
+  let actions = 0;
+  while (!match.roundOver && actions < 500) {
+    const player = match.players.find((candidate) => candidate.seat === match.activeSeat);
+    const moves = getLegalMoves(player.hand, match.currentLead?.combo || null, match.openingRequired);
+    if (moves.length) {
+      const move = moves.find((candidate) => candidate.count === player.hand.length) || moves[0];
+      engine.play(match, player.seat, move.cards.map((card) => card.id));
+    } else {
+      engine.pass(match, player.seat);
+    }
+    actions += 1;
+  }
+  assert.ok(actions < 500, "Thirteen should finish within the action limit");
+  return actions;
 }

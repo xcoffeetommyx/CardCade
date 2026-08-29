@@ -64,6 +64,18 @@ test("shedding tables visibly mark first, second, and third place as players go 
   assert.match(css, /\.game-seat\.placement-third,[\s\S]*?\.game-score\.placement-third,[\s\S]*?\.juan-game \.game-seat\.placement-third/);
 });
 
+test("four-round Thirteen matches show progress and final point standings", () => {
+  const app = read("public/app.js");
+  const css = read("public/app.css");
+
+  assert.match(app, /function renderStandardFinalStandings/);
+  assert.match(app, /Number\.isInteger\(match\.totalRounds\) \? `Round \$\{match\.round\}\/\$\{match\.totalRounds\}`/);
+  assert.match(app, /match\.matchOver \? renderStandardFinalStandings\(match\)/);
+  assert.match(app, /match\.matchOver \? "Match complete" : "Round complete"/);
+  assert.match(css, /\.final-standings \{/);
+  assert.match(css, /\.final-standings li\.winner/);
+});
+
 test("showdowns reveal full Five Card Draw hands and Blackjack insurance stays in view", () => {
   const app = read("public/app.js");
   const css = read("public/app.css");

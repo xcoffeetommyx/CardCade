@@ -5,13 +5,16 @@ import { GameError as RoomError } from "../../game-error.js";
 
 const {
   SCORE_BY_PLACE,
+  TOTAL_ROUNDS,
   sortCards,
   detectCombo,
   canBeat,
   comboDescription,
   comboShort,
   getLegalMoves,
-  moveCost
+  moveCost,
+  finalStandings,
+  finalWinners
 } = rules;
 
 const TABLE_SIZE = 4;
@@ -21,15 +24,23 @@ export class MatchEngine {
     this.shuffleDeck = shuffleDeck;
   }
 
-  createMatch(roomPlayers, { carryScores = null, round = 1 } = {}) {
+  createMatch(roomPlayers, { carryScores = null, carryPlacements = null, round = 1 } = {}) {
     if (!Array.isArray(roomPlayers) || roomPlayers.length !== TABLE_SIZE) {
       throw new RoomError("Thirteen requires exactly four occupied seats.", "INVALID_PLAYER_COUNT");
+    }
+    if (!Number.isInteger(round) || round < 1 || round > TOTAL_ROUNDS) {
+      throw new RoomError(`Thirteen has exactly ${TOTAL_ROUNDS} rounds.`, "INVALID_ROUND");
     }
 
     const scoreForSeat = (seat) => {
       if (!carryScores) return 0;
       const carried = carryScores instanceof Map ? carryScores.get(seat) : carryScores[seat];
       return Number.isFinite(carried) ? carried : 0;
+    };
+    const placementsForSeat = (seat) => {
+      if (!carryPlacements) return [];
+      const carried = carryPlacements instanceof Map ? carryPlacements.get(seat) : carryPlacements[seat];
+      return Array.isArray(carried) ? carried.slice() : [];
     };
 
     const players = roomPlayers
@@ -41,7 +52,8 @@ export class MatchEngine {
         avatar: initialsForName(player.name, `P${player.seat}`),
         type: player.type === "bot" ? "bot" : "human",
         style: player.style || (player.type === "bot" ? "steady" : "human"),
-        score: scoreForSeat(player.seat)
+        score: scoreForSeat(player.seat),
+        placementHistory: placementsForSeat(player.seat)
       }));
 
     const deck = this.shuffleDeck(standard52.makeDeck());
@@ -56,6 +68,7 @@ export class MatchEngine {
 
     return {
       round,
+      totalRounds: TOTAL_ROUNDS,
       phase: "playing",
       players,
       activeSeat: starter.seat,
@@ -64,9 +77,26 @@ export class MatchEngine {
       openingCardId: "3S",
       placements: [],
       roundOver: false,
+      matchOver: false,
+      finalStandings: [],
+      winners: [],
       lastMoveText: "Opening lead must include 3♠.",
       log: [`${starter.name} has 3♠ and leads first.`]
     };
+  }
+
+  hydrate(match) {
+    if (!match || !Array.isArray(match.players)) return match;
+    match.totalRounds = TOTAL_ROUNDS;
+    if (!Array.isArray(match.placements)) match.placements = [];
+    if (!Array.isArray(match.finalStandings)) match.finalStandings = [];
+    if (!Array.isArray(match.winners)) match.winners = [];
+    if (typeof match.matchOver !== "boolean") match.matchOver = false;
+    for (const player of match.players) {
+      if (!Array.isArray(player.placementHistory)) player.placementHistory = [];
+    }
+    if (match.roundOver && Number(match.round) >= TOTAL_ROUNDS && !match.matchOver) completeMatch(match);
+    return match;
   }
 
   play(match, seat, cardIds) {
@@ -172,6 +202,7 @@ export class MatchEngine {
       state: {
         phase: match.phase,
         round: match.round,
+        totalRounds: match.totalRounds || TOTAL_ROUNDS,
         activeSeat: match.activeSeat,
         openingRequired: match.openingRequired,
         openingCardId: match.openingCardId,
@@ -192,10 +223,14 @@ export class MatchEngine {
           } : null,
           lastPlayedCard: player.lastPlayedCard ? { ...player.lastPlayedCard } : null,
           score: player.score,
+          placementHistory: Array.isArray(player.placementHistory) ? player.placementHistory.slice() : [],
           connected: player.type === "bot" ? true : connections.get(player.seat) === true
         })),
         placements: match.placements.slice(),
         roundOver: match.roundOver,
+        matchOver: match.matchOver === true,
+        finalStandings: Array.isArray(match.finalStandings) ? match.finalStandings.slice() : [],
+        winners: Array.isArray(match.winners) ? match.winners.slice() : [],
         lastMoveText: match.lastMoveText,
         log: match.log.slice(0, 18)
       },
@@ -213,8 +248,22 @@ export function secureShuffle(deck) {
   return shuffled;
 }
 
-function createMatchPlayer({ seat, name, avatar, type, style, score = 0 }) {
-  return { seat, name, avatar, type, style, hand: [], passed: false, finished: false, place: null, lastPlay: null, lastPlayedCard: null, score };
+function createMatchPlayer({ seat, name, avatar, type, style, score = 0, placementHistory = [] }) {
+  return {
+    seat,
+    name,
+    avatar,
+    type,
+    style,
+    hand: [],
+    passed: false,
+    finished: false,
+    place: null,
+    lastPlay: null,
+    lastPlayedCard: null,
+    score,
+    placementHistory
+  };
 }
 
 function validateDeck(deck) {
@@ -269,11 +318,26 @@ function finishRound(match) {
   match.activeSeat = null;
   match.currentLead = null;
   for (let index = 0; index < match.placements.length; index += 1) {
-    getPlayer(match, match.placements[index]).score += SCORE_BY_PLACE[index] || 0;
+    const player = getPlayer(match, match.placements[index]);
+    player.score += SCORE_BY_PLACE[index] || 0;
+    if (!Array.isArray(player.placementHistory)) player.placementHistory = [];
+    player.placementHistory.push(index + 1);
   }
   const winner = getPlayer(match, match.placements[0]);
-  match.lastMoveText = `${winner.name} wins the round.`;
+  if (match.round === TOTAL_ROUNDS) completeMatch(match);
+  else match.lastMoveText = `${winner.name} wins Round ${match.round}.`;
   match.log.unshift(match.lastMoveText);
+}
+
+function completeMatch(match) {
+  match.matchOver = true;
+  const standings = finalStandings(match.players);
+  match.finalStandings = standings.map((player) => player.seat);
+  match.winners = finalWinners(match.players).map((player) => player.seat);
+  const names = match.winners.map((seat) => getPlayer(match, seat)?.name || "Player");
+  match.lastMoveText = names.length === 1
+    ? `${names[0]} wins the Thirteen match!`
+    : `${names.join(" & ")} share the Thirteen win!`;
 }
 
 function allPassedExceptLead(match) {
