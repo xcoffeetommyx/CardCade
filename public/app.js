@@ -2988,6 +2988,7 @@ function setupControllerCursor() {
   if (!controllerCursor || !controllerInput?.createGamepadInput) return;
   controllerState.input = controllerInput.createGamepadInput({
     onMove: ({ x, y }) => moveControllerCursor(x, y),
+    onScroll: ({ left, top }) => scrollControllerPage(left, top),
     onButton: handleControllerButton,
     onActivity: showControllerCursor,
     onDisconnect: hideControllerCursor
@@ -3007,6 +3008,15 @@ function moveControllerCursor(deltaX, deltaY) {
   clampControllerCursor();
   showControllerCursor();
   updateControllerHover();
+}
+
+function scrollControllerPage(deltaX, deltaY) {
+  const left = Number(deltaX) || 0;
+  const top = Number(deltaY) || 0;
+  if (!left && !top) return;
+  // Gamepad axes and scroll offsets share their direction signs, so up/left
+  // remain negative and down/right remain positive.
+  window.scrollBy({ left, top, behavior: "auto" });
 }
 
 function renderControllerCursor() {

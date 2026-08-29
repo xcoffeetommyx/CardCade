@@ -23,9 +23,10 @@
     Object.freeze({ action: "right", button: BUTTONS.dpadRight, repeats: true })
   ]);
 
-  function stickVector(axes, deadZone = 0.22) {
-    const x = clamp(Number(axes?.[0]) || 0, -1, 1);
-    const y = clamp(Number(axes?.[1]) || 0, -1, 1);
+  function stickVector(axes, deadZone = 0.22, axisOffset = 0) {
+    const offset = Math.max(0, Math.floor(Number(axisOffset) || 0));
+    const x = clamp(Number(axes?.[offset]) || 0, -1, 1);
+    const y = clamp(Number(axes?.[offset + 1]) || 0, -1, 1);
     const magnitude = Math.min(1, Math.hypot(x, y));
     const safeDeadZone = clamp(Number(deadZone) || 0, 0, 0.95);
     if (magnitude <= safeDeadZone) return Object.freeze({ x: 0, y: 0, magnitude: 0 });
@@ -86,11 +87,14 @@
     onConnect = () => {},
     onDisconnect = () => {},
     onMove = () => {},
+    onScroll = () => {},
     onButton = () => {},
     onActivity = () => {},
     deadZone = 0.22,
     minimumSpeed = 260,
     maximumSpeed = 1180,
+    minimumScrollSpeed = 360,
+    maximumScrollSpeed = 1440,
     repeatDelay = 360,
     repeatInterval = 105
   } = {}) {
@@ -130,6 +134,16 @@
       if (stick.magnitude > 0 && elapsed > 0) {
         const speed = Number(minimumSpeed) + (Number(maximumSpeed) - Number(minimumSpeed)) * stick.magnitude;
         onMove({ x: stick.x * speed * elapsed, y: stick.y * speed * elapsed, stick, gamepad });
+        onActivity(gamepad);
+      }
+
+      // Standard-mapped gamepads expose the right stick on axes 2 and 3.
+      // Browser scroll coordinates use the same signs: up is negative top,
+      // down is positive top, left is negative left, and right is positive left.
+      const scrollStick = stickVector(gamepad.axes, deadZone, 2);
+      if (scrollStick.magnitude > 0 && elapsed > 0) {
+        const speed = Number(minimumScrollSpeed) + (Number(maximumScrollSpeed) - Number(minimumScrollSpeed)) * scrollStick.magnitude;
+        onScroll({ left: scrollStick.x * speed * elapsed, top: scrollStick.y * speed * elapsed, stick: scrollStick, gamepad });
         onActivity(gamepad);
       }
 

@@ -59,6 +59,26 @@ test("moves the virtual cursor from the left stick and repeats held d-pad direct
   ]);
 });
 
+test("maps the right stick to non-inverted page scrolling without moving the cursor", () => {
+  const moves = [];
+  const scrolls = [];
+  const gamepad = { index: 0, connected: true, mapping: "standard", axes: [0, 0, 1, -1], buttons: buttons() };
+  const input = controllerInput.createGamepadInput({
+    getGamepads: () => [gamepad],
+    onMove: (move) => moves.push(move),
+    onScroll: (scroll) => scrolls.push(scroll)
+  });
+
+  input.poll(0);
+  input.poll(16);
+  gamepad.axes = [0, 0, -1, 1];
+  input.poll(32);
+
+  assert.equal(moves.length, 0);
+  assert.ok(scrolls[0].left > 0 && scrolls[0].top < 0, "right/up scrolls right/up");
+  assert.ok(scrolls[1].left < 0 && scrolls[1].top > 0, "left/down scrolls left/down");
+});
+
 test("chooses the nearest control in the requested d-pad direction", () => {
   const targets = [
     { id: "left", left: 0, right: 40, top: 40, bottom: 80 },

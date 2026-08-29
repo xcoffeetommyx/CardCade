@@ -15,8 +15,9 @@ test("the controller cursor is loaded before Cardcade and cached for offline use
 
   assert.ok(controllerIndex >= 0 && controllerIndex < appIndex);
   assert.match(html, /id="controller-cursor"/);
+  assert.match(html, /<svg viewBox="0 0 28 31"[^>]*><path d="M3 2V24L9 18L13 27L18 25L14 16H25Z"/);
   assert.match(html, /id="controller-keyboard-root"/);
-  assert.match(worker, /"shared\/controller-input\.js\?v=2"/);
+  assert.match(worker, /"shared\/controller-input\.js\?v=3"/);
 });
 
 test("controller inputs use a virtual cursor, d-pad navigation, and safe A/B actions", () => {
@@ -24,6 +25,9 @@ test("controller inputs use a virtual cursor, d-pad navigation, and safe A/B act
   const css = read("public/app.css");
 
   assert.match(app, /function moveControllerCursor/);
+  assert.match(app, /function scrollControllerPage/);
+  assert.match(app, /onScroll: \(\{ left, top \}\) => scrollControllerPage\(left, top\)/);
+  assert.match(app, /window\.scrollBy\(\{ left, top, behavior: "auto" \}\)/);
   assert.match(app, /function moveControllerFocus/);
   assert.match(app, /controllerInput\.directionalTarget/);
   assert.match(app, /function activateControllerTarget/);
@@ -31,6 +35,7 @@ test("controller inputs use a virtual cursor, d-pad navigation, and safe A/B act
   assert.match(app, /prismCancel\.click\(\)/);
   assert.match(app, /screen-head \.back-button/);
   assert.match(css, /\.controller-hover:not\(\.playing-card\)/);
+  assert.match(css, /\.controller-cursor path \{ fill: #fff; stroke: #02050b;/);
 });
 
 test("controller cursor and d-pad support selectable fanned cards across decks", () => {
