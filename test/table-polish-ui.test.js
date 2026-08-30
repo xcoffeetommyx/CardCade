@@ -50,6 +50,15 @@ test("game redraws preserve the current mobile viewport position", () => {
   assert.match(app, /requestAnimationFrame\(\(\) => \{[\s\S]*?state\.screen === "game"\) restore\(\)/);
 });
 
+test("table status and stock counts expand instead of cutting off long labels", () => {
+  const css = read("public/app.css");
+
+  assert.match(css, /\.game-status > span:first-child \{ flex: 1 1 auto; min-width: 0; \}/);
+  assert.match(css, /\.game-status \.badge \{[\s\S]*?white-space: normal;[\s\S]*?overflow-wrap: anywhere;/);
+  assert.doesNotMatch(css, /\.game-status \.badge \{ max-width: 112px;[\s\S]*?text-overflow: ellipsis/);
+  assert.match(css, /:is\(\.juan-stock, \.rummy-stock\) b \{[\s\S]*?width: max-content;[\s\S]*?white-space: nowrap;/);
+});
+
 test("table seats render the last public card instead of player initials", () => {
   const app = read("public/app.js");
   assert.match(app, /function renderSeatLastCard/);

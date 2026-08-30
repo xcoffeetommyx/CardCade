@@ -1569,6 +1569,7 @@ function rotatingRummySelection() {
   if (!route) {
     return { selected, routeOk: false, linkOk: false, discardOk: selected.length === 1, linkTarget: null, reason: "Route details are unavailable" };
   }
+  const routeCardCount = rotatingRummyRoutes.routeCardCount(route);
   const evaluation = rotatingRummyRules.evaluateRoute(selected, route);
   return {
     selected,
@@ -1581,6 +1582,8 @@ function rotatingRummySelection() {
       ? `Route ready · ${route.name}`
       : selected.length === 1
         ? `Discard ${rotatingRummyDeck.cardLong(selected[0])}, or select cards for your Route`
+        : selected.length > routeCardCount
+          ? `Lay the exact ${routeCardCount}-card Route first, then link extra cards before your discard`
         : evaluation.reason
   };
 }
@@ -1764,11 +1767,11 @@ function renderRotatingRummyGame() {
         </div>
       </section>
       <section class="rummy-meld-zone ${yourPlayer?.routeComplete ? "complete" : ""}">
-        <div><span class="family-kicker">Your current Route</span><strong>${escapeHtml(route?.name || "Route deck complete")}</strong><small>${yourPlayer?.routeComplete ? "Route completed — link compatible cards or choose one card to discard." : route ? `${route.cardCount} cards required · ${route.description}` : "Waiting for the round result."}</small></div>
+        <div><span class="family-kicker">Your current Route</span><strong>${escapeHtml(route?.name || "Route deck complete")}</strong><small>${yourPlayer?.routeComplete ? "Route completed — link extra cards to your Route or another completed Route, then discard." : route ? `${route.cardCount} cards required · ${route.description}` : "Waiting for the round result."}</small></div>
         ${yourPlayer?.routeMeld?.length ? `<div class="rummy-meld-groups">${yourPlayer.routeMeld.map((group, groupIndex) => `<div class="rummy-meld-group" aria-label="Completed Route group ${groupIndex + 1}">${group.map((card, index) => renderRotatingRummyCard(card, index, { played: true })).join("")}</div>`).join("")}</div>` : ""}
       </section>
       ${linkTargets.length ? `<section class="rummy-link-board" aria-label="Completed Route groups">
-        <div class="rummy-link-board-heading"><span class="family-kicker">Route links</span><small>${yourPlayer?.routeComplete ? "Choose a group, then link compatible cards before your discard." : "Complete your Route before linking cards."}</small></div>
+        <div class="rummy-link-board-heading"><span class="family-kicker">Route links</span><small>${yourPlayer?.routeComplete ? "Choose your Route or another completed group, then link compatible cards before your discard." : "Complete your Route before linking cards."}</small></div>
         <div class="rummy-link-targets">${linkTargets.map((target) => {
           const selectedTarget = selection.linkTarget?.player.seat === target.player.seat && selection.linkTarget.groupIndex === target.groupIndex;
           const targetName = target.player.seat === viewerSeat ? "Your Route" : `${target.player.name}'s Route`;

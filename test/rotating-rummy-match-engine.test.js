@@ -111,6 +111,25 @@ test("Completed Routes accept compatible Links before the final discard", () => 
   assert.equal(table.roundOver, true);
 });
 
+test("Players can extend their own completed run during the same turn", () => {
+  const game = engine();
+  const table = matchFor([human(0, "One"), human(1, "Two")]);
+  setTable(table, {
+    hands: [["rr-red-4-a", "rr-blue-4-a", "rr-green-6-a", "rr-yellow-7-a", "rr-red-8-a", "rr-blue-9-a", "rr-red-1-a"], ["rr-yellow-12-a"]],
+    turnStage: "play"
+  });
+
+  game.completeRoute(table, 0, ["rr-red-4-a", "rr-blue-4-a", "rr-green-6-a", "rr-yellow-7-a", "rr-red-8-a"]);
+  assert.equal(table.turnStage, "play");
+  assert.equal(table.activeSeat, 0);
+
+  game.link(table, 0, 0, 1, ["rr-blue-9-a"]);
+  assert.deepEqual(table.players[0].routeMeld[1].map((entry) => entry.value), [6, 7, 8, 9]);
+  assert.equal(table.players[0].hand.length, 1);
+  game.discard(table, 0, "rr-red-1-a");
+  assert.equal(table.roundOver, true);
+});
+
 test("next rounds retain player Route progress and use the same Route Deck", () => {
   const game = engine();
   const table = matchFor([human(0, "One"), human(1, "Two")]);

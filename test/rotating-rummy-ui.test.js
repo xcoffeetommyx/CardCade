@@ -43,6 +43,8 @@ test("Rotating Rummy has its own Route UI, controls, and fanned-card renderer", 
   assert.match(app, /rummy_discard/);
   assert.match(app, /discardOk: selected\.length === 1/);
   assert.match(app, /evaluateRoute\(selected, route\)/);
+  assert.match(app, /Lay the exact \$\{routeCardCount\}-card Route first, then link extra cards before your discard/);
+  assert.match(app, /link extra cards to your Route or another completed Route, then discard/);
   assert.doesNotMatch(app, /evaluateRoute\(selected, match\.yourRoute\)/);
   assert.doesNotMatch(app, /findRouteCompletion\(state\.gameView\.hand, match\.yourRoute\)/);
   assert.doesNotMatch(app, /recommendedDiscard\(state\.gameView\.hand, match\.yourRoute\)/);
@@ -56,11 +58,13 @@ test("Rotating Rummy has its own Route UI, controls, and fanned-card renderer", 
   assert.match(renderer, /rummy-rank-glyph/);
   assert.doesNotMatch(renderer, /pips|suit|♥|♠|♦|♣/);
   assert.match(css, /\.rummy-card \{/);
-  assert.match(css, /\.rummy-card-center > b \{[\s\S]*?Cardcade Ranks/);
+  assert.match(css, /\.rummy-card-center > b \{[\s\S]*?min\(56cqw, 46cqh\)[\s\S]*?text-align: center/);
   assert.match(css, /\.rummy-route-banner/);
   assert.match(css, /\.rummy-pattern-help/);
   assert.match(css, /\.rummy-meld-zone/);
   assert.match(css, /\.rummy-link-board/);
+  assert.match(css, /\.rummy-link-group-cards \.playing-card\.played \{[\s\S]*?border-radius: 3px/);
+  assert.match(css, /\.rummy-link-group-cards \.rummy-card-ink::before,[\s\S]*?content: none/);
   assert.match(css, /\.rummy-actions \{ grid-template-columns: repeat\(7/);
   assert.match(css, /@media \(max-width: 720px\)[\s\S]*?\.rummy-actions \{ grid-template-columns: repeat\(3/);
 });
