@@ -51,6 +51,7 @@ const state = {
   selectedCards: new Set(),
   juanChosenColor: null,
   rummyLinkTarget: null,
+  rummyPatternHelpOpen: false,
   juanPrismReveal: null,
   juanPrismRevealTimer: null,
   gameActionLock: false,
@@ -1686,6 +1687,25 @@ function renderRummyRouteProgress(player, totalRoutes) {
   return `<span class="rummy-route-progress" aria-label="${current} of ${totalRoutes} Routes cleared">${Array.from({ length: totalRoutes }, (_, index) => `<i class="${index < current ? "cleared" : index === current ? "current" : ""}" aria-hidden="true"></i>`).join("")}</span>`;
 }
 
+function renderRummyPatternHelp() {
+  const expanded = state.rummyPatternHelpOpen;
+  return `<section class="rummy-pattern-help">
+    <button class="rummy-pattern-help-toggle" type="button" data-action="rummy-toggle-help" aria-expanded="${expanded}" aria-controls="rummy-pattern-help-copy">Pattern help <span aria-hidden="true">${expanded ? "−" : "+"}</span></button>
+    <div id="rummy-pattern-help-copy" ${expanded ? "" : "hidden"}>
+      <ul>
+        <li><b>Pair / matching numbers:</b> cards with the same number.</li>
+        <li><b>Numbers in order:</b> a run such as 4-5-6.</li>
+        <li><b>Odd or even:</b> all odd (1-3-5) or all even (2-4-6).</li>
+        <li><b>Numbers two apart:</b> a pattern such as 2-4-6-8.</li>
+        <li><b>One of each color:</b> one red, blue, green, and yellow card.</li>
+        <li><b>Pairs that add to 13:</b> 1+12, 2+11, 3+10, and so on.</li>
+        <li><b>Pairs with consecutive numbers:</b> 5-5 and 6-6, for example.</li>
+      </ul>
+      <p><b>Glitches</b> can stand in for any card. <b>Locks</b> cannot be used in a Route.</p>
+    </div>
+  </section>`;
+}
+
 function renderRotatingRummyGame() {
   const view = state.gameView;
   if (!view || !rotatingRummyRules || !rotatingRummyDeck) return `<div class="empty-state">Shuffling the Route Deck…</div>`;
@@ -1727,6 +1747,7 @@ function renderRotatingRummyGame() {
         <div><span class="family-kicker">${escapeHtml(match.routeDeck.name)} · Route ${route?.number || match.totalRoutes}/${match.totalRoutes}</span><h3>${escapeHtml(route?.name || "All Routes cleared")}</h3><p>${escapeHtml(route?.description || "The table is settling the final Route.")}</p></div>
         <div class="rummy-route-circuit" aria-label="Your Route progress">${renderRummyRouteProgress(yourPlayer, match.totalRoutes)}</div>
       </section>
+      ${renderRummyPatternHelp()}
       <div class="game-opponents ${opponents.length <= 3 ? "fit-opponents" : ""}">
         ${opponents.map((player) => `
           <article class="game-seat ${match.activeSeat === player.seat ? "active" : ""} ${player.routeComplete ? "rummy-route-clear" : ""}">
@@ -3029,6 +3050,10 @@ document.addEventListener("click", async (event) => {
   if (action === "cancel-juan-color") {
     state.selectedCards.clear();
     state.juanChosenColor = null;
+    render();
+  }
+  if (action === "rummy-toggle-help") {
+    state.rummyPatternHelpOpen = !state.rummyPatternHelpOpen;
     render();
   }
   if (action === "rummy-select-link-target") {

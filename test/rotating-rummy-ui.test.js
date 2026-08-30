@@ -32,6 +32,9 @@ test("Rotating Rummy has its own Route UI, controls, and fanned-card renderer", 
   assert.match(app, /function renderRotatingRummyCard/);
   assert.match(app, /function rotatingRummySelection/);
   assert.match(app, /function rummyRouteForPlayer/);
+  assert.match(app, /function renderRummyPatternHelp/);
+  assert.match(app, /Pattern help/);
+  assert.match(app, /data-action="rummy-toggle-help"/);
   assert.match(app, /function rummyCornerFace/);
   assert.match(app, /rummy_draw_stock/);
   assert.match(app, /rummy_draw_discard/);
@@ -55,6 +58,7 @@ test("Rotating Rummy has its own Route UI, controls, and fanned-card renderer", 
   assert.match(css, /\.rummy-card \{/);
   assert.match(css, /\.rummy-card-center > b \{[\s\S]*?Cardcade Ranks/);
   assert.match(css, /\.rummy-route-banner/);
+  assert.match(css, /\.rummy-pattern-help/);
   assert.match(css, /\.rummy-meld-zone/);
   assert.match(css, /\.rummy-link-board/);
   assert.match(css, /\.rummy-actions \{ grid-template-columns: repeat\(7/);

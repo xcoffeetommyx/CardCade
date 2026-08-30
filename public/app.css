@@ -1795,6 +1795,16 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 .rummy-route-banner h3 { margin: 2px 0; color: #fff5d3; font-size: 1rem; }
 .rummy-route-banner p { margin: 0; color: var(--muted); font-size: .7rem; line-height: 1.35; }
 .rummy-route-circuit { flex: 0 0 auto; }
+.rummy-pattern-help { border: 1px solid rgba(126,159,194,.48); border-radius: 10px; background: rgba(8,20,35,.84); color: var(--muted); font-size: .68rem; }
+.rummy-pattern-help-toggle { width: 100%; min-height: 0; margin: 0; padding: 8px 11px; display: flex; align-items: center; justify-content: space-between; border: 0; border-radius: 9px; background: transparent; color: #dce9f4; cursor: pointer; font: 800 .68rem "Cardcade Pixel", monospace; letter-spacing: .04em; text-align: left; }
+.rummy-pattern-help-toggle:hover, .rummy-pattern-help-toggle.controller-hover, .rummy-pattern-help-toggle.controller-focus { background: rgba(126,159,194,.13); }
+.rummy-pattern-help-toggle[aria-expanded="true"] { border-bottom: 1px solid rgba(126,159,194,.35); border-radius: 9px 9px 0 0; }
+.rummy-pattern-help-toggle span { color: #f5ca4d; font-size: 1rem; line-height: .6; }
+.rummy-pattern-help > div { padding: 8px 11px 9px; }
+.rummy-pattern-help ul { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px 16px; margin: 0; padding-left: 16px; }
+.rummy-pattern-help li { line-height: 1.35; }
+.rummy-pattern-help b { color: #fff5d3; }
+.rummy-pattern-help p { margin: 8px 0 0; line-height: 1.35; }
 .rummy-route-progress { display: grid; grid-template-columns: repeat(5, 9px); gap: 5px; }
 .rummy-route-progress i { width: 9px; height: 9px; border: 1px solid rgba(210,226,241,.52); border-radius: 2px; background: #102039; box-shadow: inset 0 0 0 1px rgba(0,0,0,.28); transform: rotate(45deg); }
 .rummy-route-progress i.current { border-color: #f5ca4d; background: #f5ca4d; box-shadow: 0 0 12px rgba(245,202,77,.72); }
@@ -2621,6 +2631,7 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 @media (max-width: 720px) {
   .rummy-route-banner { align-items: flex-start; }
   .rummy-route-circuit { padding-top: 5px; }
+  .rummy-pattern-help ul { grid-template-columns: 1fr; gap: 4px; }
   .rummy-meld-zone { align-items: flex-start; flex-direction: column; }
   .rummy-meld-groups { justify-content: flex-start; }
   .rummy-link-board-heading { align-items: flex-start; flex-direction: column; gap: 2px; }

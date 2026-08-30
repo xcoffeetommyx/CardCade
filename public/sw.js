@@ -1,10 +1,10 @@
-const CACHE_NAME = "cardcade-shell-v59";
+const CACHE_NAME = "cardcade-shell-v60";
 const APP_ROOT = self.registration.scope;
 const APP_SHELL = [
   "",
   "api/catalog",
-  "app.css?v=48",
-  "app.js?v=50",
+  "app.css?v=49",
+  "app.js?v=51",
   "icon.svg",
   "manifest.webmanifest",
   "shared/three-seven-rules.js?v=3",
@@ -20,7 +20,7 @@ const APP_SHELL = [
   "shared/juan-deck.js?v=2",
   "shared/juan-rules.js?v=2",
   "shared/rotating-rummy-deck.js?v=1",
-  "shared/rotating-rummy-routes.js?v=1",
+  "shared/rotating-rummy-routes.js?v=2",
   "shared/rotating-rummy-rules.js?v=1",
   "assets/fonts/pixelify-sans-latin.woff2",
   "assets/fonts/cardcade-pixel-ranks.woff2",

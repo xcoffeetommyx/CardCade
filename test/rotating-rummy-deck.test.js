@@ -37,6 +37,14 @@ test("Rotating Rummy supplies four original ten-Route decks", () => {
   }
 });
 
+test("Route descriptions use casual player language instead of rule-engine jargon", () => {
+  const descriptions = routes.ROUTE_DECKS.flatMap((routeDeck) => routeDeck.routes.map((route) => route.description)).join(" ");
+  assert.doesNotMatch(descriptions, /\bparity\b|\bspectrum\b|\bmirrored\b|\bstep-two\b|\bcolor lane\b|\bset\b/i);
+  assert.match(descriptions, /odd cards or .* even cards/i);
+  assert.match(descriptions, /pairs that add to 13/i);
+  assert.match(descriptions, /numbers two apart/i);
+});
+
 test("every Route has a legal card construction and at least one Linkable group", () => {
   for (const routeDeck of routes.ROUTE_DECKS) {
     for (const route of routeDeck.routes) {
