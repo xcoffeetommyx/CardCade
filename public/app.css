@@ -1886,8 +1886,8 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 .rummy-link-group-cards .rummy-card-ink::before,
 .rummy-link-group-cards .rummy-card-ink::after { content: none; }
 .rummy-meld-group .rummy-card-center { inset-inline: 8%; }
-.rummy-meld-group .rummy-card-center > b { font-size: min(44cqw, 36cqh); text-shadow: 1px 2px 0 #02050a; }
-.rummy-meld-group .rummy-corner strong { max-width: 90%; font-size: min(33cqw, 25cqh); white-space: nowrap; }
+.rummy-meld-group .rummy-card-center > b { font-size: min(50cqw, 42cqh); text-shadow: 1px 2px 0 #02050a; }
+.rummy-meld-group .rummy-corner strong { max-width: 90%; font-size: min(28cqw, 22cqh); white-space: nowrap; }
 .rummy-link-board { padding: 9px 11px; border: 1px solid rgba(163,193,226,.38); border-radius: 12px; background: linear-gradient(135deg, rgba(10,28,49,.84), rgba(4,13,24,.8)); }
 .rummy-link-board-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 7px; }
 .rummy-link-board-heading small { color: var(--muted); font-size: .62rem; text-align: right; }
@@ -1898,8 +1898,8 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 .rummy-link-group-cards .playing-card.played { position: relative; left: auto; top: auto; flex: 0 0 27px; width: 27px; height: 39px; margin-left: -9px; border-width: 1px; border-radius: 3px; transform: rotate(-3deg); box-shadow: 1px 2px 0 rgba(0,0,0,.45); }
 .rummy-link-group-cards .playing-card.played:first-child { margin-left: 0; }
 .rummy-link-group-cards .rummy-card-center { inset-inline: 7%; }
-.rummy-link-group-cards .rummy-card-center > b { font-size: min(42cqw, 34cqh); text-shadow: 1px 1px 0 #02050a; }
-.rummy-link-group-cards .rummy-corner strong { max-width: 92%; font-size: min(31cqw, 23cqh); white-space: nowrap; }
+.rummy-link-group-cards .rummy-card-center > b { font-size: min(48cqw, 40cqh); text-shadow: 1px 1px 0 #02050a; }
+.rummy-link-group-cards .rummy-corner strong { max-width: 92%; font-size: min(26cqw, 20cqh); white-space: nowrap; }
 .rummy-link-group-card button { width: 100%; min-height: 28px; margin-top: 5px; padding: 4px 5px; font-size: .55rem; }
 .rummy-actions { grid-template-columns: repeat(7, minmax(0, 1fr)); }
 .rummy-actions button.primary { border-color: #f5ca4d; background: linear-gradient(#b98425, #81531b); }
