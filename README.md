@@ -2,7 +2,7 @@
 
 Cardcade is a single home for multiple physical-feeling digital card games. Players enter through one launcher, choose Solo or Multiplayer, browse games by deck family, and use one global room code before the host selects a game.
 
-This repository is currently a local platform preview. The launcher, game registry, room-code flow, live lobby, Docker image, privacy boundary, and restart-safe SQLite snapshots are implemented. 3s & 7s, Thirteen, and JUAN are playable in Solo, Multiplayer, and private pass-the-device Hot Seat modes.
+This repository is currently a local platform preview. The launcher, game registry, room-code flow, live lobby, Docker image, privacy boundary, and restart-safe SQLite snapshots are implemented. 3s & 7s, Thirteen, Blackjack, Texas Hold'em, Five Card Draw, JUAN, and Rotating Rummy are playable in Solo, Multiplayer, and private pass-the-device Hot Seat modes.
 
 ## Run locally
 
@@ -33,12 +33,12 @@ Compose publishes the configured port on the host's network interfaces so phones
 - Each game module will own rules, legal actions, scoring, rounds, and CPU strategy.
 - Deck families group games in the launcher; they do not impose shared rank strength or rules.
 - The shared physical-card presentation uses ThreeSeven's proven adaptive fan geometry, overlap hit testing, readable pixel faces, and selection motion.
-- 3s & 7s and Thirteen share Cardcade's rules-neutral standard 52-card deck. JUAN owns an original 108-card color/action deck and renderer while reusing the physical fan and motion system.
-- All three current games run server-authoritatively in Solo and Multiplayer and keep each hand private.
+- 3s & 7s, Thirteen, Blackjack, Texas Hold'em, and Five Card Draw share Cardcade's rules-neutral standard 52-card deck. JUAN owns an original 108-card color/action deck, and Rotating Rummy owns an original 108-card Route deck; both reuse the physical fan and motion system with dedicated renderers.
+- All seven current games run server-authoritatively in Solo and Multiplayer and keep each hand private.
 - Hot Seat reuses those same runtimes with one private token per human seat and freely configurable CPU seats within each game's player limits. Human hands are removed between turns, and CPU turns run automatically on a covered table.
 - Active rooms and matches are written to a single SQLite snapshot database so Docker restarts can recover them.
 
-See [docs/architecture.md](docs/architecture.md), [docs/juan.md](docs/juan.md), and [docs/privacy-and-deployment.md](docs/privacy-and-deployment.md).
+See [docs/architecture.md](docs/architecture.md), [docs/juan.md](docs/juan.md), [docs/rotating-rummy.md](docs/rotating-rummy.md), and [docs/privacy-and-deployment.md](docs/privacy-and-deployment.md).
 
 ## Install on a phone
 
@@ -52,6 +52,6 @@ See [docs/pwa-mobile-shell.md](docs/pwa-mobile-shell.md) for platform behavior a
 
 ## Repository status
 
-No GitHub remote is configured during local development. Do not add a production hostname, private Funnel address, reconnect token, or room code to tracked files.
+Do not add a production hostname, private Funnel address, reconnect token, or room code to tracked files.
 
 The bundled Pixelify Sans font is distributed under the SIL Open Font License; its license is retained beside the font files.

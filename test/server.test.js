@@ -96,6 +96,9 @@ test("health, catalog, and launcher are served from one process", async (t) => {
   assert.match(launcherBody, /shared\/hot-seat-flow\.js/);
   assert.match(launcherBody, /shared\/juan-deck\.js/);
   assert.match(launcherBody, /shared\/juan-rules\.js/);
+  assert.match(launcherBody, /shared\/rotating-rummy-deck\.js/);
+  assert.match(launcherBody, /shared\/rotating-rummy-routes\.js/);
+  assert.match(launcherBody, /shared\/rotating-rummy-rules\.js/);
   assert.match(launcherBody, /shared\/controller-input\.js/);
 
   const thirteenRules = await fetch(`${origin}/shared/thirteen-rules.js`);
@@ -122,6 +125,10 @@ test("health, catalog, and launcher are served from one process", async (t) => {
   assert.equal(juanRules.status, 200);
   assert.match(await juanRules.text(), /JuanRules/);
 
+  const rotatingRummyRules = await fetch(`${origin}/shared/rotating-rummy-rules.js`);
+  assert.equal(rotatingRummyRules.status, 200);
+  assert.match(await rotatingRummyRules.text(), /RotatingRummyRules/);
+
   const manifest = await fetch(`${origin}/manifest.webmanifest`);
   assert.match(manifest.headers.get("content-type"), /application\/manifest\+json/);
   const appIcon = await fetch(`${origin}/assets/pwa/icon-192.png`);
@@ -140,8 +147,8 @@ test("the Funnel subpath serves the complete HTTP and WebSocket application", as
   assert.match(await launcher.text(), /<base href="\/cardcade\/">/);
 
   const [styles, appScript, manifest, sharedRules, catalog] = await Promise.all([
-    fetch(`${origin}/cardcade/app.css?v=47`),
-    fetch(`${origin}/cardcade/app.js?v=48`),
+    fetch(`${origin}/cardcade/app.css?v=48`),
+    fetch(`${origin}/cardcade/app.js?v=49`),
     fetch(`${origin}/cardcade/manifest.webmanifest`),
     fetch(`${origin}/cardcade/shared/thirteen-rules.js?v=2`),
     fetch(`${origin}/cardcade/api/catalog`)
@@ -335,7 +342,9 @@ test("Blackjack starts from Solo with the shared 52-card deck and CPU seats", as
   assert.equal(result.body.game.view.type, "blackjack_match_state");
   assert.equal(result.body.game.view.hands.length, 1);
   assert.equal(result.body.game.view.hands[0].cards.length, 2);
-  assert.equal(result.body.game.view.state.dealer.cards.length, 1);
+  const dealer = result.body.game.view.state.dealer;
+  assert.equal(dealer.cards.length, dealer.revealed ? dealer.cardCount : 1);
+  assert.ok([1, 2].includes(dealer.cards.length), "an opening dealer Blackjack may reveal the hole card immediately");
   assert.equal(result.body.game.view.state.players.length, 4);
   assert.equal(result.body.game.view.state.players.filter((player) => player.type === "bot").length, 3);
   assert.equal(result.body.game.view.state.players.every((player) => !Object.hasOwn(player, "cards")), true);
@@ -519,6 +528,24 @@ test("Solo starts JUAN with the original color/action deck", async (t) => {
   assert.ok(result.body.game.view.hand.every((card) => ["number", "pause", "turnabout", "double-draw", "prism", "prism-burst"].includes(card.kind)));
 });
 
+test("Solo starts Rotating Rummy with a private ten-card hand and public Route Deck", async (t) => {
+  const { origin } = await startServer(t, { botTurnDelayMs: 10_000 });
+  const result = await jsonRequest(origin, "/api/solo/rotating-rummy", {
+    method: "POST",
+    body: JSON.stringify({ name: "Route Player", botCount: 3 })
+  });
+
+  assert.equal(result.response.status, 201);
+  assert.equal(result.body.room.phase, "playing");
+  assert.equal(result.body.room.gameId, "rotating-rummy");
+  assert.equal(result.body.game.view.type, "rotating_rummy_match_state");
+  assert.equal(result.body.game.view.hand.length, 10);
+  assert.equal(result.body.game.view.state.players.length, 4);
+  assert.equal(result.body.game.view.state.routeDeck.routes.length, 10);
+  assert.equal(result.body.game.view.state.players.every((player) => !Object.hasOwn(player, "hand")), true);
+  assert.ok(result.body.game.view.hand.every((card) => ["number", "glitch", "lock"].includes(card.kind)));
+});
+
 test("a host starts JUAN from the same global Cardcade room", async (t) => {
   const { origin } = await startServer(t, { botTurnDelayMs: 10_000 });
   const host = (await jsonRequest(origin, "/api/rooms", {
@@ -662,6 +689,30 @@ test("JUAN Hot Seat mixes private human hands with CPU seats", async (t) => {
   });
   assert.equal(guest.body.game.gameId, "juan");
   assert.equal(guest.body.game.view.hand.length, 7);
+});
+
+test("Rotating Rummy Hot Seat mixes private Route hands with CPU seats", async (t) => {
+  const { origin } = await startServer(t, { botTurnDelayMs: 10_000 });
+  const result = await jsonRequest(origin, "/api/hot-seat/rotating-rummy", {
+    method: "POST",
+    body: JSON.stringify({ players: ["Tommy", "Alex"], botCount: 2 })
+  });
+
+  assert.equal(result.response.status, 201);
+  assert.equal(result.body.room.gameId, "rotating-rummy");
+  assert.equal(result.body.hotSeat.seats.length, 2);
+  assert.equal(result.body.hotSeat.botCount, 2);
+  assert.equal(result.body.game.view.type, "rotating_rummy_match_state");
+  assert.equal(result.body.game.view.hand.length, 10);
+  assert.equal(result.body.game.view.state.players.length, 4);
+
+  const guestSeat = result.body.hotSeat.seats[1];
+  const guest = await jsonRequest(origin, `/api/rooms/${result.body.code}/reconnect`, {
+    method: "POST",
+    body: JSON.stringify({ token: guestSeat.token })
+  });
+  assert.equal(guest.body.game.gameId, "rotating-rummy");
+  assert.equal(guest.body.game.view.hand.length, 10);
 });
 
 test("Blackjack Hot Seat shares private human seats with configurable CPUs", async (t) => {

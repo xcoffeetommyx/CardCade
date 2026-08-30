@@ -50,6 +50,7 @@ const state = {
   gameSort: "rank",
   selectedCards: new Set(),
   juanChosenColor: null,
+  rummyLinkTarget: null,
   juanPrismReveal: null,
   juanPrismRevealTimer: null,
   gameActionLock: false,
@@ -75,6 +76,9 @@ const standard52 = globalThis.CardcadeStandard52;
 const hotSeatFlow = globalThis.CardcadeHotSeat;
 const juanDeck = globalThis.CardcadeJuanDeck;
 const juanRules = globalThis.JuanRules;
+const rotatingRummyDeck = globalThis.CardcadeRotatingRummyDeck;
+const rotatingRummyRoutes = globalThis.CardcadeRotatingRummyRoutes;
+const rotatingRummyRules = globalThis.RotatingRummyRules;
 const blackjackRules = globalThis.CardcadeBlackjackRules;
 const holdemRules = globalThis.CardcadeHoldemRules;
 const fiveCardDrawRules = globalThis.CardcadeFiveCardDrawRules;
@@ -120,8 +124,32 @@ const juanGameAdapter = {
   defaultSort: "color"
 };
 
+const rotatingRummyGameAdapter = {
+  gameId: "rotating-rummy",
+  rules: rotatingRummyRules,
+  deck: rotatingRummyDeck,
+  sortModes: ["rank", "color"],
+  defaultSort: "rank"
+};
+
 function supportsGame(gameId) {
-  return Boolean(standardGameAdapters[gameId]) || gameId === "juan" || gameId === "blackjack" || gameId === "holdem" || gameId === "five-card-draw";
+  return Boolean(standardGameAdapters[gameId]) || gameId === "juan" || gameId === "rotating-rummy" || gameId === "blackjack" || gameId === "holdem" || gameId === "five-card-draw";
+}
+
+function sortAdapterForGame(gameId = state.room?.gameId) {
+  if (gameId === "juan") return juanGameAdapter;
+  if (gameId === "rotating-rummy") return rotatingRummyGameAdapter;
+  return null;
+}
+
+function defaultSortForGame(gameId) {
+  return sortAdapterForGame(gameId)?.defaultSort || "rank";
+}
+
+function normalizeGameSort(gameId) {
+  const adapter = sortAdapterForGame(gameId);
+  if (adapter && !adapter.sortModes.includes(state.gameSort)) state.gameSort = adapter.defaultSort;
+  if (standardGameAdapters[gameId] && !["rank", "combo", "suit"].includes(state.gameSort)) state.gameSort = "rank";
 }
 
 function escapeHtml(value) {
@@ -802,7 +830,9 @@ function deckFamilyIdForGame(gameId = state.room?.gameId) {
   for (const family of state.catalog.families || []) {
     if (family.games?.some((game) => game.id === gameId)) return family.id;
   }
-  return gameId === "juan" ? "color-action" : "standard-52";
+  if (gameId === "juan") return "color-action";
+  if (gameId === "rotating-rummy") return "rotating-rummy";
+  return "standard-52";
 }
 
 function selectedCardSkin(deckFamilyId) {
@@ -896,6 +926,12 @@ function renderSeatLastCard(player, gameId) {
     const face = juanCornerFace(card);
     const colorClass = card.color ? `juan-${card.color}` : "juan-prism";
     return `<span class="seat-last-card juan-seat-card card-skin-face ${selectedCardSkin("color-action")?.className || ""} ${colorClass}" aria-label="Last played ${escapeHtml(juanDeck.cardLong(card))}"><strong class="${isNumber ? "juan-rank-glyph" : ""}">${escapeHtml(face)}</strong></span>`;
+  }
+  if (gameId === "rotating-rummy") {
+    const isNumber = card.kind === "number";
+    const face = rummyCornerFace(card);
+    const colorClass = card.color ? `rummy-${card.color}` : `rummy-${card.kind}`;
+    return `<span class="seat-last-card rummy-seat-card card-skin-face ${selectedCardSkin("rotating-rummy")?.className || ""} ${colorClass}" aria-label="Last played ${escapeHtml(rotatingRummyDeck.cardLong(card))}"><strong class="${isNumber ? "rummy-rank-glyph" : ""}">${escapeHtml(face)}</strong></span>`;
   }
   const suit = standard52.SUIT_SYMBOL[card.suit];
   const red = card.suit === "H" || card.suit === "D";
@@ -1486,6 +1522,257 @@ function juanSelection() {
   return { ok: true, reason: `${juanDeck.cardLong(card)}${color}`, card };
 }
 
+function rotatingRummySelection() {
+  const view = state.gameView;
+  if (!view || !rotatingRummyRules || !rotatingRummyDeck) {
+    return { selected: [], routeOk: false, linkOk: false, discardOk: false, linkTarget: null, reason: "Rotating Rummy unavailable" };
+  }
+  const match = view.state;
+  const viewer = state.room?.players.find((player) => player.isYou);
+  const player = match.players.find((candidate) => candidate.seat === viewer?.seat);
+  const selected = view.hand.filter((card) => state.selectedCards.has(card.id));
+  if (match.turnStage !== "play") {
+    return { selected, routeOk: false, linkOk: false, discardOk: false, linkTarget: null, reason: "Draw from the stock or discard first" };
+  }
+  if (player?.routeComplete) {
+    const linkTarget = rummyLinkTarget(match);
+    const linkOk = Boolean(selected.length && linkTarget
+      && rotatingRummyRules.canExtendRequirement([...linkTarget.group, ...selected], linkTarget.requirement));
+    if (!selected.length) {
+      return {
+        selected,
+        routeOk: false,
+        linkOk: false,
+        discardOk: false,
+        linkTarget,
+        reason: linkTarget ? `Select cards to link to ${linkTarget.player.name}'s Route group` : "Route complete — select one card to discard or choose a Route group to link"
+      };
+    }
+    return {
+      selected,
+      routeOk: false,
+      linkOk,
+      discardOk: selected.length === 1,
+      linkTarget,
+      reason: linkOk
+        ? `Link ${selected.length} card${selected.length === 1 ? "" : "s"} to ${linkTarget.player.name}'s Route group`
+        : selected.length === 1
+          ? `Discard ${rotatingRummyDeck.cardLong(selected[0])}, or choose a Route group to link`
+          : "Choose a completed Route group that fits these cards"
+    };
+  }
+  if (!selected.length) {
+    return { selected, routeOk: false, linkOk: false, discardOk: false, linkTarget: null, reason: `Select cards for Route ${match.yourRoute?.number || ""}`.trim() };
+  }
+  const evaluation = rotatingRummyRules.evaluateRoute(selected, match.yourRoute);
+  return {
+    selected,
+    routeOk: evaluation.ok,
+    linkOk: false,
+    discardOk: selected.length === 1,
+    linkTarget: null,
+    evaluation,
+    reason: evaluation.ok
+      ? `Route ready · ${match.yourRoute.name}`
+      : selected.length === 1
+        ? `Discard ${rotatingRummyDeck.cardLong(selected[0])}, or select cards for your Route`
+        : evaluation.reason
+  };
+}
+
+function rummyLinkTargets(match = state.gameView?.state) {
+  const routeDeck = rotatingRummyRoutes?.routeDeckById(match?.routeDeck?.id);
+  if (!match || !routeDeck) return [];
+  return match.players.flatMap((player) => {
+    if (!player.routeComplete || !Array.isArray(player.routeMeld)) return [];
+    const route = routeDeck.routes[player.routeIndex];
+    return player.routeMeld.map((group, groupIndex) => ({
+      player,
+      group,
+      groupIndex,
+      requirement: route?.requirements?.[groupIndex]
+    })).filter((target) => target.requirement && target.requirement.type !== "spectrum");
+  });
+}
+
+function rummyLinkTarget(match = state.gameView?.state) {
+  const targetSeat = Number(state.rummyLinkTarget?.targetSeat);
+  const groupIndex = Number(state.rummyLinkTarget?.groupIndex);
+  return rummyLinkTargets(match).find((target) => target.player.seat === targetSeat && target.groupIndex === groupIndex) || null;
+}
+
+function rummyCardSets(cards, count, start = 0, selected = []) {
+  if (count === 0) return [selected];
+  if (!Array.isArray(cards) || cards.length - start < count) return [];
+  const choices = [];
+  for (let index = start; index <= cards.length - count; index += 1) {
+    choices.push(...rummyCardSets(cards, count - 1, index + 1, [...selected, cards[index]]));
+  }
+  return choices;
+}
+
+function findRummyLinkSuggestion(match, hand) {
+  const targets = rummyLinkTargets(match);
+  for (let count = hand.length - 1; count >= 1; count -= 1) {
+    for (const cards of rummyCardSets(hand, count)) {
+      const target = targets.find((candidate) => rotatingRummyRules.canExtendRequirement([...candidate.group, ...cards], candidate.requirement));
+      if (target) return { target, cards };
+    }
+  }
+  return null;
+}
+
+function rummyCornerFace(card) {
+  if (card.kind === "number") return String(card.value);
+  if (card.kind === "glitch") return "✦";
+  if (card.kind === "lock") return "Ⅱ";
+  return "?";
+}
+
+function rummyActionMark(kind) {
+  if (kind === "glitch") {
+    return `<span class="rummy-action-mark rummy-action-glitch" aria-hidden="true"><i></i><i></i><i></i><i></i><b>✦</b></span>`;
+  }
+  if (kind === "lock") {
+    return `<span class="rummy-action-mark rummy-action-lock" aria-hidden="true"><i></i><i></i><b>LOCK</b></span>`;
+  }
+  return `<span class="rummy-action-mark" aria-hidden="true">?</span>`;
+}
+
+function renderRotatingRummyCard(card, index, { played = false, enter = false, selectable = false, dealt = false } = {}) {
+  const selected = !played && state.selectedCards.has(card.id);
+  const isNumber = card.kind === "number";
+  const face = isNumber ? String(card.value) : null;
+  const corner = rummyCornerFace(card);
+  const colorClass = card.color ? `rummy-${card.color}` : `rummy-${card.kind}`;
+  const classes = [
+    "playing-card",
+    "rummy-card",
+    "card-skin-face",
+    selectedCardSkin("rotating-rummy")?.className || "",
+    `rummy-kind-${card.kind}`,
+    colorClass,
+    selected ? "selected" : "",
+    played ? "played" : "",
+    played && enter ? "enter" : "",
+    selectable && !played ? "selectable" : "",
+    dealt && !played ? "dealt" : ""
+  ].filter(Boolean).join(" ");
+  const style = playedCardStyle(index, { animate: played && enter, dealt });
+  return `
+    <button class="${classes}" type="button" ${played ? "disabled" : ""} ${style}
+      ${played ? "" : `data-game-card="${escapeHtml(card.id)}" data-card-index="${index}" tabindex="${selectable ? "0" : "-1"}"`}
+      aria-label="${escapeHtml(rotatingRummyDeck.cardLong(card))}" aria-pressed="${selected}">
+      <span class="rummy-card-ink" aria-hidden="true"></span>
+      <span class="card-corner rummy-corner"><strong class="${isNumber ? "rummy-rank-glyph" : ""}">${escapeHtml(corner)}</strong></span>
+      <span class="rummy-card-center">${isNumber
+        ? `<b class="rummy-rank-glyph">${escapeHtml(face)}</b>`
+        : rummyActionMark(card.kind)
+      }</span>
+      <span class="card-corner bottom rummy-corner"><strong class="${isNumber ? "rummy-rank-glyph" : ""}">${escapeHtml(corner)}</strong></span>
+    </button>`;
+}
+
+function renderRummyRouteProgress(player, totalRoutes) {
+  const current = Math.min(totalRoutes, Math.max(0, Number(player?.routeIndex) || 0));
+  return `<span class="rummy-route-progress" aria-label="${current} of ${totalRoutes} Routes cleared">${Array.from({ length: totalRoutes }, (_, index) => `<i class="${index < current ? "cleared" : index === current ? "current" : ""}" aria-hidden="true"></i>`).join("")}</span>`;
+}
+
+function renderRotatingRummyGame() {
+  const view = state.gameView;
+  if (!view || !rotatingRummyRules || !rotatingRummyDeck) return `<div class="empty-state">Shuffling the Route Deck…</div>`;
+  const match = view.state;
+  const viewer = state.room?.players.find((player) => player.isYou);
+  const viewerSeat = viewer?.seat;
+  const yourPlayer = match.players.find((player) => player.seat === viewerSeat);
+  const opponents = match.players.filter((player) => player.seat !== viewerSeat);
+  const isYourTurn = match.activeSeat === viewerSeat && !match.roundOver;
+  const activePlayer = match.players.find((player) => player.seat === match.activeSeat);
+  const selection = rotatingRummySelection();
+  const sortedHand = rotatingRummyRules.sortCards(view.hand, state.gameSort);
+  const actions = match.actions || {};
+  const pileSignature = match.topCard?.id || "";
+  const pileIsNew = pileSignature !== state.lastPileSignature;
+  state.lastPileSignature = pileSignature;
+  const handOwner = `rotating-rummy:${state.room?.code || "table"}:${viewerSeat ?? "viewer"}:round-${match.round}`;
+  const isDealing = !state.dealtHandOwners.has(handOwner);
+  state.dealtHandOwners.add(handOwner);
+  const route = match.yourRoute;
+  const isHost = viewer?.role === "host";
+  const linkTargets = rummyLinkTargets(match);
+  const canSelectLinkTarget = isYourTurn && match.turnStage === "play" && yourPlayer?.routeComplete && !state.gameActionLock;
+  const stockLabel = `Draw stock · ${match.stockCount}`;
+  const tableStatus = match.roundOver
+    ? match.matchOver ? "Match complete" : "Round complete"
+    : isYourTurn
+      ? match.turnStage === "draw" ? `${yourPlayer?.name || "You"}, draw a card` : `${yourPlayer?.name || "You"}, finish your turn`
+      : `${activePlayer?.name || "Player"} is planning a Route`;
+
+  return `
+    <section class="standard-card-game ${activeTableAppearanceClass()} rotating-rummy-game" data-game-id="rotating-rummy">
+      <header class="game-topbar">
+        <button class="back-button" type="button" data-action="leave-game" aria-label="${state.gameMode === "multiplayer" ? "Return to room lobby" : "Leave game"}">←</button>
+        <div><span class="family-kicker">${state.gameMode === "solo" ? "Solo table" : state.gameMode === "hot-seat" ? "Hot Seat table" : `Room ${escapeHtml(state.room.code)}`}</span><h2>Rotating Rummy</h2><p>Round ${match.round} · ${escapeHtml(match.lastMoveText)}</p></div>
+        <button class="game-score" type="button" disabled><span>Routes</span><strong>${Math.min(match.totalRoutes, yourPlayer?.routeIndex || 0)}/${match.totalRoutes}</strong></button>
+      </header>
+      <section class="rummy-route-banner">
+        <div><span class="family-kicker">${escapeHtml(match.routeDeck.name)} · Route ${route?.number || match.totalRoutes}/${match.totalRoutes}</span><h3>${escapeHtml(route?.name || "All Routes cleared")}</h3><p>${escapeHtml(route?.description || "The table is settling the final Route.")}</p></div>
+        <div class="rummy-route-circuit" aria-label="Your Route progress">${renderRummyRouteProgress(yourPlayer, match.totalRoutes)}</div>
+      </section>
+      <div class="game-opponents ${opponents.length <= 3 ? "fit-opponents" : ""}">
+        ${opponents.map((player) => `
+          <article class="game-seat ${match.activeSeat === player.seat ? "active" : ""} ${player.routeComplete ? "rummy-route-clear" : ""}">
+            ${renderSeatLastCard(player, "rotating-rummy")}
+            <span class="game-seat-copy" title="${escapeHtml(player.name)}"><strong>${escapeHtml(player.name)}</strong><small>${player.routeComplete ? `Route ${match.roundOver && player.completedThisRound ? player.routeIndex : Math.min(match.totalRoutes, player.routeIndex + 1)} clear${match.roundOver ? "" : " · link or discard next"}` : `Route ${Math.min(match.totalRoutes, player.routeIndex + 1)}/${match.totalRoutes} · ${player.cardCount} cards`}</small></span>
+            ${renderMiniCardBack("rotating-rummy", Math.min(player.cardCount, 7), { ariaHidden: true })}
+          </article>`).join("")}
+      </div>
+      <section class="game-table rummy-table">
+        <div class="game-status"><span><strong>${escapeHtml(tableStatus)}</strong><small>${escapeHtml(match.routeDeck.description)} · ${match.roundOver ? match.matchOver ? "the Route circuit is complete" : "review progress, then deal the next Route round" : match.turnStage === "draw" ? "draw from either pile" : yourPlayer?.routeComplete ? "Route is down — link cards or discard" : "lay down your Route or discard"}</small></span><span class="badge">${match.stockCount} stock</span></div>
+        <div class="rummy-pile-zone">
+          ${renderCardBack({ deckFamilyId: "rotating-rummy", context: "stock", className: "rummy-stock", ariaLabel: `${match.stockCount} cards in stock`, parts: [{ tag: "span", text: "RR" }, { tag: "b", text: match.stockCount }] })}
+          <div class="active-pile cards-pile">${match.topCard ? renderRotatingRummyCard(match.topCard, 0, { played: true, enter: pileIsNew }) : ""}</div>
+        </div>
+      </section>
+      <section class="rummy-meld-zone ${yourPlayer?.routeComplete ? "complete" : ""}">
+        <div><span class="family-kicker">Your current Route</span><strong>${escapeHtml(route?.name || "Route deck complete")}</strong><small>${yourPlayer?.routeComplete ? "Route completed — link compatible cards or choose one card to discard." : route ? `${route.cardCount} cards required · ${route.description}` : "Waiting for the round result."}</small></div>
+        ${yourPlayer?.routeMeld?.length ? `<div class="rummy-meld-groups">${yourPlayer.routeMeld.map((group, groupIndex) => `<div class="rummy-meld-group" aria-label="Completed Route group ${groupIndex + 1}">${group.map((card, index) => renderRotatingRummyCard(card, index, { played: true })).join("")}</div>`).join("")}</div>` : ""}
+      </section>
+      ${linkTargets.length ? `<section class="rummy-link-board" aria-label="Completed Route groups">
+        <div class="rummy-link-board-heading"><span class="family-kicker">Route links</span><small>${yourPlayer?.routeComplete ? "Choose a group, then link compatible cards before your discard." : "Complete your Route before linking cards."}</small></div>
+        <div class="rummy-link-targets">${linkTargets.map((target) => {
+          const selectedTarget = selection.linkTarget?.player.seat === target.player.seat && selection.linkTarget.groupIndex === target.groupIndex;
+          const targetName = target.player.seat === viewerSeat ? "Your Route" : `${target.player.name}'s Route`;
+          return `<article class="rummy-link-group-card ${selectedTarget ? "selected" : ""}">
+            <div class="rummy-link-group-cards" aria-label="${escapeHtml(targetName)} group ${target.groupIndex + 1}">${target.group.map((card, index) => renderRotatingRummyCard(card, index, { played: true })).join("")}</div>
+            <button type="button" data-action="rummy-select-link-target" data-rummy-link-seat="${target.player.seat}" data-rummy-link-group="${target.groupIndex}" ${canSelectLinkTarget ? "" : "disabled"}>${selectedTarget ? "Link target ✓" : `Link to ${escapeHtml(targetName)}`}</button>
+          </article>`;
+        }).join("")}</div>
+      </section>` : ""}
+      <section class="physical-hand ${isYourTurn ? "your-turn" : ""}">
+        <div class="hand-heading"><span><strong>Your hand</strong><small>${view.hand.length} cards · ${escapeHtml(state.gameSort)} sort</small></span><span class="selection-status ${selection.routeOk || selection.linkOk || selection.discardOk ? "valid" : state.selectedCards.size ? "invalid" : ""}">${escapeHtml(selection.reason)}</span></div>
+        <div class="game-hand" data-hand-owner="${escapeHtml(handOwner)}" aria-label="Your fanned Rotating Rummy hand">${sortedHand.map((card, index) => renderRotatingRummyCard(card, index, {
+          selectable: isYourTurn && match.turnStage === "play" && !state.gameActionLock,
+          dealt: isDealing
+        })).join("")}</div>
+      </section>
+      <nav class="game-actions rummy-actions">
+        <button type="button" data-action="rummy-hint" ${isYourTurn && !state.gameActionLock ? "" : "disabled"}>Hint</button>
+        <button type="button" data-action="game-sort" ${state.gameActionLock ? "disabled" : ""}>Sort</button>
+        <button type="button" data-action="rummy-draw-stock" ${actions.drawStock && !state.gameActionLock ? "" : "disabled"}>${stockLabel}</button>
+        <button type="button" data-action="rummy-draw-discard" ${actions.drawDiscard && !state.gameActionLock ? "" : "disabled"}>Take discard</button>
+        <button class="primary" type="button" data-action="rummy-complete-route" ${actions.completeRoute && selection.routeOk && !state.gameActionLock ? "" : "disabled"}>Route ↓</button>
+        <button class="primary" type="button" data-action="rummy-link" ${actions.link && selection.linkOk && !state.gameActionLock ? "" : "disabled"}>Link ↓</button>
+        <button class="primary" type="button" data-action="rummy-discard" ${actions.discard && selection.discardOk && !state.gameActionLock ? "" : "disabled"}>Discard</button>
+      </nav>
+      ${match.roundOver ? `
+        <div class="round-result rummy-result">
+          <div><span class="family-kicker">${match.matchOver ? "Route circuit complete" : `Round ${match.round} complete`}</span><h3>${escapeHtml(match.lastMoveText)}</h3><p>${match.players.map((player) => `${escapeHtml(player.name)} · ${player.routeIndex}/${match.totalRoutes} Routes cleared${player.completedThisRound ? " · advanced" : " · repeats"}${player.score ? ` · ${player.score} pts` : ""}`).join(" · ")}</p></div>
+          ${match.matchOver ? `<button class="action-button" type="button" data-action="leave-game">Return to Cardcade</button>` : `<button class="action-button primary" type="button" data-action="rummy-next-round" ${isHost ? "" : "disabled"}>${isHost ? "Deal next Route round" : "Waiting for host"}</button>`}
+        </div>` : ""}
+    </section>`;
+}
+
 function juanActionMark(kind) {
   if (kind === "pause") {
     return `<span class="juan-action-mark juan-action-pause" aria-hidden="true"><i></i><i></i></span>`;
@@ -1750,6 +2037,7 @@ function appearanceFamilyName(deckFamilyId) {
   if (family) return { name: family.name, shortName: family.shortName };
   if (deckFamilyId === "standard-52") return { name: "Standard playing cards", shortName: "52-card deck" };
   if (deckFamilyId === "color-action") return { name: "Color & action cards", shortName: "Custom shedding deck" };
+  if (deckFamilyId === "rotating-rummy") return { name: "Rotating Rummy Routes", shortName: "108-card Route deck" };
   return { name: deckFamilyId, shortName: "Card deck" };
 }
 
@@ -1759,6 +2047,14 @@ function renderSkinPreview(skin) {
       <div class="skin-preview ${skin.className}" data-skin-preview="${escapeHtml(skin.deckFamilyId)}" role="img" aria-label="${escapeHtml(skin.name)} card face and back preview">
         <span class="skin-preview-card skin-preview-face skin-preview-standard-face" aria-hidden="true"><span><strong>A</strong><i>♥</i></span><b>♥</b></span>
         ${renderCardBack({ deckFamilyId: skin.deckFamilyId, skinId: skin.id, context: "settings-preview", className: "skin-preview-card skin-preview-back skin-preview-standard-back", ariaHidden: true, parts: [{ tag: "strong", text: "CC" }] })}
+      </div>`;
+  }
+  if (skin.deckFamilyId === "rotating-rummy") {
+    return `
+      <div class="skin-preview ${skin.className}" data-skin-preview="${escapeHtml(skin.deckFamilyId)}" role="img" aria-label="${escapeHtml(skin.name)} card face and back preview">
+        <span class="skin-preview-card skin-preview-face skin-preview-rummy-face" aria-hidden="true"><small>7</small><b>7</b></span>
+        <span class="skin-preview-card skin-preview-face skin-preview-rummy-glitch" aria-hidden="true"><small>✦</small><b>✦</b></span>
+        ${renderCardBack({ deckFamilyId: skin.deckFamilyId, skinId: skin.id, context: "settings-preview", className: "skin-preview-card skin-preview-back skin-preview-rummy-back", ariaHidden: true, parts: [{ tag: "strong", text: "RR" }] })}
       </div>`;
   }
   return `
@@ -1934,6 +2230,7 @@ function layoutActivePiles() {
 }
 
 function renderCurrentGame() {
+  if (state.room?.gameId === "rotating-rummy") return renderRotatingRummyGame();
   if (state.room?.gameId === "juan") return renderJuanGame();
   if (state.room?.gameId === "blackjack") return renderBlackjackGame();
   if (state.room?.gameId === "holdem") return renderHoldemGame();
@@ -2081,6 +2378,13 @@ function toggleStandardCard(cardId) {
     render();
     return;
   }
+  if (state.room?.gameId === "rotating-rummy") {
+    if (match.turnStage !== "play") return;
+    if (state.selectedCards.has(cardId)) state.selectedCards.delete(cardId);
+    else state.selectedCards.add(cardId);
+    render();
+    return;
+  }
   if (state.room?.gameId === "juan") {
     if (match.drawnCardId && match.drawnCardId !== cardId) return;
     if (state.selectedCards.has(cardId)) state.selectedCards.clear();
@@ -2216,6 +2520,7 @@ function queueHotSeatCpuTurn({ room = state.room, view = state.gameView } = {}) 
   state.hotSeatWaitingForCpu = true;
   state.selectedCards = new Set();
   state.juanChosenColor = null;
+  state.rummyLinkTarget = null;
   state.gameActionLock = false;
   state.dealtHandOwners = new Set();
   state.lastPileSignature = null;
@@ -2233,6 +2538,7 @@ function queueHotSeatHandoff(seatNumber, { room = state.room, view = state.gameV
   state.hotSeatWaitingForCpu = false;
   state.selectedCards = new Set();
   state.juanChosenColor = null;
+  state.rummyLinkTarget = null;
   state.gameActionLock = false;
   state.dealtHandOwners = new Set();
   state.lastPileSignature = null;
@@ -2250,7 +2556,7 @@ function beginHotSeatSession(session) {
   state.gameView = hiddenPrivateView(session.game?.view);
   state.hotSeatForceHandoff = false;
   state.hotSeatWaitingForCpu = false;
-  state.gameSort = session.game?.gameId === "juan" ? juanGameAdapter.defaultSort : "rank";
+  state.gameSort = defaultSortForGame(session.game?.gameId);
   const targetSeat = hotSeatFlow?.requiredSeat(session.game?.view?.state, state.hotSeatSeats);
   if (isHotSeatCpuTurn(session.game?.view)) {
     connectRoom(state.session);
@@ -2300,6 +2606,7 @@ function clearGameSession() {
   state.hotSeatWaitingForCpu = false;
   state.selectedCards = new Set();
   state.juanChosenColor = null;
+  state.rummyLinkTarget = null;
   state.gameActionLock = false;
   state.dealtHandOwners = new Set();
   state.lastPileSignature = null;
@@ -2383,6 +2690,7 @@ function connectRoom(session) {
         state.gameView = null;
         state.selectedCards = new Set();
         state.juanChosenColor = null;
+        state.rummyLinkTarget = null;
         clearJuanPrismReveal();
         state.gameActionLock = false;
         state.dealtHandOwners = new Set();
@@ -2413,9 +2721,9 @@ function connectRoom(session) {
       if (previousGameId !== message.gameId || previousRound !== incomingRound) {
         state.dealtHandOwners = new Set();
         state.lastPileSignature = null;
+        state.rummyLinkTarget = null;
       }
-      if (message.gameId === "juan" && !juanGameAdapter.sortModes.includes(state.gameSort)) state.gameSort = juanGameAdapter.defaultSort;
-      if (standardGameAdapters[message.gameId] && !["rank", "combo", "suit"].includes(state.gameSort)) state.gameSort = "rank";
+      normalizeGameSort(message.gameId);
       state.room = message.room;
       state.gameView = message.view;
       state.gameActionLock = false;
@@ -2426,6 +2734,7 @@ function connectRoom(session) {
       );
       state.selectedCards = new Set([...state.selectedCards].filter((cardId) => handIds.has(cardId)));
       if (!state.selectedCards.size) state.juanChosenColor = null;
+      if (message.gameId !== "rotating-rummy") state.rummyLinkTarget = null;
       state.screen = "game";
       render();
     } else if (message.type === "table_closed") {
@@ -2468,7 +2777,8 @@ function enterGameSession(session, mode) {
   state.gameMode = mode;
   state.selectedCards = new Set();
   state.juanChosenColor = null;
-  state.gameSort = session.game?.gameId === "juan" ? juanGameAdapter.defaultSort : "rank";
+  state.rummyLinkTarget = null;
+  state.gameSort = defaultSortForGame(session.game?.gameId);
   state.gameActionLock = false;
   state.dealtHandOwners = new Set();
   state.lastPileSignature = null;
@@ -2713,9 +3023,122 @@ document.addEventListener("click", async (event) => {
     state.juanChosenColor = null;
     render();
   }
+  if (action === "rummy-select-link-target") {
+    const match = state.gameView?.state;
+    const viewer = state.room?.players.find((player) => player.isYou);
+    const player = match?.players?.find((candidate) => candidate.seat === viewer?.seat);
+    const targetSeat = Number(button.dataset.rummyLinkSeat);
+    const groupIndex = Number(button.dataset.rummyLinkGroup);
+    const target = rummyLinkTargets(match).find((candidate) => candidate.player.seat === targetSeat && candidate.groupIndex === groupIndex);
+    if (!state.gameActionLock && match?.turnStage === "play" && match.activeSeat === viewer?.seat && player?.routeComplete && target) {
+      state.rummyLinkTarget = { targetSeat, groupIndex };
+      render();
+    }
+  }
+  if (action === "rummy-hint") {
+    if (state.gameActionLock || !state.gameView || !rotatingRummyRules) return;
+    const match = state.gameView.state;
+    const viewer = state.room?.players.find((player) => player.isYou);
+    const player = match.players?.find((candidate) => candidate.seat === viewer?.seat);
+    if (match.turnStage !== "play") {
+      showToast("Draw from the stock or discard before building your Route.");
+      return;
+    }
+    if (player?.routeComplete) {
+      const link = findRummyLinkSuggestion(match, state.gameView.hand);
+      if (link) {
+        state.rummyLinkTarget = { targetSeat: link.target.player.seat, groupIndex: link.target.groupIndex };
+        state.selectedCards = new Set(link.cards.map((card) => card.id));
+        showToast(`Compatible cards are selected for ${link.target.player.name}'s Route group.`);
+        render();
+        return;
+      }
+      const discard = rotatingRummyRules.recommendedDiscard(state.gameView.hand, match.yourRoute);
+      if (!discard) showToast("No card is available to discard.");
+      else {
+        state.selectedCards = new Set([discard.id]);
+        render();
+      }
+      return;
+    }
+    const completion = rotatingRummyRules.findRouteCompletion(state.gameView.hand, match.yourRoute);
+    if (!completion) {
+      const discard = rotatingRummyRules.recommendedDiscard(state.gameView.hand, match.yourRoute);
+      if (discard) {
+        state.selectedCards = new Set([discard.id]);
+        showToast(`No complete Route yet. ${rotatingRummyDeck.cardLong(discard)} is selected to discard.`);
+        render();
+      } else {
+        showToast(`No complete Route yet. Keep building ${match.yourRoute?.name || "your pattern"}.`);
+      }
+      return;
+    }
+    state.selectedCards = new Set(completion.cards.map((card) => card.id));
+    render();
+  }
+  if (action === "rummy-draw-stock" || action === "rummy-draw-discard") {
+    if (state.gameActionLock) return;
+    state.gameActionLock = true;
+    state.selectedCards.clear();
+    state.rummyLinkTarget = null;
+    if (!sendRoom({ type: action === "rummy-draw-stock" ? "rummy_draw_stock" : "rummy_draw_discard" })) {
+      state.gameActionLock = false;
+      render();
+    }
+  }
+  if (action === "rummy-complete-route") {
+    if (state.gameActionLock) return;
+    const selection = rotatingRummySelection();
+    if (!selection.routeOk) return;
+    state.gameActionLock = true;
+    const cardIds = selection.selected.map((card) => card.id);
+    animateStandardHandExit(cardIds, () => {
+      state.selectedCards.clear();
+      state.rummyLinkTarget = null;
+      if (!sendRoom({ type: "rummy_complete_route", cardIds })) {
+        state.gameActionLock = false;
+        render();
+      }
+    });
+  }
+  if (action === "rummy-link") {
+    if (state.gameActionLock) return;
+    const selection = rotatingRummySelection();
+    if (!selection.linkOk || !selection.linkTarget) return;
+    state.gameActionLock = true;
+    const cardIds = selection.selected.map((card) => card.id);
+    const { player, groupIndex } = selection.linkTarget;
+    state.selectedCards.clear();
+    state.rummyLinkTarget = null;
+    if (!sendRoom({ type: "rummy_link", targetSeat: player.seat, groupIndex, cardIds })) {
+      state.gameActionLock = false;
+      render();
+    }
+  }
+  if (action === "rummy-discard") {
+    if (state.gameActionLock) return;
+    const selection = rotatingRummySelection();
+    if (!selection.discardOk) return;
+    state.gameActionLock = true;
+    const [discard] = selection.selected;
+    animateStandardHandExit([discard.id], () => {
+      state.selectedCards.clear();
+      state.rummyLinkTarget = null;
+      if (!sendRoom({ type: "rummy_discard", cardId: discard.id })) {
+        state.gameActionLock = false;
+        render();
+      }
+    });
+  }
+  if (action === "rummy-next-round") {
+    state.selectedCards.clear();
+    state.rummyLinkTarget = null;
+    if (state.gameMode === "hot-seat") state.hotSeatForceHandoff = true;
+    if (!sendRoom({ type: "rummy_next_round" })) state.hotSeatForceHandoff = false;
+  }
   if (action === "game-sort") {
     if (state.gameActionLock) return;
-    const modes = state.room?.gameId === "juan" ? juanGameAdapter.sortModes : ["rank", "combo", "suit"];
+    const modes = sortAdapterForGame()?.sortModes || ["rank", "combo", "suit"];
     state.gameSort = modes[(modes.indexOf(state.gameSort) + 1) % modes.length];
     render();
   }

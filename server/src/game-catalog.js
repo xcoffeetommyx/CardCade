@@ -12,6 +12,13 @@ export const deckFamilies = [
     shortName: "Custom shedding deck",
     description: "An original color-shedding family with its own cards, rules, and identity.",
     order: 20
+  },
+  {
+    id: "rotating-rummy",
+    name: "Rotating Rummy Routes",
+    shortName: "108-card Route deck",
+    description: "Blackout number cards, shifting Route Decks, and original rummy objectives.",
+    order: 30
   }
 ];
 
@@ -93,5 +100,18 @@ export const games = [
     supportsBots: true,
     status: "available",
     accent: "spectrum"
+  },
+  {
+    id: "rotating-rummy",
+    name: "Rotating Rummy",
+    eyebrow: "Routes that keep moving",
+    description: "Build numeric patterns, clear your current Route, and race across a changing ten-Route circuit.",
+    deckFamilyId: "rotating-rummy",
+    genres: ["rummy", "route-building"],
+    modes: ["solo", "multiplayer", "hot-seat"],
+    players: { min: 2, max: 4, recommended: 4 },
+    supportsBots: true,
+    status: "available",
+    accent: "blackout"
   }
 ];

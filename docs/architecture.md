@@ -20,14 +20,17 @@ Cardcade server
          ├─ 3s & 7s adapter (playable)
          ├─ Thirteen adapter (playable)
          ├─ JUAN adapter (playable)
-         └─ future game adapters
+         ├─ Rotating Rummy adapter (playable)
+         ├─ Blackjack adapter (playable)
+         ├─ Texas Hold'em adapter (playable)
+         └─ Five Card Draw adapter (playable)
 ```
 
 The server is intentionally build-tool-free for the first milestone. It serves native browser modules and uses `ws` for the lobby connection.
 
 ## Catalog and deck families
 
-A deck family is launcher metadata plus a presentation capability. For example, `standard-52` identifies the familiar four suits, thirteen ranks, standard card renderer, and physical fan. `color-action` identifies JUAN's original color lanes, action faces, and dedicated card renderer. Neither family defines a game's rules.
+A deck family is launcher metadata plus a presentation capability. For example, `standard-52` identifies the familiar four suits, thirteen ranks, standard card renderer, and physical fan. `color-action` identifies JUAN's original color lanes, action faces, and dedicated card renderer. `rotating-rummy` identifies Blackout number cards, Glitches, Locks, and the Route renderer. Neither family defines a game's rules.
 
 Every game registry entry declares:
 
@@ -51,7 +54,7 @@ The current games implement a narrow runtime boundary resembling:
 }
 ```
 
-3s & 7s, Thirteen, and JUAN now prove this boundary in practice: Cardcade supplies rooms, identity, connections, persistence, physical fan behavior, and private Hot Seat handoffs. Each runtime owns its deck contract where needed, rules, private views, CPU turns, round transitions, and scoring. Shared behavior should be generalized only when multiple implementations actually need it.
+3s & 7s, Thirteen, JUAN, Rotating Rummy, Blackjack, Texas Hold'em, and Five Card Draw now prove this boundary in practice: Cardcade supplies rooms, identity, connections, persistence, physical fan behavior, and private Hot Seat handoffs. Each runtime owns its deck contract where needed, rules, private views, CPU turns, round transitions, and scoring. Shared behavior should be generalized only when multiple implementations actually need it.
 
 ## Rooms and sessions
 
@@ -83,7 +86,7 @@ ThreeSeven currently has the strongest version of these pieces:
 - reconnect and match lifecycle patterns;
 - broader automated coverage.
 
-These are now shared Cardcade presentation modules rather than imported game-specific assets. Thirteen keeps its own ranks, legal combinations, turn rules, scoring, and CPU decisions. JUAN uses the same fan, focus, selection, and movement vocabulary with an independent 108-card color/action deck and renderer.
+These are now shared Cardcade presentation modules rather than imported game-specific assets. Thirteen keeps its own ranks, legal combinations, turn rules, scoring, and CPU decisions. JUAN uses the same fan, focus, selection, and movement vocabulary with an independent 108-card color/action deck and renderer. Rotating Rummy follows the same boundary with a distinct 108-card Route deck, public Route objectives, and Link actions on completed Route groups.
 
 ## Persistence
 

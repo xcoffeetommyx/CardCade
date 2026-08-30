@@ -61,12 +61,22 @@
       className: "card-skin-juan-paper-pop",
       renderer: "color-action",
       capabilities: Object.freeze({ faces: true, backs: true, courts: false })
+    }),
+    Object.freeze({
+      id: "rotating-rummy-blackout",
+      deckFamilyId: "rotating-rummy",
+      name: "Blackout Edition",
+      description: "Matte-black Route cards with color-coded pixel digits and signal-bright backs.",
+      className: "card-skin-rotating-rummy-blackout",
+      renderer: "rotating-rummy",
+      capabilities: Object.freeze({ faces: true, backs: true, courts: false })
     })
   ]);
 
   const DEFAULT_SKIN_IDS = Object.freeze({
     "standard-52": "cardcade-pixel",
-    "color-action": "juan-minimal"
+    "color-action": "juan-minimal",
+    "rotating-rummy": "rotating-rummy-blackout"
   });
   const TABLE_SKINS = Object.freeze([
     Object.freeze({
@@ -89,7 +99,7 @@
     })
   ]);
   const DEFAULT_TABLE_SKIN_ID = "classic-green";
-  const APPEARANCE_VERSION = 3;
+  const APPEARANCE_VERSION = 4;
 
   function skinsForFamily(deckFamilyId) {
     return SKINS.filter((skin) => skin.deckFamilyId === deckFamilyId);

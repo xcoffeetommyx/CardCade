@@ -100,7 +100,7 @@ test("table skins are independently previewed and applied to every game table", 
   assert.match(app, /function renderTableSkinSetting/);
   assert.match(app, /data-table-skin-preview/);
   assert.match(app, /data-table-skin-setting/);
-  for (const gameClass of ["blackjack-game", "holdem-game", "five-card-draw-game", "juan-game"]) {
+  for (const gameClass of ["blackjack-game", "holdem-game", "five-card-draw-game", "juan-game", "rotating-rummy-game"]) {
     assert.match(app, new RegExp("standard-card-game \\$\\{activeTableAppearanceClass\\(\\)\\} " + gameClass));
   }
   assert.match(app, /standard-card-game \$\{activeTableAppearanceClass\(\)\}" data-game-id="\$\{escapeHtml\(game\.gameId\)\}"/);
