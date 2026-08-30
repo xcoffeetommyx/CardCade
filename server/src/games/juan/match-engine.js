@@ -48,6 +48,8 @@ export class MatchEngine {
       activeColor: openingCard.color,
       drawnCardId: null,
       drawnSeat: null,
+      pendingJuan: null,
+      pendingPrismBurst: null,
       placements: [],
       roundOver: false,
       matchOver: false,
@@ -56,8 +58,9 @@ export class MatchEngine {
     };
   }
 
-  play(match, seat, cardId, chosenColor = null) {
+  play(match, seat, cardId, chosenColor = null, declareJuan = false) {
     const player = requireActivePlayer(match, seat);
+    requireNoPendingPrismBurst(match);
     const card = player.hand.find((candidate) => candidate.id === String(cardId));
     if (!card) throw new RoomError("That card is not in your hand.", "CARD_NOT_OWNED");
     const topCard = match.discardPile.at(-1);
@@ -71,39 +74,56 @@ export class MatchEngine {
       throw new RoomError("Choose a color lane for the Prism.", "COLOR_REQUIRED");
     }
 
+    const missedJuan = this.#resolveMissedJuan(match);
+    const prismBurst = card.kind === "prism-burst" ? {
+      sourceSeat: player.seat,
+      priorColor: match.activeColor,
+      sourceHadPriorColor: player.hand.some((candidate) => candidate.id !== card.id && candidate.color === match.activeColor)
+    } : null;
     player.hand = player.hand.filter((candidate) => candidate.id !== card.id);
     clearDrawChoice(match);
-    player.juan = player.hand.length === 1;
+    player.juan = false;
     match.discardPile.push(card);
     match.activeColor = card.kind === "prism" || card.kind === "prism-burst" ? chosenColor : card.color;
     player.lastPlay = { kind: "play", label: juanDeck.cardLabel(card), cards: [{ ...card }] };
     player.lastPlayedCard = { ...card };
-    const juanCall = player.juan ? " JUAN — one card remains!" : "";
-    match.lastMoveText = `${player.name} played ${juanDeck.cardLabel(card)}.${juanCall}`;
+    let juanCall = "";
+    if (player.hand.length === 1) {
+      if (player.type === "bot" || declareJuan === true) {
+        player.juan = true;
+        juanCall = " JUAN!";
+      } else {
+        match.pendingJuan = { seat: player.seat };
+        juanCall = " One card remains — call JUAN!";
+      }
+    }
+    match.lastMoveText = `${missedJuan}${player.name} played ${juanDeck.cardLabel(card)}.${juanCall}`;
     match.log.unshift(match.lastMoveText);
 
-    if (player.hand.length === 0) {
+    if (player.hand.length === 0 && card.kind !== "prism-burst") {
       finishMatch(match, player);
       return match;
     }
 
-    this.#advanceAfterCard(match, player, card);
+    this.#advanceAfterCard(match, player, card, prismBurst);
     return match;
   }
 
   draw(match, seat) {
     const player = requireActivePlayer(match, seat);
+    requireNoPendingPrismBurst(match);
     if (match.drawnSeat === player.seat && match.drawnCardId) {
       throw new RoomError("Play the drawn card or keep your hand before drawing again.", "ALREADY_DREW", 409);
     }
+    const missedJuan = this.#resolveMissedJuan(match);
     const drawn = this.#drawCards(match, player, 1);
-    player.juan = player.hand.length === 1;
+    syncJuanAfterDraw(match, player);
     const drawnCard = drawn[0] || null;
     const playable = drawnCard && rules.canPlay(drawnCard, match.discardPile.at(-1), match.activeColor);
     player.lastPlay = { kind: "draw", label: drawnCard ? "Drew 1" : "Stock empty", cards: [] };
     match.lastMoveText = playable
-      ? `${player.name} drew a playable card.`
-      : drawnCard ? `${player.name} drew a card.` : `${player.name} found the stock empty.`;
+      ? `${missedJuan}${player.name} drew a playable card.`
+      : drawnCard ? `${missedJuan}${player.name} drew a card.` : `${missedJuan}${player.name} found the stock empty.`;
     match.log.unshift(match.lastMoveText);
     if (playable) {
       match.drawnCardId = drawnCard.id;
@@ -117,20 +137,118 @@ export class MatchEngine {
 
   endTurn(match, seat) {
     const player = requireActivePlayer(match, seat);
+    requireNoPendingPrismBurst(match);
     if (match.drawnSeat !== player.seat || !match.drawnCardId) {
       throw new RoomError("Draw a playable card before choosing to keep it.", "DRAW_CHOICE_NOT_ACTIVE", 409);
     }
+    const missedJuan = this.#resolveMissedJuan(match);
     clearDrawChoice(match);
-    match.lastMoveText = `${player.name} kept the drawn card.`;
+    match.lastMoveText = `${missedJuan}${player.name} kept the drawn card.`;
     match.log.unshift(match.lastMoveText);
     match.activeSeat = nextPlayer(match, player.seat)?.seat ?? null;
     return match;
   }
 
+  callJuan(match, seat) {
+    requirePlayingMatch(match);
+    const player = requirePlayer(match, seat);
+    const pending = match.pendingJuan;
+    if (!pending || pending.seat !== player.seat || player.hand.length !== 1) {
+      throw new RoomError("JUAN can only be called when you have exactly one uncalled card.", "JUAN_CALL_NOT_AVAILABLE", 409);
+    }
+    player.juan = true;
+    match.pendingJuan = null;
+    match.lastMoveText = `${player.name} called JUAN!`;
+    match.log.unshift(match.lastMoveText);
+    return match;
+  }
+
+  catchJuan(match, seat) {
+    requirePlayingMatch(match);
+    const caller = requirePlayer(match, seat);
+    const pending = match.pendingJuan;
+    if (!pending) throw new RoomError("No JUAN call is waiting to be caught.", "JUAN_CATCH_NOT_AVAILABLE", 409);
+    if (pending.seat === caller.seat) throw new RoomError("You cannot catch your own JUAN call.", "JUAN_CATCH_SELF", 409);
+    const target = getPlayer(match, pending.seat);
+    if (!target || target.hand.length !== 1) {
+      match.pendingJuan = null;
+      throw new RoomError("That JUAN call is no longer available.", "JUAN_CATCH_NOT_AVAILABLE", 409);
+    }
+
+    match.pendingJuan = null;
+    const count = this.#drawCards(match, target, 2).length;
+    syncJuanAfterDraw(match, target);
+    target.lastPlay = { kind: "penalty", label: `Missed JUAN · drew ${count}`, cards: [] };
+    match.lastMoveText = `${caller.name} caught ${target.name} without JUAN. ${target.name} draws ${count}.`;
+    match.log.unshift(match.lastMoveText);
+    return match;
+  }
+
+  acceptPrismBurst(match, seat) {
+    const { source, target } = this.#requirePrismBurstTarget(match, seat);
+    const missedJuan = this.#resolveMissedJuan(match);
+    match.pendingPrismBurst = null;
+    const count = this.#drawCards(match, target, 4).length;
+    syncJuanAfterDraw(match, target);
+    target.lastPlay = { kind: "draw", label: `Drew ${count}`, cards: [] };
+    match.lastMoveText = `${missedJuan}${target.name} takes the four-card Prism Burst and loses the turn.`;
+    match.log.unshift(match.lastMoveText);
+    if (source.hand.length === 0) {
+      finishMatch(match, source);
+      return match;
+    }
+    match.activeSeat = nextPlayer(match, target.seat)?.seat ?? null;
+    return match;
+  }
+
+  challengePrismBurst(match, seat) {
+    const { pending, source, target } = this.#requirePrismBurstTarget(match, seat);
+    const missedJuan = this.#resolveMissedJuan(match);
+    match.pendingPrismBurst = null;
+
+    if (pending.sourceHadPriorColor) {
+      const count = this.#drawCards(match, source, 4).length;
+      syncJuanAfterDraw(match, source);
+      source.lastPlay = { kind: "penalty", label: `Lost +4 challenge · drew ${count}`, cards: [] };
+      match.lastMoveText = `${missedJuan}${target.name} won the Prism Burst challenge. ${source.name} draws ${count}, and ${target.name} keeps the turn.`;
+      match.log.unshift(match.lastMoveText);
+      match.activeSeat = target.seat;
+      return match;
+    }
+
+    const count = this.#drawCards(match, target, 6).length;
+    syncJuanAfterDraw(match, target);
+    target.lastPlay = { kind: "penalty", label: `Lost +4 challenge · drew ${count}`, cards: [] };
+    match.lastMoveText = `${missedJuan}${target.name} lost the Prism Burst challenge, draws ${count}, and loses the turn.`;
+    match.log.unshift(match.lastMoveText);
+    if (source.hand.length === 0) {
+      finishMatch(match, source);
+      return match;
+    }
+    match.activeSeat = nextPlayer(match, target.seat)?.seat ?? null;
+    return match;
+  }
+
   runBotTurn(match) {
     if (!match || match.roundOver) return false;
+    const pendingJuan = match.pendingJuan;
+    if (pendingJuan) {
+      const caller = getPlayer(match, pendingJuan.seat);
+      if (caller?.type === "bot" && caller.hand.length === 1) {
+        this.callJuan(match, caller.seat);
+        return true;
+      }
+    }
     const player = getPlayer(match, match.activeSeat);
     if (!player || player.type !== "bot") return false;
+    if (match.pendingJuan && match.pendingJuan.seat !== player.seat) {
+      this.catchJuan(match, player.seat);
+      return true;
+    }
+    if (match.pendingPrismBurst) {
+      this.acceptPrismBurst(match, player.seat);
+      return true;
+    }
     const topCard = match.discardPile.at(-1);
     const legal = rules.getLegalCards(player.hand, topCard, match.activeColor);
     if (!legal.length) {
@@ -168,6 +286,7 @@ export class MatchEngine {
     player.style = "steady";
     player.name = `${player.name} · Bot`;
     match.log.unshift(`${player.name} took over the disconnected seat.`);
+    if (match.pendingJuan?.seat === player.seat && player.hand.length === 1) this.callJuan(match, player.seat);
     return true;
   }
 
@@ -186,6 +305,13 @@ export class MatchEngine {
         topCard: { ...topCard },
         stockCount: match.stock.length,
         drawnCardId: match.drawnSeat === viewer.seat ? match.drawnCardId : null,
+        juanCall: match.pendingJuan ? { seat: match.pendingJuan.seat } : null,
+        prismBurstChallenge: match.pendingPrismBurst ? {
+          sourceSeat: match.pendingPrismBurst.sourceSeat,
+          targetSeat: match.pendingPrismBurst.targetSeat,
+          priorColor: match.pendingPrismBurst.priorColor,
+          chosenColor: match.pendingPrismBurst.chosenColor
+        } : null,
         players: match.players.map((player) => ({
           seat: player.seat,
           name: player.name,
@@ -212,7 +338,7 @@ export class MatchEngine {
     };
   }
 
-  #advanceAfterCard(match, player, card) {
+  #advanceAfterCard(match, player, card, prismBurst = null) {
     if (card.kind === "turnabout") {
       match.direction *= -1;
       match.lastMoveText += ` Direction now runs ${match.direction === 1 ? "forward" : "backward"}.`;
@@ -232,7 +358,7 @@ export class MatchEngine {
 
     if (card.kind === "double-draw") {
       const count = this.#drawCards(match, target, 2).length;
-      target.juan = target.hand.length === 1;
+      syncJuanAfterDraw(match, target);
       target.lastPlay = { kind: "draw", label: `Drew ${count}`, cards: [] };
       match.lastMoveText += ` ${target.name} draws ${count} and loses the turn.`;
       match.activeSeat = nextPlayer(match, target.seat)?.seat ?? null;
@@ -240,11 +366,15 @@ export class MatchEngine {
     }
 
     if (card.kind === "prism-burst") {
-      const count = this.#drawCards(match, target, 4).length;
-      target.juan = target.hand.length === 1;
-      target.lastPlay = { kind: "draw", label: `Drew ${count}`, cards: [] };
-      match.lastMoveText += ` ${target.name} takes a four-card Prism Burst and loses the turn.`;
-      match.activeSeat = nextPlayer(match, target.seat)?.seat ?? null;
+      match.pendingPrismBurst = {
+        sourceSeat: player.seat,
+        targetSeat: target.seat,
+        priorColor: prismBurst?.priorColor || match.activeColor,
+        chosenColor: match.activeColor,
+        sourceHadPriorColor: prismBurst?.sourceHadPriorColor === true
+      };
+      match.lastMoveText += ` ${target.name} may challenge the Prism Burst or take four.`;
+      match.activeSeat = target.seat;
       return;
     }
 
@@ -264,12 +394,38 @@ export class MatchEngine {
     return drawnCards;
   }
 
+  #resolveMissedJuan(match) {
+    const pending = match.pendingJuan;
+    if (!pending) return "";
+    const target = getPlayer(match, pending.seat);
+    match.pendingJuan = null;
+    if (!target || target.hand.length !== 1) return "";
+    const count = this.#drawCards(match, target, 2).length;
+    syncJuanAfterDraw(match, target);
+    target.lastPlay = { kind: "penalty", label: `Missed JUAN · drew ${count}`, cards: [] };
+    const text = `${target.name} missed JUAN and draws ${count}. `;
+    return text;
+  }
+
   #recycleDiscard(match) {
     if (match.discardPile.length <= 1) return;
     const topCard = match.discardPile.pop();
     match.stock = this.shuffleDeck(match.discardPile);
     match.discardPile = [topCard];
     match.log.unshift("The discard stack returned to the stock.");
+  }
+
+  #requirePrismBurstTarget(match, seat) {
+    requirePlayingMatch(match);
+    const target = requirePlayer(match, seat);
+    const pending = match.pendingPrismBurst;
+    if (!pending) throw new RoomError("No Prism Burst challenge is waiting.", "PRISM_BURST_NOT_PENDING", 409);
+    if (pending.targetSeat !== target.seat || match.activeSeat !== target.seat) {
+      throw new RoomError("Only the Prism Burst target can resolve it.", "PRISM_BURST_TARGET_ONLY", 409);
+    }
+    const source = getPlayer(match, pending.sourceSeat);
+    if (!source) throw new RoomError("The Prism Burst source is unavailable.", "PRISM_BURST_SOURCE_MISSING", 409);
+    return { pending, source, target };
   }
 }
 
@@ -291,12 +447,34 @@ function validateDeck(deck) {
   if (new Set(deck.map((card) => card.id)).size !== 108) throw new RoomError("The JUAN deck contains duplicate cards.", "INVALID_DECK", 500);
 }
 
-function requireActivePlayer(match, seat) {
+function requirePlayingMatch(match) {
   if (!match || match.roundOver || match.phase !== "playing") throw new RoomError("No JUAN match is currently active.", "MATCH_NOT_ACTIVE", 409);
+}
+
+function requirePlayer(match, seat) {
   const player = getPlayer(match, seat);
   if (!player) throw new RoomError("Seat not found.", "SEAT_NOT_FOUND", 404);
+  return player;
+}
+
+function requireActivePlayer(match, seat) {
+  requirePlayingMatch(match);
+  const player = requirePlayer(match, seat);
   if (match.activeSeat !== player.seat) throw new RoomError("It is not your turn.", "NOT_YOUR_TURN", 409);
   return player;
+}
+
+function requireNoPendingPrismBurst(match) {
+  if (match.pendingPrismBurst) {
+    throw new RoomError("Resolve the Prism Burst by challenging it or taking four first.", "PRISM_BURST_RESPONSE_REQUIRED", 409);
+  }
+}
+
+function syncJuanAfterDraw(match, player) {
+  if (player.hand.length !== 1) {
+    player.juan = false;
+    if (match.pendingJuan?.seat === player.seat) match.pendingJuan = null;
+  }
 }
 
 function getPlayer(match, seat) {
@@ -332,6 +510,9 @@ function finishMatch(match, winner) {
   const points = others.flatMap((player) => player.hand).reduce((total, card) => total + rules.cardPoints(card), 0);
   winner.score += points;
   winner.juan = false;
+  match.pendingJuan = null;
+  match.pendingPrismBurst = null;
+  clearDrawChoice(match);
   match.roundOver = true;
   match.matchOver = true;
   match.phase = "complete";

@@ -17,7 +17,7 @@ function matchFor(players = [human(0, "One"), human(1, "Two"), human(2, "Three")
 function setTable(match, { hands, top = "blaze-3-a", activeSeat = 0, activeColor = null, stock = [] }) {
   match.players.forEach((player, index) => {
     player.hand = hands[index].map(card);
-    player.juan = player.hand.length === 1;
+    player.juan = false;
     player.lastPlay = null;
     player.lastPlayedCard = null;
   });
@@ -26,6 +26,8 @@ function setTable(match, { hands, top = "blaze-3-a", activeSeat = 0, activeColor
   match.activeColor = activeColor || card(top).color;
   match.activeSeat = activeSeat;
   match.direction = 1;
+  match.pendingJuan = null;
+  match.pendingPrismBurst = null;
   return match;
 }
 
@@ -87,16 +89,137 @@ test("JUAN Pause, Turnabout, and Double Draw own their turn effects", () => {
   assert.equal(match.activeSeat, 2, "Double Draw also costs the target's turn");
 });
 
-test("JUAN Prism Burst chooses the next color and deals four cards", () => {
+test("JUAN requires a player to call JUAN and lets another player catch a missed call", () => {
   const engine = new MatchEngine({ shuffleDeck: identityShuffle });
   const match = setTable(matchFor(), {
-    hands: [["prism-burst-1", "blaze-7-a"], ["tide-1-a"], ["grove-1-a"]],
+    hands: [["blaze-7-a", "tide-1-a"], ["spark-1-a"], ["grove-1-a"]],
+    stock: ["spark-2-a", "spark-3-a"]
+  });
+
+  engine.play(match, 0, "blaze-7-a");
+  assert.equal(match.players[0].hand.length, 1);
+  assert.equal(match.players[0].juan, false);
+  assert.deepEqual(match.pendingJuan, { seat: 0 });
+  assert.equal(match.activeSeat, 1);
+  const pendingView = engine.viewFor(match, 1);
+  assert.deepEqual(pendingView.state.juanCall, { seat: 0 });
+
+  engine.callJuan(match, 0);
+  assert.equal(match.players[0].juan, true);
+  assert.equal(match.pendingJuan, null);
+  assert.match(match.lastMoveText, /called JUAN/);
+
+  const declaredWithPlay = setTable(matchFor(), {
+    hands: [["blaze-7-a", "tide-1-a"], ["spark-1-a"], ["grove-1-a"]]
+  });
+  engine.play(declaredWithPlay, 0, "blaze-7-a", null, true);
+  assert.equal(declaredWithPlay.players[0].juan, true);
+  assert.equal(declaredWithPlay.pendingJuan, null);
+
+  const caughtMatch = setTable(matchFor(), {
+    hands: [["blaze-7-a", "tide-1-a"], ["spark-1-a"], ["grove-1-a"]],
+    stock: ["spark-2-a", "spark-3-a"]
+  });
+  engine.play(caughtMatch, 0, "blaze-7-a");
+  engine.catchJuan(caughtMatch, 1);
+  assert.equal(caughtMatch.players[0].hand.length, 3);
+  assert.equal(caughtMatch.players[0].juan, false);
+  assert.equal(caughtMatch.pendingJuan, null);
+  assert.equal(caughtMatch.activeSeat, 1, "Catching JUAN does not consume the current player's turn");
+  assert.match(caughtMatch.lastMoveText, /caught One without JUAN/);
+});
+
+test("JUAN automatically draws two when its call is missed before the next action", () => {
+  const engine = new MatchEngine({ shuffleDeck: identityShuffle });
+  const match = setTable(matchFor(), {
+    hands: [["blaze-7-a", "tide-1-a"], ["spark-1-a"], ["grove-1-a"]],
+    stock: ["tide-2-a", "tide-3-a", "tide-4-a"]
+  });
+
+  engine.play(match, 0, "blaze-7-a");
+  engine.draw(match, 1);
+  assert.equal(match.pendingJuan, null);
+  assert.equal(match.players[0].hand.length, 3);
+  assert.match(match.lastMoveText, /One missed JUAN and draws 2/);
+  assertGameError(() => engine.catchJuan(match, 2), "JUAN_CATCH_NOT_AVAILABLE");
+});
+
+test("JUAN Prism Burst opens a challenge decision instead of drawing cards immediately", () => {
+  const engine = new MatchEngine({ shuffleDeck: identityShuffle });
+  const match = setTable(matchFor(), {
+    hands: [["prism-burst-1", "tide-7-a"], ["tide-1-a"], ["grove-1-a"]],
     stock: ["spark-1-a", "spark-2-a", "spark-3-a", "spark-4-a", "spark-5-a"]
   });
   engine.play(match, 0, "prism-burst-1", "tide");
   assert.equal(match.activeColor, "tide");
+  assert.equal(match.players[1].hand.length, 1);
+  assert.equal(match.activeSeat, 1);
+  assert.deepEqual(match.pendingPrismBurst, {
+    sourceSeat: 0,
+    targetSeat: 1,
+    priorColor: "blaze",
+    chosenColor: "tide",
+    sourceHadPriorColor: false
+  });
+  assertGameError(() => engine.draw(match, 1), "PRISM_BURST_RESPONSE_REQUIRED");
+  const view = engine.viewFor(match, 1);
+  assert.deepEqual(view.state.prismBurstChallenge, {
+    sourceSeat: 0,
+    targetSeat: 1,
+    priorColor: "blaze",
+    chosenColor: "tide"
+  });
+  assert.equal(JSON.stringify(view).includes("sourceHadPriorColor"), false, "The secret challenge result must stay server-side");
+
+  engine.acceptPrismBurst(match, 1);
   assert.equal(match.players[1].hand.length, 5);
+  assert.equal(match.pendingPrismBurst, null);
   assert.equal(match.activeSeat, 2);
+});
+
+test("a successful Prism Burst challenge makes the player who used it illegally draw four and restores the target turn", () => {
+  const engine = new MatchEngine({ shuffleDeck: identityShuffle });
+  const match = setTable(matchFor(), {
+    hands: [["prism-burst-1", "blaze-7-a", "tide-7-a"], ["spark-1-a"], ["grove-1-a"]],
+    stock: ["spark-2-a", "spark-3-a", "spark-4-a", "spark-5-a"]
+  });
+
+  engine.play(match, 0, "prism-burst-1", "tide");
+  engine.challengePrismBurst(match, 1);
+  assert.equal(match.players[0].hand.length, 6);
+  assert.equal(match.players[1].hand.length, 1);
+  assert.equal(match.pendingPrismBurst, null);
+  assert.equal(match.activeSeat, 1, "The challenged player gets their turn back");
+  assert.match(match.lastMoveText, /won the Prism Burst challenge/);
+});
+
+test("a failed Prism Burst challenge draws six and skips the challenged player", () => {
+  const engine = new MatchEngine({ shuffleDeck: identityShuffle });
+  const match = setTable(matchFor(), {
+    hands: [["prism-burst-1", "tide-7-a", "grove-7-a"], ["spark-1-a"], ["grove-1-a"]],
+    stock: ["spark-2-a", "spark-3-a", "spark-4-a", "spark-5-a", "tide-2-a", "tide-3-a"]
+  });
+
+  engine.play(match, 0, "prism-burst-1", "tide");
+  engine.challengePrismBurst(match, 1);
+  assert.equal(match.players[1].hand.length, 7);
+  assert.equal(match.pendingPrismBurst, null);
+  assert.equal(match.activeSeat, 2);
+  assert.match(match.lastMoveText, /lost the Prism Burst challenge/);
+});
+
+test("JUAN does not end a Prism Burst finish until the target resolves its challenge", () => {
+  const engine = new MatchEngine({ shuffleDeck: identityShuffle });
+  const match = setTable(matchFor(), {
+    hands: [["prism-burst-1"], ["spark-1-a"], ["grove-1-a"]],
+    stock: ["spark-2-a", "spark-3-a", "spark-4-a", "spark-5-a"]
+  });
+
+  engine.play(match, 0, "prism-burst-1", "tide");
+  assert.equal(match.roundOver, false);
+  engine.acceptPrismBurst(match, 1);
+  assert.equal(match.roundOver, true);
+  assert.equal(match.placements[0], 0);
 });
 
 test("JUAN recycles the discard stack when a player draws from an empty stock", () => {

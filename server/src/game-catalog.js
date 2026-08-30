@@ -92,7 +92,7 @@ export const games = [
     id: "juan",
     name: "JUAN",
     eyebrow: "One card changes everything",
-    description: "Match colors or faces, bend the turn order, and race down to one.",
+    description: "Match colors or faces, call JUAN at one card, bend the turn order, and race out first.",
     deckFamilyId: "color-action",
     genres: ["shedding"],
     modes: ["solo", "multiplayer", "hot-seat"],

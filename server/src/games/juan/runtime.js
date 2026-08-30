@@ -63,13 +63,25 @@ export class JuanRuntime {
 
     switch (action.type) {
       case "play":
-        this.#engine.play(match, viewer.seat, action.cardId, action.chosenColor);
+        this.#engine.play(match, viewer.seat, action.cardId, action.chosenColor, action.declareJuan === true);
         break;
       case "draw":
         this.#engine.draw(match, viewer.seat);
         break;
       case "end_turn":
         this.#engine.endTurn(match, viewer.seat);
+        break;
+      case "juan_call":
+        this.#engine.callJuan(match, viewer.seat);
+        break;
+      case "juan_catch":
+        this.#engine.catchJuan(match, viewer.seat);
+        break;
+      case "juan_accept_prism_burst":
+        this.#engine.acceptPrismBurst(match, viewer.seat);
+        break;
+      case "juan_challenge_prism_burst":
+        this.#engine.challengePrismBurst(match, viewer.seat);
         break;
       default:
         throw new GameError("That JUAN action is not supported.", "UNKNOWN_GAME_ACTION");

@@ -1955,6 +1955,51 @@ function queueJuanPrismReveal(gameId, previousView, nextView) {
   }, reducedMotion ? 900 : 1_900);
 }
 
+function renderJuanReactionPanels(match, viewerSeat) {
+  if (match.roundOver) return "";
+  const panels = [];
+  const pendingJuan = match.juanCall;
+  if (pendingJuan) {
+    const player = match.players.find((candidate) => candidate.seat === pendingJuan.seat);
+    if (pendingJuan.seat === viewerSeat) {
+      panels.push(`
+        <section class="juan-reaction-panel juan-call-panel" aria-live="polite">
+          <span><strong>One card left.</strong><small>Call JUAN before another player catches you.</small></span>
+          <button class="primary" type="button" data-action="juan-call" ${state.gameActionLock ? "disabled" : ""}>Call JUAN!</button>
+        </section>`);
+    } else if (player) {
+      panels.push(`
+        <section class="juan-reaction-panel juan-catch-panel" aria-live="polite">
+          <span><strong>${escapeHtml(player.name)} has one card.</strong><small>They have not called JUAN yet.</small></span>
+          <button type="button" data-action="juan-catch" ${state.gameActionLock ? "disabled" : ""}>Catch ${escapeHtml(player.name)}</button>
+        </section>`);
+    }
+  }
+
+  const prismBurst = match.prismBurstChallenge;
+  if (prismBurst) {
+    const source = match.players.find((candidate) => candidate.seat === prismBurst.sourceSeat);
+    const target = match.players.find((candidate) => candidate.seat === prismBurst.targetSeat);
+    if (prismBurst.targetSeat === viewerSeat) {
+      const previousColor = juanDeck.COLOR_NAME[prismBurst.priorColor] || "previous";
+      panels.push(`
+        <section class="juan-reaction-panel juan-prism-challenge-panel" aria-live="polite">
+          <span><strong>Prism Burst +4</strong><small>${escapeHtml(source?.name || "That player")} chose a new lane. Challenge if they held ${escapeHtml(previousColor)}.</small></span>
+          <div class="juan-reaction-actions">
+            <button type="button" data-action="juan-challenge-prism-burst" ${state.gameActionLock ? "disabled" : ""}>Challenge +4</button>
+            <button class="primary" type="button" data-action="juan-accept-prism-burst" ${state.gameActionLock ? "disabled" : ""}>Take 4</button>
+          </div>
+        </section>`);
+    } else {
+      panels.push(`
+        <section class="juan-reaction-panel juan-prism-wait-panel" aria-live="polite">
+          <span><strong>Prism Burst +4</strong><small>${escapeHtml(target?.name || "The next player")} is deciding whether to challenge ${escapeHtml(source?.name || "the play")}.</small></span>
+        </section>`);
+    }
+  }
+  return panels.join("");
+}
+
 function renderJuanGame() {
   const view = state.gameView;
   if (!view || !juanRules || !juanDeck) return `<div class="empty-state">Dealing the JUAN deck…</div>`;
@@ -1964,11 +2009,13 @@ function renderJuanGame() {
   const yourPlayer = match.players.find((player) => player.seat === viewerSeat);
   const yourPlace = placementForPlayer(match, yourPlayer);
   const opponents = match.players.filter((player) => player.seat !== viewerSeat);
-  const isYourTurn = match.activeSeat === viewerSeat && !match.roundOver;
+  const hasPrismBurstDecision = Boolean(match.prismBurstChallenge);
+  const isYourTurn = match.activeSeat === viewerSeat && !match.roundOver && !hasPrismBurstDecision;
   const activePlayer = match.players.find((player) => player.seat === match.activeSeat);
   const evaluation = juanSelection();
   const sortedHand = juanRules.sortCards(view.hand, state.gameSort);
   const selectedCard = view.hand.find((card) => state.selectedCards.has(card.id));
+  const hotSeatJuanPlay = state.gameMode === "hot-seat" && evaluation.ok && view.hand.length - state.selectedCards.size === 1;
   const hasDrawChoice = isYourTurn && Boolean(match.drawnCardId);
   const canDraw = isYourTurn && (!state.selectedCards.size || hasDrawChoice) && !state.gameActionLock;
   const pileSignature = `${match.topCard.id}:${match.activeColor}`;
@@ -1991,26 +2038,28 @@ function renderJuanGame() {
         <strong>${escapeHtml(juanDeck.COLOR_NAME[match.activeColor])}</strong>
         <span class="juan-direction" aria-label="Play direction ${match.direction === 1 ? "forward" : "backward"}">${match.direction === 1 ? "↻" : "↺"}</span>
       </div>
+      ${renderJuanReactionPanels(match, viewerSeat)}
       <div class="game-opponents ${opponents.length <= 3 ? "fit-opponents" : ""}">
         ${opponents.map((player) => {
           const playerPlace = placementForPlayer(match, player);
+          const needsJuanCall = match.juanCall?.seat === player.seat;
           return `
-          <article class="game-seat ${match.activeSeat === player.seat ? "active" : ""} ${player.juan ? "juan-alert" : ""} ${placementClassFor(playerPlace)}">
+          <article class="game-seat ${match.activeSeat === player.seat ? "active" : ""} ${player.juan ? "juan-alert" : ""} ${needsJuanCall ? "juan-call-pending" : ""} ${placementClassFor(playerPlace)}">
             ${renderSeatLastCard(player, "juan")}
-            <span class="game-seat-copy" title="${escapeHtml(player.name)}"><strong>${escapeHtml(player.name)}</strong><small>${playerPlace ? `${placeLabel(playerPlace)} place` : player.juan ? "JUAN! · 1 card" : `${player.cardCount} cards`}</small></span>
+            <span class="game-seat-copy" title="${escapeHtml(player.name)}"><strong>${escapeHtml(player.name)}</strong><small>${playerPlace ? `${placeLabel(playerPlace)} place` : player.juan ? "JUAN! · 1 card" : needsJuanCall ? "1 card · call JUAN!" : `${player.cardCount} cards`}</small></span>
             ${renderMiniCardBack("color-action", Math.min(player.cardCount, 7), { ariaHidden: true })}
           </article>`;
         }).join("")}
       </div>
       <section class="game-table juan-table">
-        <div class="game-status"><span><strong>${match.roundOver ? "Match complete" : isYourTurn ? `${escapeHtml(yourPlayer?.name || "You")}, your turn` : `${escapeHtml(activePlayer?.name || "Player")} is thinking`}</strong><small>Stock ${match.stockCount} · match color or face</small></span><span class="badge">${escapeHtml(juanDeck.COLOR_NAME[match.activeColor])}</span></div>
+        <div class="game-status"><span><strong>${match.roundOver ? "Match complete" : hasPrismBurstDecision ? `${escapeHtml(activePlayer?.name || "Player")} is resolving +4` : isYourTurn ? `${escapeHtml(yourPlayer?.name || "You")}, your turn` : `${escapeHtml(activePlayer?.name || "Player")} is thinking`}</strong><small>${hasPrismBurstDecision ? "Challenge it or take four" : `Stock ${match.stockCount} · match color or face`}</small></span><span class="badge">${escapeHtml(juanDeck.COLOR_NAME[match.activeColor])}</span></div>
         <div class="juan-pile-zone">
           ${renderCardBack({ deckFamilyId: "color-action", context: "stock", className: "juan-stock", ariaLabel: `${match.stockCount} cards in stock`, parts: [{ tag: "span", text: "JUAN" }, { tag: "b", text: match.stockCount }] })}
           <div class="active-pile cards-pile">${renderJuanCard(match.topCard, 0, { played: true, enter: pileIsNew })}</div>
         </div>
       </section>
       <section class="physical-hand ${isYourTurn ? "your-turn" : ""}">
-        <div class="hand-heading"><span><strong>Your hand${yourPlayer?.juan ? " · JUAN!" : ""}</strong><small>${view.hand.length} cards · ${escapeHtml(state.gameSort)} sort</small></span><span class="selection-status ${evaluation.ok ? "valid" : state.selectedCards.size ? "invalid" : ""}">${escapeHtml(evaluation.reason)}</span></div>
+        <div class="hand-heading"><span><strong>Your hand${yourPlayer?.juan ? " · JUAN!" : match.juanCall?.seat === viewerSeat ? " · call JUAN!" : ""}</strong><small>${view.hand.length} cards · ${escapeHtml(state.gameSort)} sort</small></span><span class="selection-status ${evaluation.ok ? "valid" : state.selectedCards.size ? "invalid" : ""}">${escapeHtml(evaluation.reason)}</span></div>
         ${juanColorChooser(selectedCard)}
         <div class="game-hand" data-hand-owner="${escapeHtml(handOwner)}" aria-label="Your fanned JUAN hand">${sortedHand.map((card, index) => renderJuanCard(card, index, {
           selectable: isYourTurn && !state.gameActionLock && (!match.drawnCardId || match.drawnCardId === card.id),
@@ -2022,7 +2071,7 @@ function renderJuanGame() {
         <button type="button" data-action="game-hint" ${isYourTurn && !state.gameActionLock ? "" : "disabled"}>Hint</button>
         <button type="button" data-action="game-sort" ${state.gameActionLock ? "disabled" : ""}>Sort</button>
         <button type="button" data-action="game-pass" ${canDraw ? "" : "disabled"}>${hasDrawChoice ? "Keep" : "Draw"}</button>
-        <button class="primary" type="button" data-action="game-play" ${isYourTurn && evaluation.ok && !state.gameActionLock ? "" : "disabled"}>▶ Play</button>
+        <button class="primary" type="button" data-action="game-play" ${isYourTurn && evaluation.ok && !state.gameActionLock ? "" : "disabled"} aria-label="${hotSeatJuanPlay ? "Call JUAN and play" : "Play selected card"}">${hotSeatJuanPlay ? "JUAN + Play" : "▶ Play"}</button>
       </nav>
       ${match.roundOver ? `
         <div class="round-result juan-result">
@@ -3223,6 +3272,22 @@ document.addEventListener("click", async (event) => {
     if (state.gameMode === "hot-seat") state.hotSeatForceHandoff = true;
     if (!sendRoom({ type: "rummy_next_round" })) state.hotSeatForceHandoff = false;
   }
+  if (["juan-call", "juan-catch", "juan-accept-prism-burst", "juan-challenge-prism-burst"].includes(action)) {
+    if (state.gameActionLock || state.room?.gameId !== "juan") return;
+    const actionTypes = {
+      "juan-call": "juan_call",
+      "juan-catch": "juan_catch",
+      "juan-accept-prism-burst": "juan_accept_prism_burst",
+      "juan-challenge-prism-burst": "juan_challenge_prism_burst"
+    };
+    state.gameActionLock = true;
+    state.selectedCards.clear();
+    state.juanChosenColor = null;
+    if (!sendRoom({ type: actionTypes[action] })) {
+      state.gameActionLock = false;
+      render();
+    }
+  }
   if (action === "game-sort") {
     if (state.gameActionLock) return;
     const modes = sortAdapterForGame()?.sortModes || ["rank", "combo", "suit"];
@@ -3381,7 +3446,12 @@ document.addEventListener("click", async (event) => {
     animateStandardHandExit(cardIds, () => {
       state.selectedCards.clear();
       const message = state.room?.gameId === "juan"
-        ? { type: "play", cardId: cardIds[0], chosenColor: state.juanChosenColor }
+        ? {
+          type: "play",
+          cardId: cardIds[0],
+          chosenColor: state.juanChosenColor,
+          declareJuan: state.gameMode === "hot-seat" && state.gameView.hand.length - cardIds.length === 1
+        }
         : { type: "play", cardIds };
       state.juanChosenColor = null;
       if (!sendRoom(message)) {

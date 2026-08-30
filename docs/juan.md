@@ -18,9 +18,11 @@ The neutral cards are four Prism cards and four Prism Burst cards. This produces
 
 ## Play
 
-Each player starts with seven cards. A numbered card opens the discard stack. On a turn, play one card matching the active color lane or printed face, or play a Prism. A Prism chooses the next active color. Pause skips the next player, Turnabout reverses direction, Double Draw makes the next player take two cards and lose the turn, and Prism Burst chooses a color while making the next player take four cards and lose the turn.
+Each player starts with seven cards. A numbered card opens the discard stack. On a turn, play one card matching the active color lane or printed face, or play a Prism. A Prism chooses the next active color. Pause skips the next player, Turnabout reverses direction, and Double Draw makes the next player take two cards and lose the turn.
 
-If no card is played, draw one. A playable drawn card may be played immediately; otherwise the turn ends. The player may also keep a playable drawn card. Reaching one card triggers the JUAN table call, and emptying the hand wins the match.
+Prism Burst chooses a color and puts the next player in a decision window. They can take four cards and lose their turn, or challenge the play. A challenge succeeds when the player who used Prism Burst still held a card in the previous active color: that player draws four cards and the target keeps their turn. A failed challenge makes the target draw six cards and lose their turn.
+
+If no card is played, draw one. A playable drawn card may be played immediately; otherwise the turn ends. The player may also keep a playable drawn card. A player who reaches one card must press **Call JUAN** before the next player starts an action. Another player can catch a missed call immediately; if nobody catches it first, the player with one card automatically draws two when the next action begins. Emptying the hand wins the match after any pending Prism Burst is resolved.
 
 The server is authoritative: other hands remain private, CPUs use the same legal-play checks, and active matches survive the same SQLite snapshot flow as the standard-deck games.
 
