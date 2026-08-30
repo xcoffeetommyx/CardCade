@@ -31,6 +31,7 @@ test("Rotating Rummy has its own Route UI, controls, and fanned-card renderer", 
   assert.match(app, /function renderRotatingRummyGame/);
   assert.match(app, /function renderRotatingRummyCard/);
   assert.match(app, /function rotatingRummySelection/);
+  assert.match(app, /function rummyRouteForPlayer/);
   assert.match(app, /function rummyCornerFace/);
   assert.match(app, /rummy_draw_stock/);
   assert.match(app, /rummy_draw_discard/);
@@ -38,6 +39,10 @@ test("Rotating Rummy has its own Route UI, controls, and fanned-card renderer", 
   assert.match(app, /rummy_link/);
   assert.match(app, /rummy_discard/);
   assert.match(app, /discardOk: selected\.length === 1/);
+  assert.match(app, /evaluateRoute\(selected, route\)/);
+  assert.doesNotMatch(app, /evaluateRoute\(selected, match\.yourRoute\)/);
+  assert.doesNotMatch(app, /findRouteCompletion\(state\.gameView\.hand, match\.yourRoute\)/);
+  assert.doesNotMatch(app, /recommendedDiscard\(state\.gameView\.hand, match\.yourRoute\)/);
   assert.match(app, /rummy_next_round/);
   assert.match(app, /data-game-card=/);
   assert.match(app, /renderMiniCardBack\("rotating-rummy"/);

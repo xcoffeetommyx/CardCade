@@ -1564,7 +1564,11 @@ function rotatingRummySelection() {
   if (!selected.length) {
     return { selected, routeOk: false, linkOk: false, discardOk: false, linkTarget: null, reason: `Select cards for Route ${match.yourRoute?.number || ""}`.trim() };
   }
-  const evaluation = rotatingRummyRules.evaluateRoute(selected, match.yourRoute);
+  const route = rummyRouteForPlayer(match, player);
+  if (!route) {
+    return { selected, routeOk: false, linkOk: false, discardOk: selected.length === 1, linkTarget: null, reason: "Route details are unavailable" };
+  }
+  const evaluation = rotatingRummyRules.evaluateRoute(selected, route);
   return {
     selected,
     routeOk: evaluation.ok,
@@ -1573,7 +1577,7 @@ function rotatingRummySelection() {
     linkTarget: null,
     evaluation,
     reason: evaluation.ok
-      ? `Route ready · ${match.yourRoute.name}`
+      ? `Route ready · ${route.name}`
       : selected.length === 1
         ? `Discard ${rotatingRummyDeck.cardLong(selected[0])}, or select cards for your Route`
         : evaluation.reason
@@ -1581,11 +1585,10 @@ function rotatingRummySelection() {
 }
 
 function rummyLinkTargets(match = state.gameView?.state) {
-  const routeDeck = rotatingRummyRoutes?.routeDeckById(match?.routeDeck?.id);
-  if (!match || !routeDeck) return [];
+  if (!match || !rotatingRummyRoutes) return [];
   return match.players.flatMap((player) => {
     if (!player.routeComplete || !Array.isArray(player.routeMeld)) return [];
-    const route = routeDeck.routes[player.routeIndex];
+    const route = rummyRouteForPlayer(match, player);
     return player.routeMeld.map((group, groupIndex) => ({
       player,
       group,
@@ -1593,6 +1596,11 @@ function rummyLinkTargets(match = state.gameView?.state) {
       requirement: route?.requirements?.[groupIndex]
     })).filter((target) => target.requirement && target.requirement.type !== "spectrum");
   });
+}
+
+function rummyRouteForPlayer(match, player) {
+  if (!match || !player || !rotatingRummyRoutes) return null;
+  return rotatingRummyRoutes.routeFor(match.routeDeck?.id, player.routeIndex);
 }
 
 function rummyLinkTarget(match = state.gameView?.state) {
@@ -3040,6 +3048,7 @@ document.addEventListener("click", async (event) => {
     const match = state.gameView.state;
     const viewer = state.room?.players.find((player) => player.isYou);
     const player = match.players?.find((candidate) => candidate.seat === viewer?.seat);
+    const route = rummyRouteForPlayer(match, player);
     if (match.turnStage !== "play") {
       showToast("Draw from the stock or discard before building your Route.");
       return;
@@ -3053,7 +3062,7 @@ document.addEventListener("click", async (event) => {
         render();
         return;
       }
-      const discard = rotatingRummyRules.recommendedDiscard(state.gameView.hand, match.yourRoute);
+      const discard = rotatingRummyRules.recommendedDiscard(state.gameView.hand, route);
       if (!discard) showToast("No card is available to discard.");
       else {
         state.selectedCards = new Set([discard.id]);
@@ -3061,15 +3070,15 @@ document.addEventListener("click", async (event) => {
       }
       return;
     }
-    const completion = rotatingRummyRules.findRouteCompletion(state.gameView.hand, match.yourRoute);
+    const completion = rotatingRummyRules.findRouteCompletion(state.gameView.hand, route);
     if (!completion) {
-      const discard = rotatingRummyRules.recommendedDiscard(state.gameView.hand, match.yourRoute);
+      const discard = rotatingRummyRules.recommendedDiscard(state.gameView.hand, route);
       if (discard) {
         state.selectedCards = new Set([discard.id]);
         showToast(`No complete Route yet. ${rotatingRummyDeck.cardLong(discard)} is selected to discard.`);
         render();
       } else {
-        showToast(`No complete Route yet. Keep building ${match.yourRoute?.name || "your pattern"}.`);
+        showToast(`No complete Route yet. Keep building ${route?.name || "your pattern"}.`);
       }
       return;
     }

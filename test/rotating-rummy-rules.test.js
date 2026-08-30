@@ -17,6 +17,22 @@ test("Routes accept Glitches as wildcards while preserving each group's identity
   assert.equal(rules.findRouteCompletion([...selection, card("rr-red-12-a")], warmStart).cards.length, 5);
 });
 
+test("a matching pair plus four cards in one color lane completes Signal Stack", () => {
+  const signalStack = route("neon-grid", 1);
+  const selection = [
+    "rr-red-10-a",
+    "rr-red-10-b",
+    "rr-yellow-1-a",
+    "rr-yellow-4-a",
+    "rr-yellow-7-a",
+    "rr-yellow-12-a"
+  ].map(card);
+
+  const evaluation = rules.evaluateRoute(selection, signalStack);
+  assert.equal(evaluation.ok, true);
+  assert.deepEqual(evaluation.groups.map((group) => group.length).sort((left, right) => left - right), [2, 4]);
+});
+
 test("Locks cannot be laid into a Route and Route selections cannot reuse cards", () => {
   const warmStart = route("neon-grid", 0);
   const locked = ["rr-red-4-a", "rr-blue-4-a", "rr-green-6-a", "rr-yellow-7-a", "rr-lock-1"].map(card);
