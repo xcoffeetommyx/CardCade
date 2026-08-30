@@ -39,6 +39,17 @@ test("modern hands honor the card directly under the pointer", () => {
   assert.doesNotMatch(handLayout, /fanIndexAtPoint/);
 });
 
+test("game redraws preserve the current mobile viewport position", () => {
+  const app = read("public/app.js");
+
+  assert.match(app, /function captureGameScrollPosition/);
+  assert.match(app, /function restoreGameScrollPosition/);
+  assert.match(app, /state\.screen === "game" && Boolean\(app\.querySelector\("\.standard-card-game"\)\)/);
+  assert.match(app, /captureGameScrollPosition\(\)/);
+  assert.match(app, /window\.scrollTo\(position\.left, position\.top\)/);
+  assert.match(app, /requestAnimationFrame\(\(\) => \{[\s\S]*?state\.screen === "game"\) restore\(\)/);
+});
+
 test("table seats render the last public card instead of player initials", () => {
   const app = read("public/app.js");
   assert.match(app, /function renderSeatLastCard/);

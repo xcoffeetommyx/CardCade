@@ -2194,7 +2194,37 @@ function renderAppearanceSettings() {
     </div>`;
 }
 
+let gameScrollRestoreFrame = null;
+
+function captureGameScrollPosition() {
+  const scrollRoot = document.scrollingElement;
+  return {
+    left: scrollRoot?.scrollLeft ?? window.scrollX ?? 0,
+    top: scrollRoot?.scrollTop ?? window.scrollY ?? 0
+  };
+}
+
+function restoreGameScrollPosition(position) {
+  if (gameScrollRestoreFrame !== null) {
+    cancelAnimationFrame(gameScrollRestoreFrame);
+    gameScrollRestoreFrame = null;
+  }
+  if (!position) return;
+
+  const restore = () => window.scrollTo(position.left, position.top);
+  // Replacing the complete game tree can briefly make the page shorter than
+  // its current offset. Mobile browsers then clamp to the top. Restore once
+  // after the new tree exists and once after its layout settles.
+  restore();
+  gameScrollRestoreFrame = requestAnimationFrame(() => {
+    gameScrollRestoreFrame = null;
+    if (state.screen === "game") restore();
+  });
+}
+
 function render() {
+  const shouldPreserveGameScroll = state.screen === "game" && Boolean(app.querySelector(".standard-card-game"));
+  const gameScrollPosition = shouldPreserveGameScroll ? captureGameScrollPosition() : null;
   const previousHand = captureStandardHandSnapshot();
   const screens = {
     home: renderHome,
@@ -2222,6 +2252,7 @@ function render() {
     if (firstColor) requestAnimationFrame(() => firstColor.focus({ preventScroll: true }));
   }
   if (controllerState.active) requestAnimationFrame(updateControllerHover);
+  restoreGameScrollPosition(gameScrollPosition);
 }
 
 function layoutActivePiles() {

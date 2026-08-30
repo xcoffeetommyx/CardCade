@@ -148,7 +148,7 @@ test("the Funnel subpath serves the complete HTTP and WebSocket application", as
 
   const [styles, appScript, manifest, sharedRules, catalog] = await Promise.all([
     fetch(`${origin}/cardcade/app.css?v=49`),
-    fetch(`${origin}/cardcade/app.js?v=51`),
+    fetch(`${origin}/cardcade/app.js?v=52`),
     fetch(`${origin}/cardcade/manifest.webmanifest`),
     fetch(`${origin}/cardcade/shared/thirteen-rules.js?v=2`),
     fetch(`${origin}/cardcade/api/catalog`)
