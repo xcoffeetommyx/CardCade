@@ -28,6 +28,10 @@ test("Finders Makers searches directly from cards, flips private results in plac
   assert.match(app, /privateSearch/);
   assert.match(app, /finders-confirm-search/);
   assert.match(app, /finders-cancel-search/);
+  assert.match(app, /last searched by \$\{latestSearchPlayer\}/);
+  assert.match(app, /function syncFindersModalIsolation/);
+  assert.match(app, /toggleAttribute\("inert"/);
+  assert.match(app, /event\.key === "Tab" && findersSearchDialog/);
   assert.match(app, /finders_begin_build/);
   assert.match(app, /finders_attempt_build/);
   assert.match(app, /finders_start_sudden_death/);
@@ -40,6 +44,8 @@ test("Finders Makers searches directly from cards, flips private results in plac
   assert.match(css, /backface-visibility/);
   assert.match(css, /findersPieceSearchFlip/);
   assert.match(css, /\.finders-search-confirmation/);
+  assert.match(css, /\.finders-search-confirmation \{[\s\S]*?z-index: 2100/);
+  assert.match(css, /\.finders-search-confirmation\.reduced-motion/);
   assert.match(css, /\.finders-build-reveal/);
   assert.match(css, /\.finders-actions\.idle/);
   assert.match(css, /\.playing-game \.finders-makers-game \{[\s\S]*?height: calc\(var\(--game-viewport-height\)/);

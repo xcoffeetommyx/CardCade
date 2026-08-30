@@ -7,6 +7,8 @@ const networkStatus = document.querySelector("#network-status");
 const systemBanner = document.querySelector("#system-banner");
 const systemBannerMessage = document.querySelector("#system-banner-message");
 const systemBannerAction = systemBanner?.querySelector('[data-action="apply-app-update"]');
+const siteShell = document.querySelector(".site-shell");
+const skipLink = document.querySelector(".skip-link");
 const juanPrismRevealRoot = document.querySelector("#juan-prism-reveal-root");
 const findersMakersPresentationRoot = document.querySelector("#finders-makers-presentation-root");
 const controllerKeyboardRoot = document.querySelector("#controller-keyboard-root");
@@ -1980,15 +1982,17 @@ function renderFindersPieceCard(card, {
   selectable = false,
   building = false,
   latestSearch = null,
+  latestSearchPlayer = "Player",
   attempted = false
 } = {}) {
   const position = card.position;
   const reveal = state.findersSearchFlip?.position === position ? state.findersSearchFlip : null;
   const revealing = Boolean(reveal?.piece);
-  const cardLabel = revealing
+  const showSearchMarker = position === latestSearch?.position && !revealing;
+  const baseCardLabel = revealing
     ? `Privately revealed ${reveal.piece.name} at position ${position + 1}`
     : building ? `Build selection ${position + 1}` : `Face-down Piece ${position + 1}`;
-  const showSearchMarker = position === latestSearch?.position && !revealing;
+  const cardLabel = showSearchMarker ? `${baseCardLabel}; last searched by ${latestSearchPlayer}` : baseCardLabel;
   const classes = [
     "finders-piece-card",
     selected ? "selected" : "",
@@ -2013,7 +2017,7 @@ function renderFindersSearchConfirmation(match) {
   const confirmation = state.findersSearchConfirmation;
   if (!confirmation || !match.board?.some((card) => card.position === confirmation.position)) return "";
   return `
-    <section class="finders-search-confirmation" role="dialog" aria-modal="true" aria-labelledby="finders-search-confirmation-title">
+    <section class="finders-search-confirmation ${findersReducedMotion() ? "reduced-motion" : ""}" role="dialog" aria-modal="true" aria-labelledby="finders-search-confirmation-title">
       <div class="finders-search-confirmation-panel">
         <span class="family-kicker">Private Search · position ${confirmation.position + 1}</span>
         <h3 id="finders-search-confirmation-title">Search this card?</h3>
@@ -2073,6 +2077,7 @@ function renderFindersMakersGame() {
               selectable,
               building: isBuilding,
               latestSearch: match.latestSearch,
+              latestSearchPlayer: findersPlayerLabel(match, match.latestSearch?.seat),
               attempted: attemptedPositions.has(position)
             });
           }).join("")}
@@ -2244,18 +2249,29 @@ function renderFindersBuildReveal() {
     </section>`;
 }
 
+function syncFindersModalIsolation(buildRevealActive) {
+  const searchDialog = app?.querySelector(".finders-search-confirmation");
+  const anyFindersModal = buildRevealActive || Boolean(searchDialog);
+  for (const child of siteShell?.children || []) {
+    child.toggleAttribute("inert", child === app ? buildRevealActive : anyFindersModal);
+  }
+  skipLink?.toggleAttribute("inert", anyFindersModal);
+  const game = searchDialog?.closest(".finders-makers-game");
+  for (const child of game?.children || []) child.toggleAttribute("inert", child !== searchDialog);
+}
+
 function syncFindersMakersPresentation() {
   const reveal = state.screen === "game" ? state.findersBuildReveal : null;
-  if (app) app.inert = Boolean(reveal);
-  if (!findersMakersPresentationRoot) return;
-  const existing = findersMakersPresentationRoot.firstElementChild;
-  if (!reveal) {
-    if (existing) findersMakersPresentationRoot.replaceChildren();
-    return;
+  if (findersMakersPresentationRoot) {
+    const existing = findersMakersPresentationRoot.firstElementChild;
+    if (!reveal) {
+      if (existing) findersMakersPresentationRoot.replaceChildren();
+    } else if (existing?.dataset.revealKey !== reveal.key) {
+      findersMakersPresentationRoot.innerHTML = renderFindersBuildReveal();
+      requestAnimationFrame(() => findersMakersPresentationRoot.firstElementChild?.focus({ preventScroll: true }));
+    }
   }
-  if (existing?.dataset.revealKey === reveal.key) return;
-  findersMakersPresentationRoot.innerHTML = renderFindersBuildReveal();
-  requestAnimationFrame(() => findersMakersPresentationRoot.firstElementChild?.focus({ preventScroll: true }));
+  syncFindersModalIsolation(Boolean(reveal));
 }
 
 function clearFindersSearchFlip() {
@@ -3628,8 +3644,10 @@ document.addEventListener("click", async (event) => {
   }
   if (action === "finders-cancel-search") {
     if (!state.findersSearchConfirmation || state.gameActionLock) return;
+    const position = state.findersSearchConfirmation.position;
     state.findersSearchConfirmation = null;
     render();
+    requestAnimationFrame(() => app.querySelector(`[data-finders-position="${position}"]`)?.focus({ preventScroll: true }));
     return;
   }
   if (action === "finders-confirm-search") {
@@ -4089,10 +4107,27 @@ document.addEventListener("click", async (event) => {
 });
 
 document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape" && app.querySelector(".finders-search-confirmation")) {
+  const findersSearchDialog = app.querySelector(".finders-search-confirmation");
+  if (event.key === "Tab" && findersSearchDialog) {
+    const controls = [...findersSearchDialog.querySelectorAll("button:not([disabled])")];
+    const first = controls[0];
+    const last = controls.at(-1);
+    if (!first || !last) return;
+    if (event.shiftKey && (document.activeElement === first || !findersSearchDialog.contains(document.activeElement))) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+    return;
+  }
+  if (event.key === "Escape" && findersSearchDialog) {
     event.preventDefault();
+    const position = state.findersSearchConfirmation?.position;
     state.findersSearchConfirmation = null;
     render();
+    if (Number.isInteger(position)) requestAnimationFrame(() => app.querySelector(`[data-finders-position="${position}"]`)?.focus({ preventScroll: true }));
     return;
   }
   if (event.key === "Escape" && app.querySelector(".juan-prism-dialog")) {
