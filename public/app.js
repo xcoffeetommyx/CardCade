@@ -1655,10 +1655,9 @@ function renderRummySeatFace(card) {
 }
 
 function renderRummyCardCorner(card, bottom = false) {
+  if (card.kind === "glitch") return "";
   const isNumber = card.kind === "number";
-  const contents = card.kind === "glitch"
-    ? rummyWildMark("rummy-wild-mark-corner")
-    : `<strong class="${isNumber ? "rummy-rank-glyph" : ""}">${escapeHtml(rummyCornerFace(card))}</strong>`;
+  const contents = `<strong class="${isNumber ? "rummy-rank-glyph" : ""}">${escapeHtml(rummyCornerFace(card))}</strong>`;
   return `<span class="card-corner rummy-corner${bottom ? " bottom" : ""}">${contents}</span>`;
 }
 

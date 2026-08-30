@@ -65,6 +65,7 @@ test("Rotating Rummy has its own Route UI, controls, and fanned-card renderer", 
   assert.match(app, /<b>Wild cards<\/b>/);
   assert.match(app, /<b>Pass cards<\/b>/);
   assert.doesNotMatch(app, />LOCK</);
+  assert.doesNotMatch(app, /rummy-wild-mark-corner/);
 
   const renderer = app.slice(app.indexOf("function renderRotatingRummyCard"), app.indexOf("function renderRummyRouteProgress"));
   assert.match(renderer, /rummy-card-center/);
@@ -77,7 +78,8 @@ test("Rotating Rummy has its own Route UI, controls, and fanned-card renderer", 
   assert.match(css, /\.rummy-pattern-help/);
   assert.match(css, /\.rummy-link-board/);
   assert.match(css, /\.rummy-link-group-cards \.playing-card\.played \{[\s\S]*?flex: 0 0 27px;[\s\S]*?border-radius: 3px/);
-  assert.match(css, /\.rummy-link-group-cards \.rummy-card-ink::before,[\s\S]*?content: none/);
+  assert.match(css, /\.rummy-card-ink::before,[\s\S]*?\.rummy-card-ink::after \{ content: none; \}/);
+  assert.match(css, /\.rummy-card \{[\s\S]*?background: #080c12;[\s\S]*?box-shadow: 5px 7px 0 rgba\(0,0,0,\.52\);/);
   assert.match(css, /\.rummy-link-group-cards \.rummy-card-center \{ inset-inline: 7%;/);
   assert.match(css, /\.rummy-link-group-cards \.rummy-card-center > b \{ font-size: min\(48cqw, 40cqh\)/);
   assert.match(css, /\.rummy-link-group-cards \.rummy-corner strong \{[\s\S]*?font-size: min\(26cqw, 20cqh\)/);
@@ -99,6 +101,8 @@ test("Rotating Rummy's blackout and light skins remain deck-family-scoped visual
   assert.match(app, /deckFamilyId: "rotating-rummy", context: "stock"/);
   assert.match(css, /\.rummy-wild-mark \{/);
   assert.match(css, /\.rummy-action-pass i \{/);
+  assert.match(css, /\.rummy-card\.card-skin-rotating-rummy-light \{[\s\S]*?background: #ffffff;/);
+  assert.match(css, /\.rummy-card\.card-skin-rotating-rummy-light \.rummy-card-ink \{ background: #ffffff; \}/);
   for (const skinClass of ["card-skin-rotating-rummy-blackout", "card-skin-rotating-rummy-light"]) {
     assert.match(css, new RegExp(`\\.${skinClass}`));
     assert.match(css, new RegExp(`\\.rummy-card\\.${skinClass}`));

@@ -526,7 +526,7 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 .skin-preview-juan-prism small { position: absolute; top: 6px; left: 7px; font: 800 .4rem "Cardcade Pixel", monospace; letter-spacing: -.03em; }
 .skin-preview-juan-prism b { font: 900 1.8rem "Cardcade Pixel", monospace; }
 .skin-preview-juan-back { color: #fffaf0; background: linear-gradient(135deg, rgba(255,255,255,.08), transparent 46%), #0b1c34; font: 900 .68rem "Cardcade Pixel", monospace; letter-spacing: .1em; }
-.skin-preview-rummy-face { color: #f5ca4d; border-color: #dce9f4; background: radial-gradient(circle at 50% 44%, rgba(245,202,77,.16), transparent 42%), linear-gradient(145deg, #18202b, #080c12 70%); }
+.skin-preview-rummy-face { color: #f5ca4d; border-color: #dce9f4; background: #080c12; }
 .skin-preview-rummy-face small { position: absolute; top: 6px; left: 7px; font: 400 .9rem "Cardcade Ranks", monospace; }
 .skin-preview-rummy-face b { font: 400 2.45rem/.78 "Cardcade Ranks", monospace; text-shadow: 2px 3px 0 #02050a; }
 .skin-preview-rummy-wild { border-color: #dce9f4; background: linear-gradient(145deg, #1a2633, #080c12 72%); }
@@ -833,7 +833,7 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 .juan-seat-card.juan-prism { --juan-ink: #fffaf0; background: radial-gradient(circle at 50% 42%, rgba(124,169,217,.24), transparent 44%), #0b1320; }
 .juan-seat-card strong { position: relative; z-index: 1; max-width: 30px; font: 900 .78rem/.9 "Cardcade Pixel", monospace; text-align: center; }
 .juan-seat-card strong.juan-rank-glyph { font-family: "Cardcade Ranks", "Courier New", monospace; font-weight: 400; }
-.rummy-seat-card { --rummy-color: #f5ca4d; color: var(--rummy-color); border-color: #dce9f4; background: radial-gradient(circle at 50% 42%, color-mix(in srgb, var(--rummy-color) 20%, transparent), transparent 45%), linear-gradient(145deg, #18202b, #080c12 72%); text-shadow: 1px 2px 0 #02050a; }
+.rummy-seat-card { --rummy-color: #f5ca4d; color: var(--rummy-color); border-color: #dce9f4; background: #080c12; text-shadow: 1px 2px 0 #02050a; }
 .rummy-seat-card::before { content: none; }
 .rummy-seat-card strong { position: relative; z-index: 1; max-width: 30px; font: 900 .76rem/.9 "Cardcade Pixel", monospace; text-align: center; }
 .rummy-seat-card strong.rummy-rank-glyph { font-family: "Cardcade Ranks", "Courier New", monospace; font-weight: 400; }
@@ -1856,12 +1856,12 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 .rummy-card {
   color: var(--rummy-color, #f5ca4d);
   border-color: #dce9f4;
-  background: linear-gradient(145deg, #18202b, #080c12 72%);
-  box-shadow: 5px 7px 0 rgba(0,0,0,.52), inset 0 0 0 1px rgba(255,255,255,.1), inset 0 -16px 25px rgba(0,0,0,.3);
+  background: #080c12;
+  box-shadow: 5px 7px 0 rgba(0,0,0,.52);
 }
-.rummy-card-ink { position: absolute; z-index: 0; inset: 0; border-radius: inherit; background: radial-gradient(circle at 50% 43%, color-mix(in srgb, var(--rummy-color) 16%, transparent), transparent 43%), linear-gradient(132deg, rgba(255,255,255,.08), transparent 36%, rgba(0,0,0,.28)), linear-gradient(145deg, #17212d, #070b11 70%); pointer-events: none; }
-.rummy-card-ink::before { content: ""; position: absolute; inset: 8%; border: 1px solid color-mix(in srgb, var(--rummy-color) 44%, transparent); border-radius: 5px; opacity: .72; }
-.rummy-card-ink::after { content: ""; position: absolute; inset: 16% 14%; border-block: 1px solid color-mix(in srgb, var(--rummy-color) 30%, transparent); opacity: .55; }
+.rummy-card-ink { position: absolute; z-index: 0; inset: 0; border-radius: inherit; background: #080c12; pointer-events: none; }
+.rummy-card-ink::before,
+.rummy-card-ink::after { content: none; }
 .rummy-corner { color: var(--rummy-color); text-shadow: 1px 2px 0 #02050a; }
 .rummy-corner strong { max-width: 42px; font: 900 clamp(.72rem, 2.45vw, 1.05rem)/.84 "Cardcade Pixel", "Courier New", monospace; letter-spacing: -.05em; }
 .rummy-corner strong.rummy-rank-glyph { font-family: "Cardcade Ranks", "Courier New", monospace; font-weight: 400; letter-spacing: 0; }
@@ -1880,16 +1880,12 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 .rummy-action-wild .rummy-wild-mark { width: 100%; height: 100%; }
 .rummy-action-pass { display: flex; align-items: center; justify-content: center; gap: 16%; }
 .rummy-action-pass i { position: relative; width: 20%; height: 82%; border: 3px solid currentColor; border-radius: 3px; box-shadow: 2px 2px 0 rgba(0,0,0,.34); }
-.rummy-wild-mark-corner { width: min(27cqw, 17cqh); }
 .rummy-wild-mark-seat { width: 56%; }
 .rummy-wild-mark-preview { width: 52%; }
 
 .rummy-link-group-cards { min-height: 39px; display: flex; align-items: center; overflow: hidden; padding-left: 2px; }
 .rummy-link-group-cards .playing-card.played { position: relative; left: auto; top: auto; flex: 0 0 27px; width: 27px; height: 39px; margin-left: -9px; border-width: 1px; border-radius: 3px; transform: rotate(-3deg); box-shadow: 1px 2px 0 rgba(0,0,0,.45); }
 .rummy-link-group-cards .playing-card.played:first-child { margin-left: 0; }
-.rummy-link-group-cards .rummy-card-ink { background: linear-gradient(145deg, #17212d, #070b11 70%); }
-.rummy-link-group-cards .rummy-card-ink::before,
-.rummy-link-group-cards .rummy-card-ink::after { content: none; }
 .rummy-link-group-cards .rummy-card-center { inset-inline: 7%; }
 .rummy-link-group-cards .rummy-card-center > b { font-size: min(48cqw, 40cqh); text-shadow: 1px 1px 0 #02050a; }
 .rummy-link-group-cards .rummy-corner strong { max-width: 92%; font-size: min(26cqw, 20cqh); white-space: nowrap; }
@@ -2231,7 +2227,7 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 }
 .rummy-card.card-skin-rotating-rummy-blackout {
   border-color: var(--rummy-back-border);
-  background: linear-gradient(145deg, #1b2632, var(--rummy-back-deep) 74%);
+  background: #080c12;
 }
 .card-back.card-skin-rotating-rummy-blackout {
   isolation: isolate;
@@ -2263,21 +2259,10 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 }
 .rummy-card.card-skin-rotating-rummy-light {
   border-color: var(--rummy-light-border);
-  background: linear-gradient(145deg, #ffffff, var(--rummy-light-paper-deep));
-  box-shadow: 5px 7px 0 rgba(6,17,29,.42), inset 0 0 0 1px rgba(255,255,255,.78), inset 0 -16px 25px rgba(9,28,43,.08);
+  background: #ffffff;
+  box-shadow: 5px 7px 0 rgba(6,17,29,.42);
 }
-.rummy-card.card-skin-rotating-rummy-light .rummy-card-ink {
-  background:
-    radial-gradient(circle at 50% 43%, color-mix(in srgb, var(--rummy-color) 14%, transparent), transparent 43%),
-    linear-gradient(132deg, rgba(255,255,255,.86), transparent 38%, rgba(9,28,43,.08)),
-    linear-gradient(145deg, var(--rummy-light-paper), var(--rummy-light-paper-deep));
-}
-.rummy-card.rummy-kind-wild.card-skin-rotating-rummy-light .rummy-card-ink {
-  background: linear-gradient(132deg, rgba(255,255,255,.9), transparent 42%, rgba(9,28,43,.08)), linear-gradient(145deg, #ffffff, var(--rummy-light-paper-deep));
-}
-.rummy-card.card-skin-rotating-rummy-light .rummy-card-ink::before { border-color: color-mix(in srgb, var(--rummy-color) 56%, #32495d); opacity: .56; }
-.rummy-card.card-skin-rotating-rummy-light .rummy-card-ink::after { border-color: color-mix(in srgb, var(--rummy-color) 42%, #526879); opacity: .48; }
-.rummy-link-group-cards .rummy-card.card-skin-rotating-rummy-light .rummy-card-ink { background: linear-gradient(145deg, #ffffff, var(--rummy-light-paper-deep)); }
+.rummy-card.card-skin-rotating-rummy-light .rummy-card-ink { background: #ffffff; }
 .card-back.card-skin-rotating-rummy-light {
   isolation: isolate;
   color: var(--rummy-light-ink);
@@ -2293,9 +2278,9 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 .card-back.card-skin-rotating-rummy-light > :is(b, i, span, strong) { position: relative; z-index: 2; color: inherit; }
 .rummy-stock.card-skin-rotating-rummy-light::before { border-color: rgba(24,48,68,.42); }
 .rummy-stock.card-skin-rotating-rummy-light b { border-color: var(--rummy-light-border); color: #152a3b; background: #f5ca4d; }
-.rummy-seat-card.card-skin-rotating-rummy-light { border-color: var(--rummy-light-border); background: radial-gradient(circle at 50% 42%, color-mix(in srgb, var(--rummy-color) 16%, transparent), transparent 45%), linear-gradient(145deg, #ffffff, var(--rummy-light-paper-deep)); box-shadow: 3px 4px 0 rgba(6,17,29,.42); text-shadow: 1px 1px 0 rgba(255,255,255,.7); }
+.rummy-seat-card.card-skin-rotating-rummy-light { border-color: var(--rummy-light-border); background: #ffffff; box-shadow: 3px 4px 0 rgba(6,17,29,.42); text-shadow: 1px 1px 0 rgba(255,255,255,.7); }
 .skin-preview.card-skin-rotating-rummy-light { border-color: rgba(147,180,198,.68); background: radial-gradient(circle at 50% 120%, rgba(126,180,201,.2), rgba(8,23,39,.9)); }
-.skin-preview.card-skin-rotating-rummy-light .skin-preview-rummy-face { border-color: var(--rummy-light-border); background: radial-gradient(circle at 50% 44%, rgba(245,202,77,.16), transparent 42%), linear-gradient(145deg, #ffffff, var(--rummy-light-paper-deep)); box-shadow: 4px 5px 0 rgba(6,17,29,.42), 0 0 0 1px rgba(255,255,255,.72); }
+.skin-preview.card-skin-rotating-rummy-light .skin-preview-rummy-face { border-color: var(--rummy-light-border); background: #ffffff; box-shadow: 4px 5px 0 rgba(6,17,29,.42), 0 0 0 1px rgba(255,255,255,.72); }
 .skin-preview.card-skin-rotating-rummy-light .skin-preview-rummy-wild { border-color: var(--rummy-light-border); background: linear-gradient(145deg, #ffffff, var(--rummy-light-paper-deep)); box-shadow: 4px 5px 0 rgba(6,17,29,.42), 0 0 0 1px rgba(255,255,255,.72); }
 
 /* ---------- Original 3s & 7s / Thirteen Standard 52 Legacy Mode ---------- */
