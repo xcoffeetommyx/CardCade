@@ -152,8 +152,13 @@ export class RoomStore {
     this.#assertHost(player);
     assert(room.gameId, "GAME_REQUIRED", "Choose a game before adding CPU players.");
     const game = this.#registry.getGame(room.gameId);
-    assert(game.supportsBots, "BOTS_NOT_SUPPORTED", `${game.name} does not support CPU players.`);
     assert(Number.isInteger(botCount) && botCount >= 0, "INVALID_BOT_COUNT", "CPU player count must be a whole number.");
+    if (!game.supportsBots) {
+      assert(botCount === 0, "BOTS_NOT_SUPPORTED", `${game.name} does not support CPU players.`);
+      room.gameSettings.botCount = 0;
+      touch(room, this.#now());
+      return this.project(room, player.id);
+    }
     assert(room.players.length + botCount <= game.players.max, "TOO_MANY_PLAYERS", `${game.name} supports at most ${game.players.max} players.`);
 
     room.gameSettings.botCount = botCount;

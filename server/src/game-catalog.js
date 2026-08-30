@@ -19,6 +19,13 @@ export const deckFamilies = [
     shortName: "108-card Route deck",
     description: "Blackout number cards, shifting Route Decks, and original rummy objectives.",
     order: 30
+  },
+  {
+    id: "finders-makers",
+    name: "Finders Makers",
+    shortName: "Hidden Piece board",
+    description: "A private-memory Piece board where every Build takes three discoveries.",
+    order: 40
   }
 ];
 
@@ -113,5 +120,18 @@ export const games = [
     supportsBots: true,
     status: "available",
     accent: "blackout"
+  },
+  {
+    id: "finders-makers",
+    name: "Finders Makers",
+    eyebrow: "Secret Piece memory duel",
+    description: "Search a hidden shared board, remember your discoveries, then commit three Pieces to Build first.",
+    deckFamilyId: "finders-makers",
+    genres: ["memory", "set-building"],
+    modes: ["multiplayer", "hot-seat"],
+    players: { min: 2, max: 2, recommended: 2 },
+    supportsBots: false,
+    status: "available",
+    accent: "mint"
   }
 ];

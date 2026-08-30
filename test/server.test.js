@@ -99,6 +99,7 @@ test("health, catalog, and launcher are served from one process", async (t) => {
   assert.match(launcherBody, /shared\/rotating-rummy-deck\.js/);
   assert.match(launcherBody, /shared\/rotating-rummy-routes\.js/);
   assert.match(launcherBody, /shared\/rotating-rummy-rules\.js/);
+  assert.match(launcherBody, /shared\/finders-makers-content\.js/);
   assert.match(launcherBody, /shared\/controller-input\.js/);
 
   const thirteenRules = await fetch(`${origin}/shared/thirteen-rules.js`);

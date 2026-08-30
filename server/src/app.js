@@ -10,6 +10,7 @@ import { ThreeSevenRuntime } from "./games/three-seven/runtime.js";
 import { ThirteenRuntime } from "./games/thirteen/runtime.js";
 import { JuanRuntime } from "./games/juan/runtime.js";
 import { RotatingRummyRuntime } from "./games/rotating-rummy/runtime.js";
+import { FindersMakersRuntime } from "./games/finders-makers/runtime.js";
 import { BlackjackRuntime } from "./games/blackjack/runtime.js";
 import { HoldemRuntime } from "./games/holdem/runtime.js";
 import { FiveCardDrawRuntime } from "./games/five-card-draw/runtime.js";
@@ -123,6 +124,7 @@ export function createCardcadeServer({
   thirteenRuntime,
   juanRuntime,
   rotatingRummyRuntime,
+  findersMakersRuntime,
   blackjackRuntime,
   holdemRuntime,
   fiveCardDrawRuntime,
@@ -139,6 +141,7 @@ export function createCardcadeServer({
   const thirteen = thirteenRuntime ?? new ThirteenRuntime();
   const juan = juanRuntime ?? new JuanRuntime();
   const rotatingRummy = rotatingRummyRuntime ?? new RotatingRummyRuntime();
+  const findersMakers = findersMakersRuntime ?? new FindersMakersRuntime();
   const blackjack = blackjackRuntime ?? new BlackjackRuntime();
   const holdem = holdemRuntime ?? new HoldemRuntime();
   const fiveCardDraw = fiveCardDrawRuntime ?? new FiveCardDrawRuntime();
@@ -147,6 +150,7 @@ export function createCardcadeServer({
     ["thirteen", thirteen],
     ["juan", juan],
     ["rotating-rummy", rotatingRummy],
+    ["finders-makers", findersMakers],
     ["blackjack", blackjack],
     ["holdem", holdem],
     ["five-card-draw", fiveCardDraw]

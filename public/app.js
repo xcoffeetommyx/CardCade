@@ -8,6 +8,7 @@ const systemBanner = document.querySelector("#system-banner");
 const systemBannerMessage = document.querySelector("#system-banner-message");
 const systemBannerAction = systemBanner?.querySelector('[data-action="apply-app-update"]');
 const juanPrismRevealRoot = document.querySelector("#juan-prism-reveal-root");
+const findersMakersRevealRoot = document.querySelector("#finders-makers-reveal-root");
 const controllerKeyboardRoot = document.querySelector("#controller-keyboard-root");
 const controllerCursor = document.querySelector("#controller-cursor");
 
@@ -54,6 +55,12 @@ const state = {
   rummyPatternHelpOpen: false,
   juanPrismReveal: null,
   juanPrismRevealTimer: null,
+  findersSearchMode: false,
+  findersBuildSelection: new Set(),
+  findersReveal: null,
+  findersRevealTimer: null,
+  findersHighestRevealByScope: new Map(),
+  findersHotSeatHandoffTimer: null,
   gameActionLock: false,
   dealtHandOwners: new Set(),
   lastPileSignature: null
@@ -83,6 +90,7 @@ const rotatingRummyRules = globalThis.RotatingRummyRules;
 const blackjackRules = globalThis.CardcadeBlackjackRules;
 const holdemRules = globalThis.CardcadeHoldemRules;
 const fiveCardDrawRules = globalThis.CardcadeFiveCardDrawRules;
+const findersMakersContent = globalThis.CardcadeFindersMakers;
 const controllerInput = globalThis.CardcadeControllerInput;
 let appearancePreferences = loadAppearancePreferences();
 
@@ -134,7 +142,7 @@ const rotatingRummyGameAdapter = {
 };
 
 function supportsGame(gameId) {
-  return Boolean(standardGameAdapters[gameId]) || gameId === "juan" || gameId === "rotating-rummy" || gameId === "blackjack" || gameId === "holdem" || gameId === "five-card-draw";
+  return Boolean(standardGameAdapters[gameId]) || gameId === "juan" || gameId === "rotating-rummy" || gameId === "finders-makers" || gameId === "blackjack" || gameId === "holdem" || gameId === "five-card-draw";
 }
 
 function sortAdapterForGame(gameId = state.room?.gameId) {
@@ -559,8 +567,10 @@ function selectedGame() {
 }
 
 function ensureHotSeatSetup(game) {
-  const count = Math.max(1, Math.min(state.hotSeatPlayerCount, game.players.max));
+  const minimumHumans = game.supportsBots ? 1 : game.players.min;
+  const count = Math.max(minimumHumans, Math.min(state.hotSeatPlayerCount, game.players.max));
   state.hotSeatPlayerCount = count;
+  if (!game.supportsBots) state.hotSeatBots = 0;
   state.hotSeatBots = Math.max(0, Math.min(state.hotSeatBots, game.players.max - count));
   if (count + state.hotSeatBots < game.players.min) {
     state.hotSeatBots = game.players.min - count;
@@ -609,7 +619,7 @@ function renderLocalLobby() {
         <div class="callout coral">${escapeHtml(game.name)} is ready. Cardcade will create a private local table and fill the open seats with CPUs.</div>` : `
         <label><strong>Human players</strong></label>
         <div class="stepper">
-          <button type="button" data-action="hot-seat-player-down" aria-label="Remove Hot Seat player" ${state.hotSeatPlayerCount <= 1 ? "disabled" : ""}>−</button>
+          <button type="button" data-action="hot-seat-player-down" aria-label="Remove Hot Seat player" ${state.hotSeatPlayerCount <= (game.supportsBots ? 1 : game.players.min) ? "disabled" : ""}>−</button>
           <output>${state.hotSeatPlayerCount} human${state.hotSeatPlayerCount === 1 ? "" : "s"}</output>
           <button type="button" data-action="hot-seat-player-up" aria-label="Add Hot Seat player" ${state.hotSeatPlayerCount >= game.players.max || (state.hotSeatBots === 0 && hotSeatTotal >= game.players.max) ? "disabled" : ""}>+</button>
         </div>
@@ -620,13 +630,15 @@ function renderLocalLobby() {
               <input id="hot-seat-name-${index}" data-hot-seat-name maxlength="24" value="${escapeHtml(name)}" autocomplete="off" required>
             </div>`).join("")}
         </div>
-        <label><strong>CPU players</strong></label>
-        <div class="stepper">
-          <button type="button" data-action="hot-seat-bot-down" aria-label="Remove Hot Seat CPU" ${state.hotSeatBots <= 0 || hotSeatTotal <= game.players.min ? "disabled" : ""}>−</button>
-          <output>${state.hotSeatBots} CPU${state.hotSeatBots === 1 ? "" : "s"}</output>
-          <button type="button" data-action="hot-seat-bot-up" aria-label="Add Hot Seat CPU" ${hotSeatTotal >= game.players.max ? "disabled" : ""}>+</button>
-        </div>
-        <div class="callout coral">${escapeHtml(game.name)} will use ${hotSeatTotal} total seats. Cardcade hides human hands between turns; CPU turns play automatically on the covered table.</div>`}
+        ${game.supportsBots ? `
+          <label><strong>CPU players</strong></label>
+          <div class="stepper">
+            <button type="button" data-action="hot-seat-bot-down" aria-label="Remove Hot Seat CPU" ${state.hotSeatBots <= 0 || hotSeatTotal <= game.players.min ? "disabled" : ""}>−</button>
+            <output>${state.hotSeatBots} CPU${state.hotSeatBots === 1 ? "" : "s"}</output>
+            <button type="button" data-action="hot-seat-bot-up" aria-label="Add Hot Seat CPU" ${hotSeatTotal >= game.players.max ? "disabled" : ""}>+</button>
+          </div>
+          <div class="callout coral">${escapeHtml(game.name)} will use ${hotSeatTotal} total seats. Cardcade hides human hands between turns; CPU turns play automatically on the covered table.</div>` : `
+          <div class="callout coral">${escapeHtml(game.name)} is a two-human memory duel. Pass the device between private turns.</div>`}`}
       <div class="button-row" style="margin-top: 1rem">
         <button class="action-button" type="button" data-action="back-to-library">Choose another game</button>
         <button class="action-button primary" type="button" data-action="${game.status === "available" ? (isHotSeat ? "start-hot-seat" : "start-local-game") : "not-playable-yet"}" ${game.status === "available" ? "" : "disabled"}>Start ${isHotSeat ? `${hotSeatTotal}-seat ` : ""}game</button>
@@ -704,7 +716,7 @@ function renderRoom() {
         </div>
         <h3>Players · ${room.players.length + botCount}/${room.capacity}</h3>
         <div class="player-list">${playerRows}${botRows}</div>
-        ${isHost && room.game ? `
+        ${isHost && room.game?.supportsBots ? `
           <label><strong>CPU players</strong></label>
           <div class="stepper">
             <button type="button" data-action="room-bot-down" aria-label="Remove CPU player" ${botCount <= 0 ? "disabled" : ""}>−</button>
@@ -1823,6 +1835,107 @@ function renderRotatingRummyGame() {
     </section>`;
 }
 
+function findersPlayerLabel(match, seat) {
+  return match.players.find((player) => player.seat === seat)?.name || "Player";
+}
+
+function renderFindersBuild(build, { shared = false } = {}) {
+  if (!build) {
+    return `<section class="finders-build-card waiting"><span class="family-kicker">${shared ? "Sudden Death" : "Your Build"}</span><strong>Objective incoming</strong><small>Start the finale to reveal the shared Build.</small></section>`;
+  }
+  return `
+    <section class="finders-build-card ${shared ? "shared" : ""}" aria-label="${shared ? "Shared" : "Your"} Build: ${escapeHtml(build.name)}">
+      <div class="finders-build-heading"><span><span class="family-kicker">${shared ? "Shared Build" : "Your Build"}</span><strong>${escapeHtml(build.name)}</strong></span><b aria-hidden="true">${escapeHtml(build.art)}</b></div>
+      <div class="finders-piece-list">${build.pieces.map((piece) => `<span><i aria-hidden="true">${escapeHtml(piece.art)}</i><small>${escapeHtml(piece.name)}</small></span>`).join("")}</div>
+    </section>`;
+}
+
+function renderFindersRoundResult(match, isHost) {
+  if (!match.roundOver) return "";
+  const scores = match.players.map((player) => `${escapeHtml(player.name)} · ${player.score}`).join(" &nbsp; ");
+  if (match.matchOver) {
+    const winner = findersPlayerLabel(match, match.matchWinnerSeat);
+    return `
+      <section class="round-result finders-result complete">
+        <div><span class="family-kicker">Match complete</span><h3>${escapeHtml(winner)} wins Finders Makers!</h3><p>${escapeHtml(match.lastMoveText)} ${scores}</p></div>
+        <button class="action-button" type="button" data-action="leave-game">Return to Cardcade</button>
+      </section>`;
+  }
+  if (match.phase === "sudden-death-intro") {
+    return `
+      <section class="round-result finders-result sudden">
+        <div><span class="family-kicker">Sudden Death</span><h3>The score is tied 2–2.</h3><p>A fresh 4 × 4 board and one shared Build decide the match. ${scores}</p></div>
+        <button class="action-button primary" type="button" data-action="finders-start-sudden-death" ${isHost ? "" : "disabled"}>${isHost ? "Start Sudden Death" : "Waiting for host"}</button>
+      </section>`;
+  }
+  return `
+    <section class="round-result finders-result">
+      <div><span class="family-kicker">Round ${match.round} complete</span><h3>${escapeHtml(match.lastMoveText)}</h3><p>${scores}</p></div>
+      <button class="action-button primary" type="button" data-action="finders-next-round" ${isHost ? "" : "disabled"}>${isHost ? `Deal Round ${match.round + 1}` : "Waiting for host"}</button>
+    </section>`;
+}
+
+function renderFindersMakersGame() {
+  const view = state.gameView;
+  if (!view || !findersMakersContent) return `<div class="empty-state">Preparing the hidden Piece board…</div>`;
+  const match = view.state;
+  const viewer = state.room?.players.find((player) => player.isYou);
+  const viewerSeat = viewer?.seat;
+  const isHost = viewer?.role === "host";
+  const activePlayer = match.players.find((player) => player.seat === match.activeSeat);
+  const isYourTurn = match.phase === "playing" && !match.roundOver && match.activeSeat === viewerSeat;
+  const isBuilding = isYourTurn && match.turnMode === "build";
+  const isSearching = isYourTurn && match.turnMode === "choose" && state.findersSearchMode;
+  const boardPositions = new Set((match.board || []).map((card) => card.position));
+  state.findersBuildSelection = new Set([...state.findersBuildSelection].filter((position) => boardPositions.has(position)));
+  const selectedPositions = state.findersBuildSelection;
+  const objective = match.sharedBuild || view.ownBuild;
+  const currentStatus = match.roundOver
+    ? match.lastMoveText
+    : isYourTurn
+      ? isBuilding ? `Choose three cards for ${objective?.name || "your Build"}.` : isSearching ? "Choose one face-down Piece to search privately." : "Search one Piece, or commit to a three-card Build."
+      : `${activePlayer?.name || "Player"} is taking a private turn.`;
+  const attemptedPositions = new Set(match.lastBuildAttempt?.positions || []);
+  const latestSearchPosition = match.latestSearch?.position;
+
+  return `
+    <section class="standard-card-game ${activeTableAppearanceClass()} finders-makers-game" data-game-id="finders-makers">
+      <header class="game-topbar">
+        <button class="back-button" type="button" data-action="leave-game" aria-label="${state.gameMode === "multiplayer" ? "Return to room lobby" : "Leave game"}">←</button>
+        <div><span class="family-kicker">${match.suddenDeath ? "Sudden Death" : `Round ${match.round} of ${match.normalRounds}`}</span><h2>Finders Makers</h2><p>${escapeHtml(match.lastMoveText)}</p></div>
+        <button class="game-score" type="button" disabled><span>Score</span><strong>${match.players.map((player) => player.score).join("–")}</strong></button>
+      </header>
+      <div class="finders-scoreboard" aria-label="Match score">${match.players.map((player) => `
+        <article class="finders-player ${player.seat === match.activeSeat ? "active" : ""} ${player.seat === viewerSeat ? "you" : ""}">
+          <span>${escapeHtml(player.avatar)}</span><strong title="${escapeHtml(player.name)}">${escapeHtml(player.name)}</strong><b>${player.score}</b><small>${player.seat === match.activeSeat && !match.roundOver ? "TURN" : player.seat === viewerSeat ? "YOU" : ""}</small>
+        </article>`).join("")}</div>
+      ${renderFindersBuild(objective, { shared: Boolean(match.sharedBuild) || match.suddenDeath })}
+      <section class="finders-board-zone">
+        <div class="finders-board-status"><span><strong>${escapeHtml(currentStatus)}</strong><small>${match.suddenDeath ? "First complete shared Build wins the match." : "Searches reveal one Piece only to the active player."}</small></span><span class="badge">${match.grid.cardCount} hidden Pieces</span></div>
+        <div class="finders-piece-board" style="--finders-columns:${Number(match.grid.columns) || 4}" aria-label="${match.grid.rows} by ${match.grid.columns} face-down Piece board">
+          ${(match.board || []).map((card) => {
+            const position = card.position;
+            const selected = selectedPositions.has(position);
+            const selectable = !state.gameActionLock && (isSearching || isBuilding);
+            const cardLabel = isBuilding ? `Build selection ${position + 1}` : `Face-down Piece ${position + 1}`;
+            return `<button class="finders-piece-card ${selected ? "selected" : ""} ${isSearching ? "searchable" : ""} ${position === latestSearchPosition ? "last-searched" : ""} ${attemptedPositions.has(position) ? "attempted" : ""}" type="button" data-action="finders-card" data-finders-position="${position}" aria-pressed="${isBuilding ? selected : "false"}" aria-label="${escapeHtml(cardLabel)}" ${selectable ? "" : "disabled"}>
+              <span class="finders-card-index">${position + 1}</span><b aria-hidden="true">?</b>${position === latestSearchPosition ? `<i class="finders-search-marker" aria-label="${escapeHtml(findersPlayerLabel(match, match.latestSearch.seat))} inspected this position">◉</i>` : ""}${attemptedPositions.has(position) ? '<i class="finders-attempt-marker" aria-hidden="true">×</i>' : ""}
+            </button>`;
+          }).join("")}
+        </div>
+      </section>
+      ${!match.roundOver ? `
+        <nav class="game-actions finders-actions">
+          ${isBuilding ? `
+            <button type="button" data-action="finders-cancel-build" ${state.gameActionLock ? "disabled" : ""}>Cancel Build</button>
+            <button class="primary" type="button" data-action="finders-commit-build" ${selectedPositions.size === 3 && !state.gameActionLock ? "" : "disabled"}>Commit ${selectedPositions.size}/3</button>` : `
+            <button type="button" data-action="finders-start-search" ${isYourTurn && !state.gameActionLock ? "" : "disabled"}>${isSearching ? "Choose 1 Piece" : "Search"}</button>
+            <button class="primary" type="button" data-action="finders-begin-build" ${isYourTurn && !state.gameActionLock ? "" : "disabled"}>Build · choose 3</button>`}
+        </nav>` : ""}
+      ${renderFindersRoundResult(match, isHost)}
+    </section>`;
+}
+
 function juanActionMark(kind) {
   if (kind === "pause") {
     return `<span class="juan-action-mark juan-action-pause" aria-hidden="true"><i></i><i></i></span>`;
@@ -1953,6 +2066,62 @@ function queueJuanPrismReveal(gameId, previousView, nextView) {
     clearJuanPrismReveal();
     if (["game", "hot-seat-handoff"].includes(state.screen)) render();
   }, reducedMotion ? 900 : 1_900);
+}
+
+function renderFindersMakersReveal() {
+  const reveal = state.findersReveal;
+  if (!reveal?.piece) return "";
+  return `
+    <aside class="finders-private-reveal" data-reveal-key="${escapeHtml(reveal.key)}" role="status" aria-live="assertive">
+      <span class="family-kicker">Private Search · position ${reveal.position + 1}</span>
+      <div class="finders-private-piece" aria-hidden="true">${escapeHtml(reveal.piece.art)}</div>
+      <strong>${escapeHtml(reveal.piece.name)}</strong>
+      <small>Only you saw this Piece. Remember where it is.</small>
+    </aside>`;
+}
+
+function syncFindersMakersReveal() {
+  if (!findersMakersRevealRoot) return;
+  const reveal = state.screen === "game" ? state.findersReveal : null;
+  const existing = findersMakersRevealRoot.firstElementChild;
+  if (!reveal) {
+    if (existing) findersMakersRevealRoot.replaceChildren();
+    return;
+  }
+  if (existing?.dataset.revealKey === reveal.key) return;
+  findersMakersRevealRoot.innerHTML = renderFindersMakersReveal();
+}
+
+function clearFindersMakersReveal() {
+  clearTimeout(state.findersRevealTimer);
+  state.findersRevealTimer = null;
+  state.findersReveal = null;
+  syncFindersMakersReveal();
+}
+
+function queueFindersMakersReveal(gameId, previousView, nextView) {
+  if (gameId !== "finders-makers") return false;
+  const privateSearch = nextView?.privateSearch;
+  const match = nextView?.state;
+  if (!privateSearch?.piece || !Number.isInteger(privateSearch.position) || !match) return false;
+  const revealScope = `${match.round}:${match.suddenDeath ? "sudden" : "normal"}`;
+  const revealKey = `${revealScope}:${privateSearch.id}`;
+  if (Number(privateSearch.id) <= (state.findersHighestRevealByScope.get(revealScope) || 0)) return false;
+  state.findersHighestRevealByScope.set(revealScope, Number(privateSearch.id));
+  clearTimeout(state.findersRevealTimer);
+  state.findersReveal = {
+    key: revealKey,
+    position: privateSearch.position,
+    piece: { ...privateSearch.piece }
+  };
+  const reducedMotion = localStorage.getItem(storageKeys.reducedMotion) === "true"
+    || matchMedia("(prefers-reduced-motion: reduce)").matches;
+  state.findersRevealTimer = setTimeout(() => {
+    if (state.findersReveal?.key !== revealKey) return;
+    clearFindersMakersReveal();
+    if (state.screen === "game") render();
+  }, reducedMotion ? 1_100 : 2_700);
+  return true;
 }
 
 function renderJuanReactionPanels(match, viewerSeat) {
@@ -2313,6 +2482,7 @@ function render() {
   const screen = (screens[state.screen] || renderHome)();
   app.innerHTML = screen;
   syncJuanPrismReveal();
+  syncFindersMakersReveal();
   syncControllerTextEntry();
   if (state.screen === "game") {
     layoutActivePiles();
@@ -2361,6 +2531,7 @@ function layoutActivePiles() {
 
 function renderCurrentGame() {
   if (state.room?.gameId === "rotating-rummy") return renderRotatingRummyGame();
+  if (state.room?.gameId === "finders-makers") return renderFindersMakersGame();
   if (state.room?.gameId === "juan") return renderJuanGame();
   if (state.room?.gameId === "blackjack") return renderBlackjackGame();
   if (state.room?.gameId === "holdem") return renderHoldemGame();
@@ -2630,6 +2801,8 @@ function hiddenPrivateView(view) {
   if (!view) return null;
   return {
     ...view,
+    ownBuild: null,
+    privateSearch: null,
     hand: [],
     hands: Array.isArray(view.hands)
       ? view.hands.map((hand) => ({ ...hand, cards: [] }))
@@ -2645,6 +2818,9 @@ function isHotSeatCpuTurn(view) {
 }
 
 function queueHotSeatCpuTurn({ room = state.room, view = state.gameView } = {}) {
+  clearFindersMakersReveal();
+  clearTimeout(state.findersHotSeatHandoffTimer);
+  state.findersHotSeatHandoffTimer = null;
   state.room = room;
   state.gameView = hiddenPrivateView(view);
   state.hotSeatPendingPlayerId = null;
@@ -2652,6 +2828,8 @@ function queueHotSeatCpuTurn({ room = state.room, view = state.gameView } = {}) 
   state.selectedCards = new Set();
   state.juanChosenColor = null;
   state.rummyLinkTarget = null;
+  state.findersSearchMode = false;
+  state.findersBuildSelection = new Set();
   state.gameActionLock = false;
   state.dealtHandOwners = new Set();
   state.lastPileSignature = null;
@@ -2662,6 +2840,9 @@ function queueHotSeatCpuTurn({ room = state.room, view = state.gameView } = {}) 
 function queueHotSeatHandoff(seatNumber, { room = state.room, view = state.gameView } = {}) {
   const nextSeat = hotSeatSessionForSeat(seatNumber);
   if (!nextSeat) return false;
+  clearFindersMakersReveal();
+  clearTimeout(state.findersHotSeatHandoffTimer);
+  state.findersHotSeatHandoffTimer = null;
   disconnectRoomSocket();
   state.room = room;
   state.gameView = hiddenPrivateView(view);
@@ -2670,6 +2851,8 @@ function queueHotSeatHandoff(seatNumber, { room = state.room, view = state.gameV
   state.selectedCards = new Set();
   state.juanChosenColor = null;
   state.rummyLinkTarget = null;
+  state.findersSearchMode = false;
+  state.findersBuildSelection = new Set();
   state.gameActionLock = false;
   state.dealtHandOwners = new Set();
   state.lastPileSignature = null;
@@ -2680,6 +2863,8 @@ function queueHotSeatHandoff(seatNumber, { room = state.room, view = state.gameV
 
 function beginHotSeatSession(session) {
   clearJuanPrismReveal();
+  clearFindersMakersReveal();
+  state.findersHighestRevealByScope = new Map();
   state.gameMode = "hot-seat";
   state.hotSeatSeats = session.hotSeat?.seats || [];
   state.session = { code: session.code, token: session.token, playerId: session.playerId, mode: "hot-seat" };
@@ -2716,6 +2901,9 @@ async function revealHotSeatHand() {
   state.selectedCards = new Set();
   state.juanChosenColor = null;
   clearJuanPrismReveal();
+  clearFindersMakersReveal();
+  state.findersSearchMode = false;
+  state.findersBuildSelection = new Set();
   state.gameActionLock = false;
   state.dealtHandOwners = new Set();
   state.lastPileSignature = null;
@@ -2726,6 +2914,9 @@ async function revealHotSeatHand() {
 
 function clearGameSession() {
   disconnectRoomSocket();
+  clearFindersMakersReveal();
+  clearTimeout(state.findersHotSeatHandoffTimer);
+  state.findersHotSeatHandoffTimer = null;
   localStorage.removeItem(storageKeys.room);
   state.session = null;
   state.room = null;
@@ -2738,6 +2929,9 @@ function clearGameSession() {
   state.selectedCards = new Set();
   state.juanChosenColor = null;
   state.rummyLinkTarget = null;
+  state.findersSearchMode = false;
+  state.findersBuildSelection = new Set();
+  state.findersHighestRevealByScope = new Map();
   state.gameActionLock = false;
   state.dealtHandOwners = new Set();
   state.lastPileSignature = null;
@@ -2822,7 +3016,11 @@ function connectRoom(session) {
         state.selectedCards = new Set();
         state.juanChosenColor = null;
         state.rummyLinkTarget = null;
+        state.findersSearchMode = false;
+        state.findersBuildSelection = new Set();
+        state.findersHighestRevealByScope = new Map();
         clearJuanPrismReveal();
+        clearFindersMakersReveal();
         state.gameActionLock = false;
         state.dealtHandOwners = new Set();
         state.lastPileSignature = null;
@@ -2830,12 +3028,33 @@ function connectRoom(session) {
       } else if (state.screen === "room") render();
     } else if (message.type === "game_state" && supportsGame(message.gameId)) {
       queueJuanPrismReveal(message.gameId, state.gameView, message.view);
+      const hasPrivateFindersReveal = queueFindersMakersReveal(message.gameId, state.gameView, message.view);
       if (state.gameMode === "hot-seat" && state.hotSeatPendingPlayerId) return;
       if (state.gameMode === "hot-seat") {
         const viewer = message.room.players.find((player) => player.isYou);
         const requiredSeat = hotSeatFlow?.requiredSeat(message.view?.state, state.hotSeatSeats);
         const forceHandoff = state.hotSeatForceHandoff;
         state.hotSeatForceHandoff = false;
+        if (message.gameId === "finders-makers" && hasPrivateFindersReveal && Number.isInteger(requiredSeat) && Number(viewer?.seat) !== requiredSeat) {
+          // A Search ends the turn on the server, but a Hot Seat player still
+          // needs a brief private moment to see their discovered Piece before
+          // the device is handed over.
+          state.room = message.room;
+          state.gameView = message.view;
+          state.gameActionLock = false;
+          state.screen = "game";
+          render();
+          const reducedMotion = localStorage.getItem(storageKeys.reducedMotion) === "true"
+            || matchMedia("(prefers-reduced-motion: reduce)").matches;
+          clearTimeout(state.findersHotSeatHandoffTimer);
+          state.findersHotSeatHandoffTimer = setTimeout(() => {
+            state.findersHotSeatHandoffTimer = null;
+            if (state.gameMode === "hot-seat" && state.screen === "game") {
+              queueHotSeatHandoff(requiredSeat, { room: message.room, view: message.view });
+            }
+          }, reducedMotion ? 1_100 : 2_700);
+          return;
+        }
         if (isHotSeatCpuTurn(message.view)) {
           queueHotSeatCpuTurn({ room: message.room, view: message.view });
           return;
@@ -2853,6 +3072,9 @@ function connectRoom(session) {
         state.dealtHandOwners = new Set();
         state.lastPileSignature = null;
         state.rummyLinkTarget = null;
+        state.findersBuildSelection = new Set();
+        state.findersSearchMode = false;
+        state.findersHighestRevealByScope = new Map();
       }
       normalizeGameSort(message.gameId);
       state.room = message.room;
@@ -2866,6 +3088,15 @@ function connectRoom(session) {
       state.selectedCards = new Set([...state.selectedCards].filter((cardId) => handIds.has(cardId)));
       if (!state.selectedCards.size) state.juanChosenColor = null;
       if (message.gameId !== "rotating-rummy") state.rummyLinkTarget = null;
+      if (message.gameId !== "finders-makers") {
+        state.findersSearchMode = false;
+        state.findersBuildSelection = new Set();
+      } else {
+        const viewer = message.room.players.find((player) => player.isYou);
+        const canKeepBuildSelection = message.view.state.activeSeat === viewer?.seat && message.view.state.turnMode === "build";
+        if (!canKeepBuildSelection) state.findersBuildSelection = new Set();
+        if (message.view.state.activeSeat !== viewer?.seat || message.view.state.turnMode !== "choose") state.findersSearchMode = false;
+      }
       state.screen = "game";
       render();
     } else if (message.type === "table_closed") {
@@ -2902,6 +3133,7 @@ function enterRoom(session) {
 
 function enterGameSession(session, mode) {
   clearJuanPrismReveal();
+  clearFindersMakersReveal();
   state.session = { code: session.code, token: session.token, playerId: session.playerId, mode };
   state.room = session.room;
   state.gameView = session.game?.view || null;
@@ -2909,6 +3141,9 @@ function enterGameSession(session, mode) {
   state.selectedCards = new Set();
   state.juanChosenColor = null;
   state.rummyLinkTarget = null;
+  state.findersSearchMode = false;
+  state.findersBuildSelection = new Set();
+  state.findersHighestRevealByScope = new Map();
   state.gameSort = defaultSortForGame(session.game?.gameId);
   state.gameActionLock = false;
   state.dealtHandOwners = new Set();
@@ -3026,9 +3261,9 @@ document.addEventListener("click", async (event) => {
   if (action === "hot-seat-player-down") {
     captureHotSeatNames();
     const game = selectedGame();
-    if (state.hotSeatPlayerCount > 1) {
+    if (game && state.hotSeatPlayerCount > (game.supportsBots ? 1 : game.players.min)) {
       state.hotSeatPlayerCount -= 1;
-      state.hotSeatBots += 1;
+      if (game.supportsBots) state.hotSeatBots += 1;
     }
     if (game) ensureHotSeatSetup(game);
     render();
@@ -3038,7 +3273,7 @@ document.addEventListener("click", async (event) => {
     const game = selectedGame();
     if (game && state.hotSeatPlayerCount < game.players.max) {
       state.hotSeatPlayerCount += 1;
-      if (state.hotSeatBots > 0) state.hotSeatBots -= 1;
+      if (game.supportsBots && state.hotSeatBots > 0) state.hotSeatBots -= 1;
     }
     if (game) ensureHotSeatSetup(game);
     render();
@@ -3046,7 +3281,7 @@ document.addEventListener("click", async (event) => {
   if (action === "hot-seat-bot-down") {
     captureHotSeatNames();
     const game = selectedGame();
-    if (game && state.hotSeatBots > 0 && state.hotSeatPlayerCount + state.hotSeatBots > game.players.min) {
+    if (game?.supportsBots && state.hotSeatBots > 0 && state.hotSeatPlayerCount + state.hotSeatBots > game.players.min) {
       state.hotSeatBots -= 1;
     }
     render();
@@ -3054,7 +3289,7 @@ document.addEventListener("click", async (event) => {
   if (action === "hot-seat-bot-up") {
     captureHotSeatNames();
     const game = selectedGame();
-    if (game && state.hotSeatPlayerCount + state.hotSeatBots < game.players.max) {
+    if (game?.supportsBots && state.hotSeatPlayerCount + state.hotSeatBots < game.players.max) {
       state.hotSeatBots += 1;
     }
     render();
@@ -3118,8 +3353,8 @@ document.addEventListener("click", async (event) => {
     if (family) state.selectedDeckFamilyId = family.id;
     sendRoom({ type: "select_game", gameId: button.dataset.gameId });
   }
-  if (action === "room-bot-down") sendRoom({ type: "set_bot_count", botCount: Math.max(0, state.room.gameSettings.botCount - 1) });
-  if (action === "room-bot-up") sendRoom({ type: "set_bot_count", botCount: state.room.gameSettings.botCount + 1 });
+  if (action === "room-bot-down" && state.room?.game?.supportsBots) sendRoom({ type: "set_bot_count", botCount: Math.max(0, state.room.gameSettings.botCount - 1) });
+  if (action === "room-bot-up" && state.room?.game?.supportsBots) sendRoom({ type: "set_bot_count", botCount: state.room.gameSettings.botCount + 1 });
   if (action === "toggle-ready") {
     const you = state.room.players.find((player) => player.isYou);
     sendRoom({ type: "set_ready", ready: !you?.ready });
@@ -3157,6 +3392,70 @@ document.addEventListener("click", async (event) => {
   if (action === "rummy-toggle-help") {
     state.rummyPatternHelpOpen = !state.rummyPatternHelpOpen;
     render();
+  }
+  if (action === "finders-start-search") {
+    const match = state.gameView?.state;
+    const viewer = state.room?.players.find((player) => player.isYou);
+    if (state.gameActionLock || state.room?.gameId !== "finders-makers" || match?.activeSeat !== viewer?.seat || match?.turnMode !== "choose" || match?.roundOver) return;
+    state.findersSearchMode = !state.findersSearchMode;
+    state.findersBuildSelection = new Set();
+    render();
+    return;
+  }
+  if (action === "finders-card") {
+    const match = state.gameView?.state;
+    const viewer = state.room?.players.find((player) => player.isYou);
+    const position = Number(button.dataset.findersPosition);
+    if (state.gameActionLock || state.room?.gameId !== "finders-makers" || !Number.isInteger(position) || match?.activeSeat !== viewer?.seat || match?.roundOver) return;
+    if (match.turnMode === "build") {
+      if (state.findersBuildSelection.has(position)) state.findersBuildSelection.delete(position);
+      else if (state.findersBuildSelection.size < 3) state.findersBuildSelection.add(position);
+      else showToast("A Build attempt uses exactly three cards.");
+      render();
+      return;
+    }
+    if (match.turnMode !== "choose" || !state.findersSearchMode) return;
+    state.gameActionLock = true;
+    state.findersSearchMode = false;
+    if (!sendRoom({ type: "finders_search", position })) {
+      state.gameActionLock = false;
+      render();
+    }
+    return;
+  }
+  if (action === "finders-begin-build" || action === "finders-cancel-build") {
+    const match = state.gameView?.state;
+    const viewer = state.room?.players.find((player) => player.isYou);
+    const expectedMode = action === "finders-begin-build" ? "choose" : "build";
+    if (state.gameActionLock || state.room?.gameId !== "finders-makers" || match?.activeSeat !== viewer?.seat || match?.turnMode !== expectedMode || match?.roundOver) return;
+    state.gameActionLock = true;
+    state.findersSearchMode = false;
+    state.findersBuildSelection = new Set();
+    if (!sendRoom({ type: action === "finders-begin-build" ? "finders_begin_build" : "finders_cancel_build" })) {
+      state.gameActionLock = false;
+      render();
+    }
+    return;
+  }
+  if (action === "finders-commit-build") {
+    const match = state.gameView?.state;
+    const viewer = state.room?.players.find((player) => player.isYou);
+    if (state.gameActionLock || state.room?.gameId !== "finders-makers" || match?.activeSeat !== viewer?.seat || match?.turnMode !== "build" || state.findersBuildSelection.size !== 3) return;
+    state.gameActionLock = true;
+    const positions = [...state.findersBuildSelection].sort((left, right) => left - right);
+    if (!sendRoom({ type: "finders_attempt_build", positions })) {
+      state.gameActionLock = false;
+      render();
+    }
+    return;
+  }
+  if (action === "finders-next-round" || action === "finders-start-sudden-death") {
+    state.findersSearchMode = false;
+    state.findersBuildSelection = new Set();
+    if (state.gameMode === "hot-seat") state.hotSeatForceHandoff = true;
+    const type = action === "finders-next-round" ? "finders_next_round" : "finders_start_sudden_death";
+    if (!sendRoom({ type })) state.hotSeatForceHandoff = false;
+    return;
   }
   if (action === "rummy-select-link-target") {
     const match = state.gameView?.state;
@@ -3515,6 +3814,10 @@ document.addEventListener("click", async (event) => {
     state.gameView = null;
     state.selectedCards = new Set();
     state.juanChosenColor = null;
+    state.findersSearchMode = false;
+    state.findersBuildSelection = new Set();
+    state.findersHighestRevealByScope = new Map();
+    clearFindersMakersReveal();
     state.gameActionLock = false;
     state.dealtHandOwners = new Set();
     state.lastPileSignature = null;
