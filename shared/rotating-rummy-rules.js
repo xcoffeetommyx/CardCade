@@ -49,7 +49,7 @@
       return { ok: false, reason: "A card can only fill one Route group", groups: [] };
     }
     if (cards.some((card) => !isRouteCard(card))) {
-      return { ok: false, reason: "Locks cannot be used in a Route", groups: [] };
+      return { ok: false, reason: "Pass cards cannot be used in a Route", groups: [] };
     }
 
     const solution = solveRequirements(cards, routeValue.requirements);

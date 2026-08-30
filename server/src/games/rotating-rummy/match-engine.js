@@ -185,7 +185,7 @@ export class MatchEngine {
     if (card.kind === "lock" && target) {
       const afterTarget = nextPlayer(match, target.seat);
       match.activeSeat = afterTarget?.seat ?? null;
-      match.lastMoveText = `${player.name} discarded a Lock. ${target.name} loses the turn.`;
+      match.lastMoveText = `${player.name} discarded a Pass. Play moves past ${target.name}.`;
       match.log[0] = match.lastMoveText;
     } else {
       match.activeSeat = target?.seat ?? null;
@@ -378,8 +378,8 @@ function validateDeck(deck) {
     throw new RoomError("The Rotating Rummy deck contains duplicate cards.", "INVALID_DECK", 500);
   }
   if (deck.filter((card) => card.kind === "number").length !== 96
-    || deck.filter((card) => card.kind === "glitch").length !== 6
-    || deck.filter((card) => card.kind === "lock").length !== 6) {
+    || deck.filter((card) => card.kind === "glitch").length !== 8
+    || deck.filter((card) => card.kind === "lock").length !== 4) {
     throw new RoomError("The Rotating Rummy deck has an invalid card distribution.", "INVALID_DECK", 500);
   }
 }

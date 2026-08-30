@@ -33,6 +33,7 @@ test("Rotating Rummy has its own Route UI, controls, and fanned-card renderer", 
   assert.match(app, /function rotatingRummySelection/);
   assert.match(app, /function rummyRouteForPlayer/);
   assert.match(app, /function renderRummyPatternHelp/);
+  assert.match(app, /function rummyWildMark/);
   assert.match(app, /Pattern help/);
   assert.match(app, /data-action="rummy-toggle-help"/);
   assert.match(app, /function rummyCornerFace/);
@@ -58,6 +59,12 @@ test("Rotating Rummy has its own Route UI, controls, and fanned-card renderer", 
   assert.doesNotMatch(app, /class="rummy-route-stage"/);
   assert.doesNotMatch(app, /class="rummy-meld-zone/);
   assert.match(app, /desktopRummyFit/);
+  assert.match(app, /rummy-action-wild/);
+  assert.match(app, /rummy-action-pass/);
+  assert.match(app, /rummy-action-pass" aria-hidden="true"><i><\/i><i><\/i>/);
+  assert.match(app, /<b>Wild cards<\/b>/);
+  assert.match(app, /<b>Pass cards<\/b>/);
+  assert.doesNotMatch(app, />LOCK</);
 
   const renderer = app.slice(app.indexOf("function renderRotatingRummyCard"), app.indexOf("function renderRummyRouteProgress"));
   assert.match(renderer, /rummy-card-center/);
@@ -82,17 +89,24 @@ test("Rotating Rummy has its own Route UI, controls, and fanned-card renderer", 
   assert.match(css, /\.rotating-rummy-game \.rummy-table-stage \.rummy-link-board \{ min-height: 0; max-height: 116px;[\s\S]*?overflow: auto;/);
 });
 
-test("Blackout Edition remains a deck-family-scoped visual preference", () => {
+test("Rotating Rummy's blackout and light skins remain deck-family-scoped visual preferences", () => {
   const app = read("public/app.js");
   const css = read("public/app.css");
+  const skins = read("shared/card-skins.js");
 
   assert.match(app, /skin-preview-rummy-face/);
-  assert.match(app, /skin-preview-rummy-glitch/);
+  assert.match(app, /skin-preview-rummy-wild/);
   assert.match(app, /deckFamilyId: "rotating-rummy", context: "stock"/);
-  assert.match(css, /\.card-skin-rotating-rummy-blackout/);
-  assert.match(css, /\.rummy-card\.card-skin-rotating-rummy-blackout/);
-  assert.match(css, /\.card-back\.card-skin-rotating-rummy-blackout/);
-  assert.match(css, /\.rummy-stock\.card-skin-rotating-rummy-blackout/);
-  assert.match(css, /\.skin-preview\.card-skin-rotating-rummy-blackout/);
-  assert.doesNotMatch(css, /\.playing-card\.card-skin-rotating-rummy-blackout\.(?:red|black)/);
+  assert.match(css, /\.rummy-wild-mark \{/);
+  assert.match(css, /\.rummy-action-pass i \{/);
+  for (const skinClass of ["card-skin-rotating-rummy-blackout", "card-skin-rotating-rummy-light"]) {
+    assert.match(css, new RegExp(`\\.${skinClass}`));
+    assert.match(css, new RegExp(`\\.rummy-card\\.${skinClass}`));
+    assert.match(css, new RegExp(`\\.card-back\\.${skinClass}`));
+    assert.match(css, new RegExp(`\\.rummy-stock\\.${skinClass}`));
+    assert.match(css, new RegExp(`\\.rummy-seat-card\\.${skinClass}`));
+    assert.match(css, new RegExp(`\\.skin-preview\\.${skinClass}`));
+  }
+  assert.match(skins, /id: "rotating-rummy-light"/);
+  assert.doesNotMatch(css, /\.playing-card\.card-skin-rotating-rummy-(?:blackout|light)\.(?:red|black)/);
 });

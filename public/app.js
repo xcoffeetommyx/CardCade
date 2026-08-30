@@ -929,10 +929,8 @@ function renderSeatLastCard(player, gameId) {
     return `<span class="seat-last-card juan-seat-card card-skin-face ${selectedCardSkin("color-action")?.className || ""} ${colorClass}" aria-label="Last played ${escapeHtml(juanDeck.cardLong(card))}"><strong class="${isNumber ? "juan-rank-glyph" : ""}">${escapeHtml(face)}</strong></span>`;
   }
   if (gameId === "rotating-rummy") {
-    const isNumber = card.kind === "number";
-    const face = rummyCornerFace(card);
-    const colorClass = card.color ? `rummy-${card.color}` : `rummy-${card.kind}`;
-    return `<span class="seat-last-card rummy-seat-card card-skin-face ${selectedCardSkin("rotating-rummy")?.className || ""} ${colorClass}" aria-label="Last played ${escapeHtml(rotatingRummyDeck.cardLong(card))}"><strong class="${isNumber ? "rummy-rank-glyph" : ""}">${escapeHtml(face)}</strong></span>`;
+    const colorClass = card.color ? `rummy-${card.color}` : `rummy-${rummyVisualKind(card.kind)}`;
+    return `<span class="seat-last-card rummy-seat-card card-skin-face ${selectedCardSkin("rotating-rummy")?.className || ""} ${colorClass}" aria-label="Last played ${escapeHtml(rotatingRummyDeck.cardLong(card))}">${renderRummySeatFace(card)}</span>`;
   }
   const suit = standard52.SUIT_SYMBOL[card.suit];
   const red = card.suit === "H" || card.suit === "D";
@@ -1634,19 +1632,42 @@ function findRummyLinkSuggestion(match, hand) {
   return null;
 }
 
+function rummyVisualKind(kind) {
+  if (kind === "glitch") return "wild";
+  if (kind === "lock") return "pass";
+  return kind;
+}
+
+function rummyWildMark(className = "") {
+  return `<span class="rummy-wild-mark ${className}" aria-hidden="true"><i></i><i></i><i></i><i></i></span>`;
+}
+
 function rummyCornerFace(card) {
   if (card.kind === "number") return String(card.value);
-  if (card.kind === "glitch") return "✦";
   if (card.kind === "lock") return "Ⅱ";
   return "?";
 }
 
+function renderRummySeatFace(card) {
+  if (card.kind === "glitch") return rummyWildMark("rummy-wild-mark-seat");
+  const isNumber = card.kind === "number";
+  return `<strong class="${isNumber ? "rummy-rank-glyph" : ""}">${escapeHtml(rummyCornerFace(card))}</strong>`;
+}
+
+function renderRummyCardCorner(card, bottom = false) {
+  const isNumber = card.kind === "number";
+  const contents = card.kind === "glitch"
+    ? rummyWildMark("rummy-wild-mark-corner")
+    : `<strong class="${isNumber ? "rummy-rank-glyph" : ""}">${escapeHtml(rummyCornerFace(card))}</strong>`;
+  return `<span class="card-corner rummy-corner${bottom ? " bottom" : ""}">${contents}</span>`;
+}
+
 function rummyActionMark(kind) {
   if (kind === "glitch") {
-    return `<span class="rummy-action-mark rummy-action-glitch" aria-hidden="true"><i></i><i></i><i></i><i></i><b>✦</b></span>`;
+    return `<span class="rummy-action-mark rummy-action-wild" aria-hidden="true">${rummyWildMark("rummy-wild-mark-center")}</span>`;
   }
   if (kind === "lock") {
-    return `<span class="rummy-action-mark rummy-action-lock" aria-hidden="true"><i></i><i></i><b>LOCK</b></span>`;
+    return `<span class="rummy-action-mark rummy-action-pass" aria-hidden="true"><i></i><i></i></span>`;
   }
   return `<span class="rummy-action-mark" aria-hidden="true">?</span>`;
 }
@@ -1655,14 +1676,14 @@ function renderRotatingRummyCard(card, index, { played = false, enter = false, s
   const selected = !played && state.selectedCards.has(card.id);
   const isNumber = card.kind === "number";
   const face = isNumber ? String(card.value) : null;
-  const corner = rummyCornerFace(card);
-  const colorClass = card.color ? `rummy-${card.color}` : `rummy-${card.kind}`;
+  const visualKind = rummyVisualKind(card.kind);
+  const colorClass = card.color ? `rummy-${card.color}` : `rummy-${visualKind}`;
   const classes = [
     "playing-card",
     "rummy-card",
     "card-skin-face",
     selectedCardSkin("rotating-rummy")?.className || "",
-    `rummy-kind-${card.kind}`,
+    `rummy-kind-${visualKind}`,
     colorClass,
     selected ? "selected" : "",
     played ? "played" : "",
@@ -1676,12 +1697,12 @@ function renderRotatingRummyCard(card, index, { played = false, enter = false, s
       ${played ? "" : `data-game-card="${escapeHtml(card.id)}" data-card-index="${index}" tabindex="${selectable ? "0" : "-1"}"`}
       aria-label="${escapeHtml(rotatingRummyDeck.cardLong(card))}" aria-pressed="${selected}">
       <span class="rummy-card-ink" aria-hidden="true"></span>
-      <span class="card-corner rummy-corner"><strong class="${isNumber ? "rummy-rank-glyph" : ""}">${escapeHtml(corner)}</strong></span>
+      ${renderRummyCardCorner(card)}
       <span class="rummy-card-center">${isNumber
         ? `<b class="rummy-rank-glyph">${escapeHtml(face)}</b>`
         : rummyActionMark(card.kind)
       }</span>
-      <span class="card-corner bottom rummy-corner"><strong class="${isNumber ? "rummy-rank-glyph" : ""}">${escapeHtml(corner)}</strong></span>
+      ${renderRummyCardCorner(card, true)}
     </button>`;
 }
 
@@ -1704,7 +1725,7 @@ function renderRummyPatternHelp() {
         <li><b>Pairs that add to 13:</b> 1+12, 2+11, 3+10, and so on.</li>
         <li><b>Pairs with consecutive numbers:</b> 5-5 and 6-6, for example.</li>
       </ul>
-      <p><b>Glitches</b> can stand in for any card. <b>Locks</b> cannot be used in a Route.</p>
+      <p><b>Wild cards</b> can stand in for any number. <b>Pass cards</b> move play past the next player and cannot be used in a Route.</p>
     </div>
   </section>`;
 }
@@ -2083,7 +2104,7 @@ function renderSkinPreview(skin) {
     return `
       <div class="skin-preview ${skin.className}" data-skin-preview="${escapeHtml(skin.deckFamilyId)}" role="img" aria-label="${escapeHtml(skin.name)} card face and back preview">
         <span class="skin-preview-card skin-preview-face skin-preview-rummy-face" aria-hidden="true"><small>7</small><b>7</b></span>
-        <span class="skin-preview-card skin-preview-face skin-preview-rummy-glitch" aria-hidden="true"><small>✦</small><b>✦</b></span>
+        <span class="skin-preview-card skin-preview-face skin-preview-rummy-wild" aria-hidden="true">${rummyWildMark("rummy-wild-mark-preview")}</span>
         ${renderCardBack({ deckFamilyId: skin.deckFamilyId, skinId: skin.id, context: "settings-preview", className: "skin-preview-card skin-preview-back skin-preview-rummy-back", ariaHidden: true, parts: [{ tag: "strong", text: "RR" }] })}
       </div>`;
   }

@@ -70,6 +70,15 @@
       className: "card-skin-rotating-rummy-blackout",
       renderer: "rotating-rummy",
       capabilities: Object.freeze({ faces: true, backs: true, courts: false })
+    }),
+    Object.freeze({
+      id: "rotating-rummy-light",
+      deckFamilyId: "rotating-rummy",
+      name: "Light Mode",
+      description: "Clean white Route cards with color-coded pixel digits and crisp signal-line backs.",
+      className: "card-skin-rotating-rummy-light",
+      renderer: "rotating-rummy",
+      capabilities: Object.freeze({ faces: true, backs: true, courts: false })
     })
   ]);
 

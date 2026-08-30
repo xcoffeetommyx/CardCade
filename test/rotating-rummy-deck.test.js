@@ -4,14 +4,14 @@ import deck from "../shared/rotating-rummy-deck.js";
 import routes from "../shared/rotating-rummy-routes.js";
 import rules from "../shared/rotating-rummy-rules.js";
 
-test("Rotating Rummy uses a complete 108-card number, Glitch, and Lock deck", () => {
+test("Rotating Rummy uses a complete 108-card number, Wild, and Pass deck", () => {
   const cards = deck.makeDeck();
   assert.equal(cards.length, 108);
   assert.equal(new Set(cards.map((card) => card.id)).size, 108);
   assert.deepEqual(deck.COLORS, ["red", "blue", "green", "yellow"]);
   assert.equal(cards.filter((card) => card.kind === "number").length, 96);
-  assert.equal(cards.filter((card) => card.kind === "glitch").length, 6);
-  assert.equal(cards.filter((card) => card.kind === "lock").length, 6);
+  assert.equal(cards.filter((card) => card.kind === "glitch").length, 8);
+  assert.equal(cards.filter((card) => card.kind === "lock").length, 4);
   for (const color of deck.COLORS) {
     for (const value of deck.RANKS) {
       assert.equal(cards.filter((card) => card.kind === "number" && card.color === color && card.value === value).length, 2);
@@ -19,8 +19,8 @@ test("Rotating Rummy uses a complete 108-card number, Glitch, and Lock deck", ()
   }
   assert.equal(deck.cardLong("rr-red-2-a"), "Red 2");
   assert.equal(deck.cardLong("rr-green-5-b"), "Green 5");
-  assert.equal(deck.cardLong("rr-glitch-2"), "Glitch wildcard");
-  assert.equal(deck.cardLong("rr-lock-2"), "Lock skip card");
+  assert.equal(deck.cardLong("rr-glitch-2"), "Wild card");
+  assert.equal(deck.cardLong("rr-lock-2"), "Pass card");
 });
 
 test("Rotating Rummy supplies four original ten-Route decks", () => {

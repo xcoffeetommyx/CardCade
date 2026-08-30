@@ -8,7 +8,7 @@ const cards = new Map(deck.makeDeck().map((card) => [card.id, card]));
 const card = (id) => cards.get(id);
 const route = (deckId, index) => routes.routeDeckById(deckId).routes[index];
 
-test("Routes accept Glitches as wildcards while preserving each group's identity", () => {
+test("Routes accept Wilds while preserving each group's identity", () => {
   const warmStart = route("neon-grid", 0);
   const selection = ["rr-red-4-a", "rr-blue-4-a", "rr-green-6-a", "rr-yellow-7-a", "rr-glitch-1"].map(card);
   const evaluation = rules.evaluateRoute(selection, warmStart);
@@ -33,10 +33,12 @@ test("a matching pair plus four cards in one color lane completes Signal Stack",
   assert.deepEqual(evaluation.groups.map((group) => group.length).sort((left, right) => left - right), [2, 4]);
 });
 
-test("Locks cannot be laid into a Route and Route selections cannot reuse cards", () => {
+test("Pass cards cannot be laid into a Route and Route selections cannot reuse cards", () => {
   const warmStart = route("neon-grid", 0);
-  const locked = ["rr-red-4-a", "rr-blue-4-a", "rr-green-6-a", "rr-yellow-7-a", "rr-lock-1"].map(card);
-  assert.equal(rules.evaluateRoute(locked, warmStart).ok, false);
+  const withPass = ["rr-red-4-a", "rr-blue-4-a", "rr-green-6-a", "rr-yellow-7-a", "rr-lock-1"].map(card);
+  const evaluation = rules.evaluateRoute(withPass, warmStart);
+  assert.equal(evaluation.ok, false);
+  assert.equal(evaluation.reason, "Pass cards cannot be used in a Route");
   assert.equal(rules.evaluateRoute([card("rr-red-4-a"), card("rr-red-4-a"), card("rr-green-6-a"), card("rr-yellow-7-a"), card("rr-red-8-a")], warmStart).ok, false);
 });
 

@@ -150,7 +150,7 @@ test("next rounds retain player Route progress and use the same Route Deck", () 
   assert.equal(next.players[0].score, 12);
 });
 
-test("Locks skip the next seat after a discard", () => {
+test("Pass cards move play past the next seat after a discard", () => {
   const game = engine();
   const table = matchFor();
   setTable(table, {
@@ -159,7 +159,7 @@ test("Locks skip the next seat after a discard", () => {
   });
   game.discard(table, 0, "rr-lock-1");
   assert.equal(table.activeSeat, 2);
-  assert.match(table.lastMoveText, /Two loses the turn/);
+  assert.match(table.lastMoveText, /discarded a Pass\. Play moves past Two/);
 });
 
 test("Rotating Rummy CPUs resolve a whole draw, route, and discard turn", () => {

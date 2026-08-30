@@ -5,9 +5,9 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function createRotatingRummyDeck() {
   "use strict";
 
-  // Rotating Rummy uses its own physical inventory. Its numeric cards are
-  // deliberately black-faced in presentation, while these color lanes remain
-  // part of the rules and card identity.
+  // Rotating Rummy uses its own physical inventory. Its default skin is
+  // black-faced, while the color lanes remain part of every card's rules and
+  // identity regardless of the selected card skin.
   const COLORS = Object.freeze(["red", "blue", "green", "yellow"]);
   const COLOR_NAME = Object.freeze({
     red: "Red",
@@ -24,8 +24,8 @@
   const RANKS = Object.freeze(Array.from({ length: 12 }, (_, index) => index + 1));
   const KINDS = Object.freeze(["number", "glitch", "lock"]);
   const ACTION_FACE = Object.freeze({
-    glitch: Object.freeze({ short: "GLITCH", symbol: "✦", name: "Glitch" }),
-    lock: Object.freeze({ short: "LOCK", symbol: "Ⅱ", name: "Lock" })
+    glitch: Object.freeze({ short: "WILD", symbol: "✦", name: "Wild" }),
+    lock: Object.freeze({ short: "PASS", symbol: "Ⅱ", name: "Pass" })
   });
 
   function makeDeck() {
@@ -37,10 +37,12 @@
         }
       }
     }
-    // A balanced 6/6 special-card split gives Rotating Rummy its own deck
-    // identity while keeping Glitches and Locks equally visible in a match.
-    for (let copy = 1; copy <= 6; copy += 1) {
+    // Eight Wilds and four Pass cards keep the 108-card deck aligned with the
+    // original Route rules while preserving the familiar color-card balance.
+    for (let copy = 1; copy <= 8; copy += 1) {
       cards.push(card({ id: `rr-glitch-${copy}`, color: null, kind: "glitch", value: null, copy: String(copy) }));
+    }
+    for (let copy = 1; copy <= 4; copy += 1) {
       cards.push(card({ id: `rr-lock-${copy}`, color: null, kind: "lock", value: null, copy: String(copy) }));
     }
     return cards;
@@ -58,8 +60,8 @@
     if (cardValue.kind === "number") {
       return `${COLOR_NAME[cardValue.color] || "Unknown"} ${cardValue.value}`;
     }
-    if (cardValue.kind === "glitch") return "Glitch wildcard";
-    if (cardValue.kind === "lock") return "Lock skip card";
+    if (cardValue.kind === "glitch") return "Wild card";
+    if (cardValue.kind === "lock") return "Pass card";
     return "Unknown card";
   }
 

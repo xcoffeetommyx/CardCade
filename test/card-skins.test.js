@@ -17,7 +17,7 @@ test("card skins are registered by deck family with stable defaults", () => {
   assert.equal(table.id, "classic-green");
   assert.deepEqual(cardSkins.skinsForFamily("standard-52").map((skin) => skin.id), ["cardcade-pixel", "casino-gold", "royal-violet"]);
   assert.deepEqual(cardSkins.skinsForFamily("color-action").map((skin) => skin.id), ["juan-minimal", "juan-night-shift", "juan-paper-pop"]);
-  assert.deepEqual(cardSkins.skinsForFamily("rotating-rummy").map((skin) => skin.id), ["rotating-rummy-blackout"]);
+  assert.deepEqual(cardSkins.skinsForFamily("rotating-rummy").map((skin) => skin.id), ["rotating-rummy-blackout", "rotating-rummy-light"]);
   assert.deepEqual(cardSkins.tableSkins().map((skin) => skin.id), ["classic-green", "midnight-blue", "burgundy-velvet"]);
 });
 
@@ -27,6 +27,7 @@ test("a skin can never resolve across deck-family boundaries", () => {
   assert.equal(cardSkins.resolveSkin("standard-52", "juan-minimal").id, "cardcade-pixel");
   assert.equal(cardSkins.resolveSkin("color-action", "cardcade-pixel").id, "juan-minimal");
   assert.equal(cardSkins.resolveSkin("rotating-rummy", "cardcade-pixel").id, "rotating-rummy-blackout");
+  assert.equal(cardSkins.resolveSkin("rotating-rummy", "rotating-rummy-light").id, "rotating-rummy-light");
   assert.equal(cardSkins.resolveSkin("standard-52", "missing-skin").id, "cardcade-pixel");
   assert.equal(cardSkins.resolveSkin("future-family", "cardcade-pixel"), null);
 });
