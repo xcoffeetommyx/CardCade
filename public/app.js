@@ -1746,7 +1746,7 @@ function renderRotatingRummyGame() {
         <div><span class="family-kicker">${state.gameMode === "solo" ? "Solo table" : state.gameMode === "hot-seat" ? "Hot Seat table" : `Room ${escapeHtml(state.room.code)}`}</span><h2>Rotating Rummy</h2><p>Round ${match.round} · ${escapeHtml(match.lastMoveText)}</p></div>
         <button class="game-score" type="button" disabled><span>Routes</span><strong>${Math.min(match.totalRoutes, yourPlayer?.routeIndex || 0)}/${match.totalRoutes}</strong></button>
       </header>
-      <section class="rummy-route-banner">
+      <section class="rummy-route-banner ${yourPlayer?.routeComplete ? "complete" : ""}">
         <div><span class="family-kicker">${escapeHtml(match.routeDeck.name)} · Route ${route?.number || match.totalRoutes}/${match.totalRoutes}</span><h3>${escapeHtml(route?.name || "All Routes cleared")}</h3><p>${escapeHtml(route?.description || "The table is settling the final Route.")}</p></div>
         <div class="rummy-route-circuit" aria-label="Your Route progress">${renderRummyRouteProgress(yourPlayer, match.totalRoutes)}</div>
       </section>
@@ -1767,23 +1767,17 @@ function renderRotatingRummyGame() {
             <div class="active-pile cards-pile">${match.topCard ? renderRotatingRummyCard(match.topCard, 0, { played: true, enter: pileIsNew }) : ""}</div>
           </div>
         </section>
-        <div class="rummy-route-stage">
-          <section class="rummy-meld-zone ${yourPlayer?.routeComplete ? "complete" : ""}">
-            <div><span class="family-kicker">Your current Route</span><strong>${escapeHtml(route?.name || "Route deck complete")}</strong><small>${yourPlayer?.routeComplete ? "Route completed — link extra cards to your Route or another completed Route, then discard." : route ? `${route.cardCount} cards required · ${route.description}` : "Waiting for the round result."}</small></div>
-            ${yourPlayer?.routeMeld?.length ? `<div class="rummy-meld-groups">${yourPlayer.routeMeld.map((group, groupIndex) => `<div class="rummy-meld-group" aria-label="Completed Route group ${groupIndex + 1}">${group.map((card, index) => renderRotatingRummyCard(card, index, { played: true })).join("")}</div>`).join("")}</div>` : ""}
-          </section>
-          ${linkTargets.length ? `<section class="rummy-link-board" aria-label="Completed Route groups">
-            <div class="rummy-link-board-heading"><span class="family-kicker">Route links</span><small>${yourPlayer?.routeComplete ? "Choose your Route or another completed group, then link compatible cards before your discard." : "Complete your Route before linking cards."}</small></div>
-            <div class="rummy-link-targets">${linkTargets.map((target) => {
-              const selectedTarget = selection.linkTarget?.player.seat === target.player.seat && selection.linkTarget.groupIndex === target.groupIndex;
-              const targetName = target.player.seat === viewerSeat ? "Your Route" : `${target.player.name}'s Route`;
-              return `<article class="rummy-link-group-card ${selectedTarget ? "selected" : ""}">
-                <div class="rummy-link-group-cards" aria-label="${escapeHtml(targetName)} group ${target.groupIndex + 1}">${target.group.map((card, index) => renderRotatingRummyCard(card, index, { played: true })).join("")}</div>
-                <button type="button" data-action="rummy-select-link-target" data-rummy-link-seat="${target.player.seat}" data-rummy-link-group="${target.groupIndex}" ${canSelectLinkTarget ? "" : "disabled"}>${selectedTarget ? "Link target ✓" : `Link to ${escapeHtml(targetName)}`}</button>
-              </article>`;
-            }).join("")}</div>
-          </section>` : ""}
-        </div>
+        ${linkTargets.length ? `<section class="rummy-link-board" aria-label="Completed Route groups">
+          <div class="rummy-link-board-heading"><span class="family-kicker">Route links</span><small>${yourPlayer?.routeComplete ? "Choose your Route or another completed group, then link compatible cards before your discard." : "Complete your Route before linking cards."}</small></div>
+          <div class="rummy-link-targets">${linkTargets.map((target) => {
+            const selectedTarget = selection.linkTarget?.player.seat === target.player.seat && selection.linkTarget.groupIndex === target.groupIndex;
+            const targetName = target.player.seat === viewerSeat ? "Your Route" : `${target.player.name}'s Route`;
+            return `<article class="rummy-link-group-card ${selectedTarget ? "selected" : ""}">
+              <div class="rummy-link-group-cards" aria-label="${escapeHtml(targetName)} group ${target.groupIndex + 1}">${target.group.map((card, index) => renderRotatingRummyCard(card, index, { played: true })).join("")}</div>
+              <button type="button" data-action="rummy-select-link-target" data-rummy-link-seat="${target.player.seat}" data-rummy-link-group="${target.groupIndex}" ${canSelectLinkTarget ? "" : "disabled"}>${selectedTarget ? "Link target ✓" : `Link to ${escapeHtml(targetName)}`}</button>
+            </article>`;
+          }).join("")}</div>
+        </section>` : ""}
       </div>
       <section class="physical-hand ${isYourTurn ? "your-turn" : ""}">
         <div class="hand-heading"><span><strong>Your hand</strong><small>${view.hand.length} cards · ${escapeHtml(state.gameSort)} sort</small></span><span class="selection-status ${selection.routeOk || selection.linkOk || selection.discardOk ? "valid" : state.selectedCards.size ? "invalid" : ""}">${escapeHtml(selection.reason)}</span></div>

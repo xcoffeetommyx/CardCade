@@ -44,7 +44,7 @@ test("Rotating Rummy has its own Route UI, controls, and fanned-card renderer", 
   assert.match(app, /discardOk: selected\.length === 1/);
   assert.match(app, /evaluateRoute\(selected, route\)/);
   assert.match(app, /Lay the exact \$\{routeCardCount\}-card Route first, then link extra cards before your discard/);
-  assert.match(app, /link extra cards to your Route or another completed Route, then discard/);
+  assert.match(app, /Choose your Route or another completed group, then link compatible cards before your discard/);
   assert.doesNotMatch(app, /evaluateRoute\(selected, match\.yourRoute\)/);
   assert.doesNotMatch(app, /findRouteCompletion\(state\.gameView\.hand, match\.yourRoute\)/);
   assert.doesNotMatch(app, /recommendedDiscard\(state\.gameView\.hand, match\.yourRoute\)/);
@@ -53,7 +53,10 @@ test("Rotating Rummy has its own Route UI, controls, and fanned-card renderer", 
   assert.match(app, /renderMiniCardBack\("rotating-rummy"/);
   assert.match(app, /standard-card-game \$\{activeTableAppearanceClass\(\)\} rotating-rummy-game/);
   assert.match(app, /class="rummy-table-stage"/);
-  assert.match(app, /class="rummy-route-stage"/);
+  assert.match(app, /rummy-route-banner \$\{yourPlayer\?\.routeComplete \? "complete" : ""\}/);
+  assert.doesNotMatch(app, /Your current Route/);
+  assert.doesNotMatch(app, /class="rummy-route-stage"/);
+  assert.doesNotMatch(app, /class="rummy-meld-zone/);
   assert.match(app, /desktopRummyFit/);
 
   const renderer = app.slice(app.indexOf("function renderRotatingRummyCard"), app.indexOf("function renderRummyRouteProgress"));
@@ -63,20 +66,20 @@ test("Rotating Rummy has its own Route UI, controls, and fanned-card renderer", 
   assert.match(css, /\.rummy-card \{/);
   assert.match(css, /\.rummy-card-center > b \{[\s\S]*?min\(56cqw, 46cqh\)[\s\S]*?text-align: center/);
   assert.match(css, /\.rummy-route-banner/);
+  assert.match(css, /\.rummy-route-banner\.complete \{/);
   assert.match(css, /\.rummy-pattern-help/);
-  assert.match(css, /\.rummy-meld-zone/);
   assert.match(css, /\.rummy-link-board/);
-  assert.match(css, /\.rummy-meld-group \.playing-card\.played,[\s\S]*?\.rummy-link-group-cards \.playing-card\.played \{[\s\S]*?flex: 0 0 27px;[\s\S]*?border-radius: 3px/);
+  assert.match(css, /\.rummy-link-group-cards \.playing-card\.played \{[\s\S]*?flex: 0 0 27px;[\s\S]*?border-radius: 3px/);
   assert.match(css, /\.rummy-link-group-cards \.rummy-card-ink::before,[\s\S]*?content: none/);
-  assert.match(css, /\.rummy-meld-group \.rummy-card-center,[\s\S]*?\.rummy-link-group-cards \.rummy-card-center \{ inset-inline: 7%;/);
-  assert.match(css, /\.rummy-meld-group \.rummy-card-center > b,[\s\S]*?\.rummy-link-group-cards \.rummy-card-center > b \{ font-size: min\(48cqw, 40cqh\)/);
-  assert.match(css, /\.rummy-meld-group \.rummy-corner strong,[\s\S]*?\.rummy-link-group-cards \.rummy-corner strong \{[\s\S]*?font-size: min\(26cqw, 20cqh\)/);
+  assert.match(css, /\.rummy-link-group-cards \.rummy-card-center \{ inset-inline: 7%;/);
+  assert.match(css, /\.rummy-link-group-cards \.rummy-card-center > b \{ font-size: min\(48cqw, 40cqh\)/);
+  assert.match(css, /\.rummy-link-group-cards \.rummy-corner strong \{[\s\S]*?font-size: min\(26cqw, 20cqh\)/);
   assert.match(css, /\.rummy-actions \{ grid-template-columns: repeat\(7/);
   assert.match(css, /@media \(max-width: 720px\)[\s\S]*?\.rummy-actions \{ grid-template-columns: repeat\(3/);
-  assert.match(css, /\.rummy-table-stage,\n\.rummy-route-stage \{ display: contents; \}/);
+  assert.match(css, /\.rummy-table-stage \{ display: contents; \}/);
   assert.match(css, /\.playing-game \.rotating-rummy-game \{[\s\S]*?height: calc\(var\(--game-viewport-height\)[\s\S]*?grid-template-rows:/);
-  assert.match(css, /\.rummy-table-stage \{ min-height: 0; display: grid; grid-template-columns:/);
-  assert.match(css, /\.rotating-rummy-game \.rummy-link-board \{ min-height: 0;[\s\S]*?overflow: auto;/);
+  assert.match(css, /\.rummy-table-stage \{ min-height: 0; display: grid; grid-template-rows: minmax\(0, 1fr\) auto;/);
+  assert.match(css, /\.rotating-rummy-game \.rummy-table-stage \.rummy-link-board \{ min-height: 0; max-height: 116px;[\s\S]*?overflow: auto;/);
 });
 
 test("Blackout Edition remains a deck-family-scoped visual preference", () => {

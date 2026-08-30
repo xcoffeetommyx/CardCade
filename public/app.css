@@ -1778,8 +1778,7 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   --rummy-green: #55c878;
   --rummy-yellow: #f5ca4d;
 }
-.rummy-table-stage,
-.rummy-route-stage { display: contents; }
+.rummy-table-stage { display: contents; }
 .rummy-route-banner {
   min-height: 76px;
   padding: 10px 14px;
@@ -1798,6 +1797,17 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 }
 .rummy-route-banner h3 { margin: 2px 0; color: #fff5d3; font-size: 1rem; }
 .rummy-route-banner p { margin: 0; color: var(--muted); font-size: .7rem; line-height: 1.35; }
+.rummy-route-banner.complete {
+  border-color: #f5ca4d;
+  background:
+    linear-gradient(rgba(245,202,77,.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(245,202,77,.055) 1px, transparent 1px),
+    linear-gradient(135deg, rgba(83,58,13,.96), rgba(23,16,6,.98));
+  box-shadow: inset 0 0 22px rgba(245,202,77,.12), 0 0 18px rgba(245,202,77,.12);
+}
+.rummy-route-banner.complete .family-kicker { color: #ffe3a1; }
+.rummy-route-banner.complete h3 { color: #fff6d6; }
+.rummy-route-banner.complete p { color: #f0dbab; }
 .rummy-route-circuit { flex: 0 0 auto; }
 .rummy-pattern-help { border: 1px solid rgba(126,159,194,.48); border-radius: 10px; background: rgba(8,20,35,.84); color: var(--muted); font-size: .68rem; }
 .rummy-pattern-help-toggle { width: 100%; min-height: 0; margin: 0; padding: 8px 11px; display: flex; align-items: center; justify-content: space-between; border: 0; border-radius: 9px; background: transparent; color: #dce9f4; cursor: pointer; font: 800 .68rem "Cardcade Pixel", monospace; letter-spacing: .04em; text-align: left; }
@@ -1872,29 +1882,14 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 .rummy-action-lock i { position: relative; width: 20%; height: 82%; border: 3px solid currentColor; border-radius: 3px; box-shadow: 2px 2px 0 rgba(0,0,0,.34); }
 .rummy-action-lock b { position: absolute; left: 50%; top: 50%; padding: 3px 4px; border: 1px solid rgba(255,255,255,.55); border-radius: 3px; color: #080b11; background: var(--rummy-color); box-shadow: 2px 3px 0 #02050a; font: 900 .47rem "Cardcade Pixel", monospace; transform: translate(-50%, -50%); }
 
-.rummy-meld-zone { min-height: 70px; padding: 10px 13px; display: flex; align-items: center; justify-content: space-between; gap: 14px; border: 2px dashed rgba(163,193,226,.42); border-radius: 14px; color: #cbd8e7; background: rgba(8,22,39,.65); }
-.rummy-meld-zone.complete { border-color: rgba(245,202,77,.74); background: linear-gradient(135deg, rgba(245,202,77,.12), rgba(8,22,39,.82)); }
-.rummy-meld-zone strong, .rummy-meld-zone small { display: block; }
-.rummy-meld-zone strong { margin-top: 2px; color: #fff4ce; font-size: .9rem; }
-.rummy-meld-zone small { margin-top: 3px; color: var(--muted); font-size: .68rem; line-height: 1.35; }
-.rummy-meld-groups { display: flex; flex-wrap: wrap; justify-content: end; gap: 8px; }
-.rummy-meld-group,
 .rummy-link-group-cards { min-height: 39px; display: flex; align-items: center; overflow: hidden; padding-left: 2px; }
-.rummy-meld-group .playing-card.played,
 .rummy-link-group-cards .playing-card.played { position: relative; left: auto; top: auto; flex: 0 0 27px; width: 27px; height: 39px; margin-left: -9px; border-width: 1px; border-radius: 3px; transform: rotate(-3deg); box-shadow: 1px 2px 0 rgba(0,0,0,.45); }
-.rummy-meld-group .playing-card.played:first-child,
 .rummy-link-group-cards .playing-card.played:first-child { margin-left: 0; }
-.rummy-meld-group .rummy-card-ink,
 .rummy-link-group-cards .rummy-card-ink { background: linear-gradient(145deg, #17212d, #070b11 70%); }
-.rummy-meld-group .rummy-card-ink::before,
-.rummy-meld-group .rummy-card-ink::after,
 .rummy-link-group-cards .rummy-card-ink::before,
 .rummy-link-group-cards .rummy-card-ink::after { content: none; }
-.rummy-meld-group .rummy-card-center,
 .rummy-link-group-cards .rummy-card-center { inset-inline: 7%; }
-.rummy-meld-group .rummy-card-center > b,
 .rummy-link-group-cards .rummy-card-center > b { font-size: min(48cqw, 40cqh); text-shadow: 1px 1px 0 #02050a; }
-.rummy-meld-group .rummy-corner strong,
 .rummy-link-group-cards .rummy-corner strong { max-width: 92%; font-size: min(26cqw, 20cqh); white-space: nowrap; }
 .rummy-link-board { padding: 9px 11px; border: 1px solid rgba(163,193,226,.38); border-radius: 12px; background: linear-gradient(135deg, rgba(10,28,49,.84), rgba(4,13,24,.8)); }
 .rummy-link-board-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 7px; }
@@ -2426,8 +2421,7 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   .rotating-rummy-game .game-seat .mini-deck { width: 30px; height: 40px; border-width: 1px; box-shadow: 2px 3px 0 #020710; font-size: .57rem; }
   .rotating-rummy-game .game-seat-copy > small { margin-top: 1px; font-size: .6rem; }
 
-  .rummy-table-stage { min-height: 0; display: grid; grid-template-columns: minmax(220px, .78fr) minmax(0, 1.22fr); gap: 6px; }
-  .rummy-route-stage { min-width: 0; min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 6px; }
+  .rummy-table-stage { min-height: 0; display: grid; grid-template-rows: minmax(0, 1fr) auto; gap: 6px; }
   .rotating-rummy-game .rummy-table { min-height: 0; padding: 8px; border-radius: 14px; }
   .rotating-rummy-game .rummy-table .game-status small { font-size: .65rem; }
   .rotating-rummy-game .rummy-pile-zone { --rummy-table-card-width: clamp(68px, 6vw, 80px); min-height: 0; height: 100%; gap: clamp(15px, 3vw, 34px); }
@@ -2442,11 +2436,7 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   .rotating-rummy-game .rummy-stock::before { inset: 7px; }
   .rotating-rummy-game .rummy-pile-zone .rummy-card.played { flex-basis: var(--rummy-table-card-width); }
 
-  .rotating-rummy-game .rummy-route-stage .rummy-meld-zone { min-height: 0; padding: 7px 9px; gap: 8px; border-width: 1px; border-radius: 10px; overflow: hidden; }
-  .rotating-rummy-game .rummy-route-stage .rummy-meld-zone strong { font-size: .78rem; }
-  .rotating-rummy-game .rummy-route-stage .rummy-meld-zone small { font-size: .6rem; }
-  .rotating-rummy-game .rummy-meld-groups { gap: 5px; }
-  .rotating-rummy-game .rummy-link-board { min-height: 0; padding: 6px 8px; overflow: auto; overscroll-behavior: contain; }
+  .rotating-rummy-game .rummy-table-stage .rummy-link-board { min-height: 0; max-height: 116px; padding: 6px 8px; overflow: auto; overscroll-behavior: contain; }
   .rotating-rummy-game .rummy-link-board-heading { margin-bottom: 4px; }
   .rotating-rummy-game .rummy-link-board-heading small { font-size: .56rem; }
   .rotating-rummy-game .rummy-link-targets { grid-template-columns: repeat(auto-fit, minmax(126px, 1fr)); gap: 5px; }
@@ -2735,8 +2725,6 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   .rummy-route-banner { align-items: flex-start; }
   .rummy-route-circuit { padding-top: 5px; }
   .rummy-pattern-help ul { grid-template-columns: 1fr; gap: 4px; }
-  .rummy-meld-zone { align-items: flex-start; flex-direction: column; }
-  .rummy-meld-groups { justify-content: flex-start; }
   .rummy-link-board-heading { align-items: flex-start; flex-direction: column; gap: 2px; }
   .rummy-link-board-heading small { text-align: left; }
   .rummy-actions { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -2754,10 +2742,6 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   .playing-game .rummy-stock { width: 64px; height: 91px; border-width: 3px; font-size: .62rem; }
   .playing-game .rummy-stock::before { inset: 6px; }
   .playing-game .rummy-stock b { right: -8px; bottom: -8px; min-width: 23px; height: 23px; padding-inline: 3px; font-size: .58rem; }
-  .playing-game .rummy-meld-zone { min-height: 0; padding: 7px 9px; gap: 5px; }
-  .playing-game .rummy-meld-zone strong { font-size: .74rem; }
-  .playing-game .rummy-meld-zone small { font-size: .58rem; }
-  .playing-game .rummy-meld-group .playing-card.played,
   .playing-game .rummy-link-group-cards .playing-card.played { flex-basis: 24px; width: 24px; height: 34px; margin-left: -8px; }
   .playing-game .rummy-link-board { padding: 7px; }
   .playing-game .rummy-link-targets { grid-template-columns: repeat(2, minmax(0, 1fr)); }
