@@ -29,7 +29,8 @@ test("Snap runtime fills CPU seats, maps actions, and exposes no hidden pile ide
   assert.equal(initial.state.players.length, 2);
   assert.equal(initial.state.players.filter((player) => player.type === "bot").length, 1);
   assert.equal(JSON.stringify(initial).includes("drawPile"), false);
-  assert.equal(initial.state.players.reduce((total, player) => total + player.drawCount, 0), 52);
+  assert.equal(initial.state.players.reduce((total, player) => total + player.drawCount, 0), 51);
+  assert.equal(initial.state.currentCard.id, "AS");
 
   runtime.act(room, { type: "snap_ready" });
   now = 300;
@@ -58,8 +59,8 @@ test("Snap snapshots restore countdown and reaction sequencing without another r
   const view = restored.view(hostRoom);
   assert.equal(view.state.reactionId, "snap-1");
   assert.equal(view.state.revealSequence, 1);
-  assert.equal(view.state.currentCard.id, "AS");
-  assert.equal(restored.snapshot(hostRoom.code).centerPile.length, 1);
+  assert.equal(view.state.currentCard.id, "AC");
+  assert.equal(restored.snapshot(hostRoom.code).centerPile.length, 2);
 });
 
 test("disconnect replacement preserves the seat and schedules human-paced bot behavior", () => {

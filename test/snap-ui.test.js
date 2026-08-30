@@ -28,6 +28,7 @@ test("Snap uses the shared physical cards with explicit READY, countdown, and SN
   assert.match(app, /type: "snap_ready"/);
   assert.match(app, /type: "snap_react", reactionId: match\.reactionId/);
   assert.match(app, /skipNextReveal/);
+  assert.doesNotMatch(app, /FIRST CARD/);
   assert.match(css, /\.snap-phase-banner\.counting/);
   assert.match(css, /\.snap-primary-action\.react:not\(:disabled\)/);
   assert.match(css, /touch-action: manipulation/);

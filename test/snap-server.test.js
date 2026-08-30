@@ -88,7 +88,8 @@ test("the shared WebSocket pipeline owns Snap READY, countdown, reveal, and prel
   const initial = await started;
   assert.equal(initial.view.state.phase, "waiting-for-ready");
   assert.equal(JSON.stringify(initial.view).includes("drawPile"), false);
-  assert.equal(initial.view.state.currentCard, null);
+  assert.equal(initial.view.state.currentCard.id, "AS");
+  assert.equal(initial.view.state.centerCount, 1);
 
   hostUpdate = nextMessage(hostSocket, (message) => message.type === "game_state" && message.view.state.players.find((player) => player.seat === 0)?.ready);
   hostSocket.send(JSON.stringify({ type: "snap_ready" }));
@@ -97,7 +98,7 @@ test("the shared WebSocket pipeline owns Snap READY, countdown, reveal, and prel
   const revealed = nextMessage(hostSocket, (message) => message.type === "game_state" && message.view.state.phase === "reaction");
   guestSocket.send(JSON.stringify({ type: "snap_ready" }));
   const countdownState = await countdown;
-  assert.equal(countdownState.view.state.currentCard, null);
+  assert.equal(countdownState.view.state.currentCard.id, "AS");
   assert.ok(countdownState.view.state.countdownEndsAt > Date.now());
 
   const rejected = nextMessage(hostSocket, (message) => message.type === "error" && message.error.code === "SNAP_NOT_AVAILABLE");
@@ -105,9 +106,10 @@ test("the shared WebSocket pipeline owns Snap READY, countdown, reveal, and prel
   await rejected;
 
   const revealState = await revealed;
-  assert.equal(revealState.view.state.currentCard.id, "AS");
+  assert.equal(revealState.view.state.previousCard.id, "AS");
+  assert.equal(revealState.view.state.currentCard.id, "AC");
   assert.equal(revealState.view.state.reactionId, "snap-1");
-  assert.equal(revealState.view.state.actions.snap, false);
+  assert.equal(revealState.view.state.actions.snap, true);
 });
 
 test("Solo Snap starts with a human-paced CPU while Hot Seat is deliberately unavailable", async (t) => {

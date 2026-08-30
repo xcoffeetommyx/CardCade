@@ -5,6 +5,8 @@ import { GameError as RoomError } from "../../game-error.js";
 
 export const COUNTDOWN_MS = 3_000;
 export const REACTION_WINDOW_MS = 1_500;
+export const BOT_REACTION_MIN_MS = 850;
+export const BOT_REACTION_MAX_MS = 1_300;
 
 export class MatchEngine {
   constructor({
@@ -70,9 +72,18 @@ export class MatchEngine {
       finishedAt: null,
       winners: [],
       finalStandings: [],
-      lastMoveText: "Lock in when you are ready for the first reveal.",
+      lastMoveText: "The opening card is face up. Lock in for the first SNAP reveal.",
       log: []
     };
+    const opening = selectNextRevealSource(match);
+    const openingCard = opening.player?.drawPile.shift();
+    if (!opening.player || !openingCard) {
+      throw new RoomError("Snap could not deal its opening card.", "DECK_EMPTY", 500);
+    }
+    match.centerPile.push(openingCard);
+    match.lastRevealSeat = opening.player.seat;
+    match.lastMoveText = `${opening.player.name} opens with ${standard52.cardLabel(openingCard)}. Lock in for the next card.`;
+    match.log.unshift(match.lastMoveText);
     this.#scheduleBotReady(match, this.now());
     return match;
   }
@@ -309,8 +320,8 @@ export class MatchEngine {
     player.botSnapAt = null;
     if (player.type !== "bot" || match.centerPile.length < 2 || match.snapSubmissions.includes(player.seat)) return;
     if (!match.isMatch && !this.botMistake(player, match)) return;
-    const styleAdjustment = player.style === "pressure" ? -40 : player.style === "patient" ? 90 : 0;
-    const delay = Math.max(180, this.randomDelay(240, 680) + styleAdjustment);
+    const styleAdjustment = player.style === "pressure" ? -100 : player.style === "patient" ? 100 : 0;
+    const delay = Math.max(750, this.randomDelay(BOT_REACTION_MIN_MS, BOT_REACTION_MAX_MS) + styleAdjustment);
     player.botSnapAt = revealTime + delay;
   }
 

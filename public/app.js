@@ -1045,7 +1045,7 @@ function renderSnapGame() {
     : match.phase === snapRules.PHASES.COUNTDOWN
       ? "LOCKED IN"
       : match.phase === snapRules.PHASES.REACTION
-        ? (match.centerCount < 2 ? "FIRST CARD" : match.snapSubmissions.includes(viewerSeat) ? "SNAP SENT" : "SNAP")
+        ? (match.snapSubmissions.includes(viewerSeat) ? "SNAP SENT" : "SNAP")
         : "MATCH OVER";
 
   return `

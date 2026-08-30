@@ -50,7 +50,7 @@ test("Snap deals one complete unique Standard 52 deck as evenly as possible", ()
   for (const playerCount of [2, 3, 4]) {
     const players = Array.from({ length: playerCount }, (_, seat) => ({ seat, name: `P${seat}`, type: "human" }));
     const { match } = setup({ players });
-    const piles = match.players.flatMap((player) => player.drawPile);
+    const piles = match.players.flatMap((player) => player.drawPile).concat(match.centerPile);
     const counts = match.players.map((player) => player.drawPile.length);
     assert.equal(piles.length, 52);
     assert.equal(new Set(piles.map((card) => card.id)).size, 52);
@@ -62,8 +62,10 @@ test("private projections hide every upcoming card throughout Ready and countdow
   const game = setup();
   let view = game.engine.viewFor(game.match, 0);
   assert.equal(JSON.stringify(view).includes("drawPile"), false);
-  assert.equal(JSON.stringify(view).includes('"id":"AS"'), false);
-  assert.deepEqual(view.state.players.map((player) => player.drawCount), [26, 26]);
+  assert.deepEqual(view.state.currentCard, { id: "AS", rank: "A", suit: "S" });
+  assert.equal(JSON.stringify(view).includes('"id":"AC"'), false);
+  assert.deepEqual(view.state.players.map((player) => player.drawCount), [25, 26]);
+  assert.equal(view.state.centerCount, 1);
 
   game.engine.ready(game.match, 0, 0);
   assert.equal(game.match.phase, snapRules.PHASES.WAITING_FOR_READY);
@@ -72,7 +74,8 @@ test("private projections hide every upcoming card throughout Ready and countdow
   view = game.engine.viewFor(game.match, 0);
   assert.equal(view.state.phase, snapRules.PHASES.COUNTDOWN);
   assert.equal(view.state.countdownEndsAt, 3_000);
-  assert.equal(view.state.currentCard, null);
+  assert.equal(view.state.currentCard.id, "AS");
+  assert.equal(JSON.stringify(view).includes('"id":"AC"'), false);
 });
 
 test("all players READY before a server-owned three-second reveal", () => {
@@ -83,10 +86,10 @@ test("all players READY before a server-owned three-second reveal", () => {
   game.engine.ready(game.match, 1, 0);
   assert.equal(game.match.phase, snapRules.PHASES.COUNTDOWN);
   assert.equal(game.advanceTo(2_999), false);
-  assert.equal(game.match.centerPile.length, 0);
+  assert.equal(game.match.centerPile.length, 1);
   assert.equal(game.advanceTo(3_000), true);
   assert.equal(game.match.phase, snapRules.PHASES.REACTION);
-  assert.equal(game.match.centerPile[0].id, "AS");
+  assert.deepEqual(game.match.centerPile.map((card) => card.id), ["AS", "AC"]);
   assert.equal(game.match.reactionId, "snap-1");
 });
 
@@ -96,24 +99,22 @@ test("matching compares only the immediately adjacent ranks and ignores suit", (
   assert.equal(snapRules.ranksMatch(null, { rank: "A", suit: "C" }), false);
 
   const game = setup({ deck: scriptedDeck("AS", "AC", "2D", "3H") });
-  finishFirstReaction(game);
-  game.readyAll(4_500);
-  game.advanceTo(7_500);
+  game.readyAll(0);
+  game.advanceTo(3_000);
   assert.equal(game.match.isMatch, true);
   assert.deepEqual(game.match.centerPile.slice(-2).map((card) => card.id), ["AS", "AC"]);
 });
 
 test("the first valid server SNAP wins the center pile exactly once", () => {
   const game = setup({ deck: scriptedDeck("AS", "AC", "2D", "3H") });
-  finishFirstReaction(game);
-  game.readyAll(4_500);
-  game.advanceTo(7_500);
+  game.readyAll(0);
+  game.advanceTo(3_000);
   const reactionId = game.match.reactionId;
-  game.engine.snap(game.match, 1, reactionId, 7_700);
+  game.engine.snap(game.match, 1, reactionId, 3_200);
   assert.equal(game.match.players[1].capturedCount, 2);
   assert.equal(game.match.centerPile.length, 0);
   assert.equal(game.match.phase, snapRules.PHASES.WAITING_FOR_READY);
-  assert.throws(() => game.engine.snap(game.match, 0, reactionId, 7_701), { code: "SNAP_NOT_AVAILABLE" });
+  assert.throws(() => game.engine.snap(game.match, 0, reactionId, 3_201), { code: "SNAP_NOT_AVAILABLE" });
   assert.equal(game.match.players.reduce((total, player) => total + player.capturedCount, 0), 2);
 });
 
@@ -132,20 +133,24 @@ test("failed SNAP is idempotent per player and gives each offender one pending s
   assert.equal(game.engine.viewFor(game.match, 0).state.actions.ready, true);
 });
 
-test("a failed SNAP skips only the offender's next contribution without removing reaction eligibility", () => {
+test("a failed SNAP stays pending through other reveals, then skips only the offender's contribution", () => {
   const game = setup({ deck: scriptedDeck("AS", "2C", "3D", "4H", "5S", "6C") });
-  finishFirstReaction(game);
+  game.readyAll(0);
+  game.advanceTo(3_000); // Seat 1 reveals 2C.
+  game.engine.snap(game.match, 1, game.match.reactionId, 3_100);
+  game.advanceTo(4_500);
   game.readyAll(4_500);
-  game.advanceTo(7_500); // Seat 1 reveals 2C.
-  game.engine.snap(game.match, 0, game.match.reactionId, 7_600);
+  assert.equal(game.match.pendingRevealSeat, 0);
+  assert.equal(game.match.players[1].skipNextReveal, true);
+  game.advanceTo(7_500);
+  assert.equal(game.engine.viewFor(game.match, 1).state.actions.snap, true);
   game.advanceTo(9_000);
   game.readyAll(9_000);
-  assert.deepEqual(game.match.lastSkippedSeats, [0]);
-  assert.equal(game.match.pendingRevealSeat, 1);
-  assert.equal(game.match.players[0].skipNextReveal, false);
+  assert.deepEqual(game.match.lastSkippedSeats, [1]);
+  assert.equal(game.match.pendingRevealSeat, 0);
+  assert.equal(game.match.players[1].skipNextReveal, false);
   game.advanceTo(12_000);
-  assert.equal(game.match.lastRevealSeat, 1);
-  assert.equal(game.engine.viewFor(game.match, 0).state.actions.snap, true);
+  assert.equal(game.match.lastRevealSeat, 0);
 });
 
 test("reaction timeouts advance automatically and stale reaction IDs are rejected", () => {
@@ -175,7 +180,7 @@ test("the last reaction resolves before scoring, leaves neutral center cards, an
   game.advanceTo(4_500);
   assert.equal(game.match.phase, snapRules.PHASES.FINISHED);
   assert.deepEqual(game.match.winners, [0, 1]);
-  assert.equal(game.match.centerPile.length, 1);
+  assert.equal(game.match.centerPile.length, 2);
 });
 
 test("bots ready and react through the same delayed authoritative actions", () => {
@@ -188,14 +193,10 @@ test("bots ready and react through the same delayed authoritative actions", () =
   assert.equal(game.match.players[1].ready, true);
   game.engine.ready(game.match, 0, 300);
   game.advanceTo(3_300);
-  game.advanceTo(4_800);
-  game.engine.ready(game.match, 0, 4_800);
-  game.advanceTo(5_100);
-  game.advanceTo(8_100);
   assert.equal(game.match.isMatch, true);
   assert.equal(game.match.players[1].capturedCount, 0);
-  game.advanceTo(8_399);
+  game.advanceTo(4_049);
   assert.equal(game.match.players[1].capturedCount, 0);
-  game.advanceTo(8_400);
+  game.advanceTo(4_050);
   assert.equal(game.match.players[1].capturedCount, 2);
 });
