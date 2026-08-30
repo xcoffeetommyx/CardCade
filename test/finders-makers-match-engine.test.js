@@ -82,6 +82,20 @@ test("Search preserves the face-down board and reveals a Piece only in the searc
   assert.doesNotMatch(JSON.stringify(opponentView), /privateDiscoveries|pieceId/);
 });
 
+test("normal-round Builds are private and player-specific while the public state has no objective identities", () => {
+  const game = engine();
+  const match = game.createMatch(players, { buildIds: ["cake", "sundae"] });
+  const firstView = game.viewFor(match, 0);
+  const secondView = game.viewFor(match, 1);
+
+  assert.equal(firstView.ownBuild.id, "cake");
+  assert.equal(secondView.ownBuild.id, "sundae");
+  assert.equal(firstView.state.sharedBuild, null);
+  assert.equal(secondView.state.sharedBuild, null);
+  assert.doesNotMatch(JSON.stringify(firstView.state), /cake|sundae|buildIds/);
+  assert.doesNotMatch(JSON.stringify(secondView.state), /cake|sundae|buildIds/);
+});
+
 test("Build validation requires the exact three Pieces, and a failed Build neither wins nor collects cards", () => {
   const game = engine();
   const match = matchFor(["cake", "sundae"]);

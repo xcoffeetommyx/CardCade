@@ -8,7 +8,7 @@ const systemBanner = document.querySelector("#system-banner");
 const systemBannerMessage = document.querySelector("#system-banner-message");
 const systemBannerAction = systemBanner?.querySelector('[data-action="apply-app-update"]');
 const juanPrismRevealRoot = document.querySelector("#juan-prism-reveal-root");
-const findersMakersRevealRoot = document.querySelector("#finders-makers-reveal-root");
+const findersMakersPresentationRoot = document.querySelector("#finders-makers-presentation-root");
 const controllerKeyboardRoot = document.querySelector("#controller-keyboard-root");
 const controllerCursor = document.querySelector("#controller-cursor");
 
@@ -55,11 +55,14 @@ const state = {
   rummyPatternHelpOpen: false,
   juanPrismReveal: null,
   juanPrismRevealTimer: null,
-  findersSearchMode: false,
   findersBuildSelection: new Set(),
-  findersReveal: null,
-  findersRevealTimer: null,
-  findersHighestRevealByScope: new Map(),
+  findersSearchConfirmation: null,
+  findersPendingSearch: null,
+  findersSearchFlip: null,
+  findersSearchFlipTimer: null,
+  findersBuildReveal: null,
+  findersBuildRevealTimer: null,
+  findersPresentedBuildKeys: new Set(),
   findersHotSeatHandoffTimer: null,
   snapCountdownTimer: null,
   gameActionLock: false,
@@ -1956,6 +1959,70 @@ function renderFindersRoundResult(match, isHost) {
     <section class="round-result finders-result">
       <div><span class="family-kicker">Round ${match.round} complete</span><h3>${escapeHtml(match.lastMoveText)}</h3><p>${scores}</p></div>
       <button class="action-button primary" type="button" data-action="finders-next-round" ${isHost ? "" : "disabled"}>${isHost ? `Deal Round ${match.round + 1}` : "Waiting for host"}</button>
+  </section>`;
+}
+
+function findersReducedMotion() {
+  return localStorage.getItem(storageKeys.reducedMotion) === "true"
+    || matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function findersRoundScope(match) {
+  return `${match?.round || 0}:${match?.suddenDeath ? "sudden" : "normal"}`;
+}
+
+function findersPresentationIsActive() {
+  return Boolean(state.findersBuildReveal || state.findersSearchFlip);
+}
+
+function renderFindersPieceCard(card, {
+  selected = false,
+  selectable = false,
+  building = false,
+  latestSearch = null,
+  attempted = false
+} = {}) {
+  const position = card.position;
+  const reveal = state.findersSearchFlip?.position === position ? state.findersSearchFlip : null;
+  const revealing = Boolean(reveal?.piece);
+  const cardLabel = revealing
+    ? `Privately revealed ${reveal.piece.name} at position ${position + 1}`
+    : building ? `Build selection ${position + 1}` : `Face-down Piece ${position + 1}`;
+  const showSearchMarker = position === latestSearch?.position && !revealing;
+  const classes = [
+    "finders-piece-card",
+    selected ? "selected" : "",
+    revealing ? "revealing" : "",
+    revealing && reveal.reducedMotion ? "reduced-motion" : "",
+    attempted ? "attempted" : ""
+  ].filter(Boolean).join(" ");
+  return `
+    <button class="${classes}" type="button" data-action="finders-card" data-finders-position="${position}" aria-pressed="${selected}" aria-label="${escapeHtml(cardLabel)}" ${selectable ? "" : "disabled"}>
+      <span class="finders-piece-card-inner">
+        <span class="finders-piece-card-face finders-piece-card-back" aria-hidden="true">
+          <span class="finders-card-index">${position + 1}</span><b>?</b>${showSearchMarker ? `<i class="finders-search-marker">◉</i>` : ""}${attempted ? '<i class="finders-attempt-marker">×</i>' : ""}
+        </span>
+        <span class="finders-piece-card-face finders-piece-card-front" aria-hidden="true">
+          <i>${revealing ? escapeHtml(reveal.piece.art) : ""}</i><strong>${revealing ? escapeHtml(reveal.piece.name) : ""}</strong><small>${revealing ? "Private Search" : ""}</small>
+        </span>
+      </span>
+    </button>`;
+}
+
+function renderFindersSearchConfirmation(match) {
+  const confirmation = state.findersSearchConfirmation;
+  if (!confirmation || !match.board?.some((card) => card.position === confirmation.position)) return "";
+  return `
+    <section class="finders-search-confirmation" role="dialog" aria-modal="true" aria-labelledby="finders-search-confirmation-title">
+      <div class="finders-search-confirmation-panel">
+        <span class="family-kicker">Private Search · position ${confirmation.position + 1}</span>
+        <h3 id="finders-search-confirmation-title">Search this card?</h3>
+        <p>Lock in this position and reveal it privately.</p>
+        <div class="finders-search-confirmation-actions">
+          <button type="button" data-action="finders-cancel-search">Cancel</button>
+          <button class="primary" type="button" data-action="finders-confirm-search">Lock in</button>
+        </div>
+      </div>
     </section>`;
 }
 
@@ -1969,18 +2036,18 @@ function renderFindersMakersGame() {
   const activePlayer = match.players.find((player) => player.seat === match.activeSeat);
   const isYourTurn = match.phase === "playing" && !match.roundOver && match.activeSeat === viewerSeat;
   const isBuilding = isYourTurn && match.turnMode === "build";
-  const isSearching = isYourTurn && match.turnMode === "choose" && state.findersSearchMode;
   const boardPositions = new Set((match.board || []).map((card) => card.position));
   state.findersBuildSelection = new Set([...state.findersBuildSelection].filter((position) => boardPositions.has(position)));
   const selectedPositions = state.findersBuildSelection;
+  const searchConfirmation = state.findersSearchConfirmation;
   const objective = match.sharedBuild || view.ownBuild;
+  const interactionLocked = state.gameActionLock || findersPresentationIsActive() || Boolean(searchConfirmation);
   const currentStatus = match.roundOver
     ? match.lastMoveText
     : isYourTurn
-      ? isBuilding ? `Choose three cards for ${objective?.name || "your Build"}.` : isSearching ? "Choose one face-down Piece to search privately." : "Search one Piece, or commit to a three-card Build."
+      ? isBuilding ? `Choose three cards for ${objective?.name || "your Build"}.` : "Tap a Piece to search it, or press BUILD to choose three cards."
       : `${activePlayer?.name || "Player"} is taking a private turn.`;
   const attemptedPositions = new Set(match.lastBuildAttempt?.positions || []);
-  const latestSearchPosition = match.latestSearch?.position;
 
   return `
     <section class="standard-card-game ${activeTableAppearanceClass()} finders-makers-game" data-game-id="finders-makers">
@@ -1999,24 +2066,27 @@ function renderFindersMakersGame() {
         <div class="finders-piece-board" style="--finders-columns:${Number(match.grid.columns) || 4}" aria-label="${match.grid.rows} by ${match.grid.columns} face-down Piece board">
           ${(match.board || []).map((card) => {
             const position = card.position;
-            const selected = selectedPositions.has(position);
-            const selectable = !state.gameActionLock && (isSearching || isBuilding);
-            const cardLabel = isBuilding ? `Build selection ${position + 1}` : `Face-down Piece ${position + 1}`;
-            return `<button class="finders-piece-card ${selected ? "selected" : ""} ${isSearching ? "searchable" : ""} ${position === latestSearchPosition ? "last-searched" : ""} ${attemptedPositions.has(position) ? "attempted" : ""}" type="button" data-action="finders-card" data-finders-position="${position}" aria-pressed="${isBuilding ? selected : "false"}" aria-label="${escapeHtml(cardLabel)}" ${selectable ? "" : "disabled"}>
-              <span class="finders-card-index">${position + 1}</span><b aria-hidden="true">?</b>${position === latestSearchPosition ? `<i class="finders-search-marker" aria-label="${escapeHtml(findersPlayerLabel(match, match.latestSearch.seat))} inspected this position">◉</i>` : ""}${attemptedPositions.has(position) ? '<i class="finders-attempt-marker" aria-hidden="true">×</i>' : ""}
-            </button>`;
+            const selected = isBuilding ? selectedPositions.has(position) : searchConfirmation?.position === position;
+            const selectable = !interactionLocked && isYourTurn && (match.turnMode === "choose" || isBuilding);
+            return renderFindersPieceCard(card, {
+              selected,
+              selectable,
+              building: isBuilding,
+              latestSearch: match.latestSearch,
+              attempted: attemptedPositions.has(position)
+            });
           }).join("")}
         </div>
       </section>
       ${!match.roundOver ? `
-        <nav class="game-actions finders-actions">
+        <nav class="game-actions finders-actions ${isBuilding ? "building" : "idle"}">
           ${isBuilding ? `
-            <button type="button" data-action="finders-cancel-build" ${state.gameActionLock ? "disabled" : ""}>Cancel Build</button>
-            <button class="primary" type="button" data-action="finders-commit-build" ${selectedPositions.size === 3 && !state.gameActionLock ? "" : "disabled"}>Commit ${selectedPositions.size}/3</button>` : `
-            <button type="button" data-action="finders-start-search" ${isYourTurn && !state.gameActionLock ? "" : "disabled"}>${isSearching ? "Choose 1 Piece" : "Search"}</button>
-            <button class="primary" type="button" data-action="finders-begin-build" ${isYourTurn && !state.gameActionLock ? "" : "disabled"}>Build · choose 3</button>`}
+            <button type="button" data-action="finders-cancel-build" ${interactionLocked ? "disabled" : ""}>Cancel</button>
+            <button class="primary" type="button" data-action="finders-commit-build" ${selectedPositions.size === 3 && !interactionLocked ? "" : "disabled"}>${selectedPositions.size === 3 ? "Lock in Build" : `Build ${selectedPositions.size}/3`}</button>` : `
+            <button class="primary finders-build-trigger" type="button" data-action="finders-begin-build" ${isYourTurn && !interactionLocked ? "" : "disabled"}>Build</button>`}
         </nav>` : ""}
       ${renderFindersRoundResult(match, isHost)}
+      ${renderFindersSearchConfirmation(match)}
     </section>`;
 }
 
@@ -2152,59 +2222,115 @@ function queueJuanPrismReveal(gameId, previousView, nextView) {
   }, reducedMotion ? 900 : 1_900);
 }
 
-function renderFindersMakersReveal() {
-  const reveal = state.findersReveal;
-  if (!reveal?.piece) return "";
+function renderFindersBuildReveal() {
+  const reveal = state.findersBuildReveal;
+  if (!reveal?.build) return "";
+  const title = reveal.shared ? "Shared Build" : "Your Build";
   return `
-    <aside class="finders-private-reveal" data-reveal-key="${escapeHtml(reveal.key)}" role="status" aria-live="assertive">
-      <span class="family-kicker">Private Search · position ${reveal.position + 1}</span>
-      <div class="finders-private-piece" aria-hidden="true">${escapeHtml(reveal.piece.art)}</div>
-      <strong>${escapeHtml(reveal.piece.name)}</strong>
-      <small>Only you saw this Piece. Remember where it is.</small>
-    </aside>`;
+    <section class="finders-build-reveal ${reveal.shared ? "shared" : ""} ${reveal.reducedMotion ? "reduced-motion" : ""}" data-reveal-key="${escapeHtml(reveal.key)}" role="dialog" aria-modal="true" aria-labelledby="finders-build-reveal-title" tabindex="-1">
+      <div class="finders-build-reveal-card">
+        <div class="finders-build-reveal-card-inner">
+          <div class="finders-build-reveal-card-face finders-build-reveal-card-back" aria-hidden="true"><span>F</span><span>M</span><b>BUILD</b></div>
+          <div class="finders-build-reveal-card-face finders-build-reveal-card-front">
+            <span class="family-kicker">${title}</span>
+            <strong id="finders-build-reveal-title">${escapeHtml(reveal.build.name)}</strong>
+            <i aria-hidden="true">${escapeHtml(reveal.build.art)}</i>
+            <small>Required Pieces</small>
+            <div>${reveal.build.pieces.map((piece) => `<span><i aria-hidden="true">${escapeHtml(piece.art)}</i>${escapeHtml(piece.name)}</span>`).join("")}</div>
+          </div>
+        </div>
+      </div>
+      <p>${reveal.shared ? "Everyone is racing to complete this shared Build." : "This objective is private to you."}</p>
+    </section>`;
 }
 
-function syncFindersMakersReveal() {
-  if (!findersMakersRevealRoot) return;
-  const reveal = state.screen === "game" ? state.findersReveal : null;
-  const existing = findersMakersRevealRoot.firstElementChild;
+function syncFindersMakersPresentation() {
+  const reveal = state.screen === "game" ? state.findersBuildReveal : null;
+  if (app) app.inert = Boolean(reveal);
+  if (!findersMakersPresentationRoot) return;
+  const existing = findersMakersPresentationRoot.firstElementChild;
   if (!reveal) {
-    if (existing) findersMakersRevealRoot.replaceChildren();
+    if (existing) findersMakersPresentationRoot.replaceChildren();
     return;
   }
   if (existing?.dataset.revealKey === reveal.key) return;
-  findersMakersRevealRoot.innerHTML = renderFindersMakersReveal();
+  findersMakersPresentationRoot.innerHTML = renderFindersBuildReveal();
+  requestAnimationFrame(() => findersMakersPresentationRoot.firstElementChild?.focus({ preventScroll: true }));
 }
 
-function clearFindersMakersReveal() {
-  clearTimeout(state.findersRevealTimer);
-  state.findersRevealTimer = null;
-  state.findersReveal = null;
-  syncFindersMakersReveal();
+function clearFindersSearchFlip() {
+  clearTimeout(state.findersSearchFlipTimer);
+  state.findersSearchFlipTimer = null;
+  state.findersSearchFlip = null;
 }
 
-function queueFindersMakersReveal(gameId, previousView, nextView) {
+function clearFindersBuildReveal() {
+  clearTimeout(state.findersBuildRevealTimer);
+  state.findersBuildRevealTimer = null;
+  state.findersBuildReveal = null;
+  syncFindersMakersPresentation();
+}
+
+function clearFindersMakersPresentation() {
+  state.findersSearchConfirmation = null;
+  state.findersPendingSearch = null;
+  clearFindersSearchFlip();
+  clearFindersBuildReveal();
+}
+
+function queueFindersSearchFlip(gameId, previousView, nextView) {
   if (gameId !== "finders-makers") return false;
   const privateSearch = nextView?.privateSearch;
   const match = nextView?.state;
-  if (!privateSearch?.piece || !Number.isInteger(privateSearch.position) || !match) return false;
-  const revealScope = `${match.round}:${match.suddenDeath ? "sudden" : "normal"}`;
+  const pending = state.findersPendingSearch;
+  if (!privateSearch?.piece || !Number.isInteger(privateSearch.position) || !match || !pending) return false;
+  const revealScope = findersRoundScope(match);
+  if (pending.scope !== revealScope || pending.position !== privateSearch.position || Number(privateSearch.id) <= pending.baselineId) return false;
+  if (Number(previousView?.privateSearch?.id) === Number(privateSearch.id) && findersRoundScope(previousView?.state) === revealScope) return false;
   const revealKey = `${revealScope}:${privateSearch.id}`;
-  if (Number(privateSearch.id) <= (state.findersHighestRevealByScope.get(revealScope) || 0)) return false;
-  state.findersHighestRevealByScope.set(revealScope, Number(privateSearch.id));
-  clearTimeout(state.findersRevealTimer);
-  state.findersReveal = {
+  if (state.findersSearchFlip?.key === revealKey) return false;
+  clearFindersSearchFlip();
+  state.findersPendingSearch = null;
+  state.findersSearchConfirmation = null;
+  const reducedMotion = findersReducedMotion();
+  state.findersSearchFlip = {
     key: revealKey,
     position: privateSearch.position,
-    piece: { ...privateSearch.piece }
+    piece: { ...privateSearch.piece },
+    reducedMotion
   };
-  const reducedMotion = localStorage.getItem(storageKeys.reducedMotion) === "true"
-    || matchMedia("(prefers-reduced-motion: reduce)").matches;
-  state.findersRevealTimer = setTimeout(() => {
-    if (state.findersReveal?.key !== revealKey) return;
-    clearFindersMakersReveal();
+  state.findersSearchFlipTimer = setTimeout(() => {
+    if (state.findersSearchFlip?.key !== revealKey) return;
+    clearFindersSearchFlip();
     if (state.screen === "game") render();
-  }, reducedMotion ? 1_100 : 2_700);
+  }, reducedMotion ? 1_100 : 2_150);
+  return true;
+}
+
+function queueFindersBuildReveal(gameId, previousView, nextView) {
+  if (gameId !== "finders-makers") return false;
+  const match = nextView?.state;
+  const build = match?.sharedBuild || nextView?.ownBuild;
+  if (!match || match.phase !== "playing" || !build?.id || !Array.isArray(build.pieces)) return false;
+  const viewerSeat = state.room?.players?.find((player) => player.isYou)?.seat ?? "viewer";
+  const revealKey = `${viewerSeat}:${findersRoundScope(match)}:${build.id}`;
+  if (state.findersPresentedBuildKeys.has(revealKey) || state.findersBuildReveal?.key === revealKey) return false;
+  state.findersPresentedBuildKeys.add(revealKey);
+  clearFindersBuildReveal();
+  state.findersSearchConfirmation = null;
+  state.findersPendingSearch = null;
+  const reducedMotion = findersReducedMotion();
+  state.findersBuildReveal = {
+    key: revealKey,
+    shared: Boolean(match.sharedBuild),
+    build: { ...build, pieces: build.pieces.map((piece) => ({ ...piece })) },
+    reducedMotion
+  };
+  state.findersBuildRevealTimer = setTimeout(() => {
+    if (state.findersBuildReveal?.key !== revealKey) return;
+    clearFindersBuildReveal();
+    if (state.screen === "game") render();
+  }, reducedMotion ? 1_500 : 3_700);
   return true;
 }
 
@@ -2566,7 +2692,7 @@ function render() {
   const screen = (screens[state.screen] || renderHome)();
   app.innerHTML = screen;
   syncJuanPrismReveal();
-  syncFindersMakersReveal();
+  syncFindersMakersPresentation();
   syncSnapCountdown();
   syncControllerTextEntry();
   if (state.screen === "game") {
@@ -2575,6 +2701,8 @@ function render() {
     animateStandardHandReflow(previousHand);
     const firstColor = app.querySelector(".juan-prism-dialog .juan-color-choice");
     if (firstColor) requestAnimationFrame(() => firstColor.focus({ preventScroll: true }));
+    const searchConfirmation = app.querySelector('[data-action="finders-confirm-search"]');
+    if (searchConfirmation) requestAnimationFrame(() => searchConfirmation.focus({ preventScroll: true }));
   }
   if (controllerState.active) requestAnimationFrame(updateControllerHover);
   restoreGameScrollPosition(gameScrollPosition);
@@ -2919,7 +3047,7 @@ function isHotSeatCpuTurn(view) {
 }
 
 function queueHotSeatCpuTurn({ room = state.room, view = state.gameView } = {}) {
-  clearFindersMakersReveal();
+  clearFindersMakersPresentation();
   clearTimeout(state.findersHotSeatHandoffTimer);
   clearTimeout(state.snapCountdownTimer);
   state.findersHotSeatHandoffTimer = null;
@@ -2931,7 +3059,6 @@ function queueHotSeatCpuTurn({ room = state.room, view = state.gameView } = {}) 
   state.selectedCards = new Set();
   state.juanChosenColor = null;
   state.rummyLinkTarget = null;
-  state.findersSearchMode = false;
   state.findersBuildSelection = new Set();
   state.gameActionLock = false;
   state.dealtHandOwners = new Set();
@@ -2943,7 +3070,7 @@ function queueHotSeatCpuTurn({ room = state.room, view = state.gameView } = {}) 
 function queueHotSeatHandoff(seatNumber, { room = state.room, view = state.gameView } = {}) {
   const nextSeat = hotSeatSessionForSeat(seatNumber);
   if (!nextSeat) return false;
-  clearFindersMakersReveal();
+  clearFindersMakersPresentation();
   clearTimeout(state.findersHotSeatHandoffTimer);
   state.findersHotSeatHandoffTimer = null;
   disconnectRoomSocket();
@@ -2954,7 +3081,6 @@ function queueHotSeatHandoff(seatNumber, { room = state.room, view = state.gameV
   state.selectedCards = new Set();
   state.juanChosenColor = null;
   state.rummyLinkTarget = null;
-  state.findersSearchMode = false;
   state.findersBuildSelection = new Set();
   state.gameActionLock = false;
   state.dealtHandOwners = new Set();
@@ -2966,8 +3092,8 @@ function queueHotSeatHandoff(seatNumber, { room = state.room, view = state.gameV
 
 function beginHotSeatSession(session) {
   clearJuanPrismReveal();
-  clearFindersMakersReveal();
-  state.findersHighestRevealByScope = new Map();
+  clearFindersMakersPresentation();
+  state.findersPresentedBuildKeys = new Set();
   state.gameMode = "hot-seat";
   state.hotSeatSeats = session.hotSeat?.seats || [];
   state.session = { code: session.code, token: session.token, playerId: session.playerId, mode: "hot-seat" };
@@ -3004,12 +3130,12 @@ async function revealHotSeatHand() {
   state.selectedCards = new Set();
   state.juanChosenColor = null;
   clearJuanPrismReveal();
-  clearFindersMakersReveal();
-  state.findersSearchMode = false;
+  clearFindersMakersPresentation();
   state.findersBuildSelection = new Set();
   state.gameActionLock = false;
   state.dealtHandOwners = new Set();
   state.lastPileSignature = null;
+  queueFindersBuildReveal(session.room?.gameId, null, state.gameView);
   saveHotSeatSession();
   connectRoom(state.session);
   navigate("game");
@@ -3017,7 +3143,7 @@ async function revealHotSeatHand() {
 
 function clearGameSession() {
   disconnectRoomSocket();
-  clearFindersMakersReveal();
+  clearFindersMakersPresentation();
   clearTimeout(state.findersHotSeatHandoffTimer);
   state.findersHotSeatHandoffTimer = null;
   localStorage.removeItem(storageKeys.room);
@@ -3032,9 +3158,8 @@ function clearGameSession() {
   state.selectedCards = new Set();
   state.juanChosenColor = null;
   state.rummyLinkTarget = null;
-  state.findersSearchMode = false;
   state.findersBuildSelection = new Set();
-  state.findersHighestRevealByScope = new Map();
+  state.findersPresentedBuildKeys = new Set();
   state.gameActionLock = false;
   state.dealtHandOwners = new Set();
   state.lastPileSignature = null;
@@ -3119,11 +3244,12 @@ function connectRoom(session) {
         state.selectedCards = new Set();
         state.juanChosenColor = null;
         state.rummyLinkTarget = null;
-        state.findersSearchMode = false;
         state.findersBuildSelection = new Set();
-        state.findersHighestRevealByScope = new Map();
+        state.findersSearchConfirmation = null;
+        state.findersPendingSearch = null;
+        state.findersPresentedBuildKeys = new Set();
         clearJuanPrismReveal();
-        clearFindersMakersReveal();
+        clearFindersMakersPresentation();
         state.gameActionLock = false;
         state.dealtHandOwners = new Set();
         state.lastPileSignature = null;
@@ -3131,7 +3257,7 @@ function connectRoom(session) {
       } else if (state.screen === "room") render();
     } else if (message.type === "game_state" && supportsGame(message.gameId)) {
       queueJuanPrismReveal(message.gameId, state.gameView, message.view);
-      const hasPrivateFindersReveal = queueFindersMakersReveal(message.gameId, state.gameView, message.view);
+      const hasPrivateFindersReveal = queueFindersSearchFlip(message.gameId, state.gameView, message.view);
       if (state.gameMode === "hot-seat" && state.hotSeatPendingPlayerId) return;
       if (state.gameMode === "hot-seat") {
         const viewer = message.room.players.find((player) => player.isYou);
@@ -3147,15 +3273,13 @@ function connectRoom(session) {
           state.gameActionLock = false;
           state.screen = "game";
           render();
-          const reducedMotion = localStorage.getItem(storageKeys.reducedMotion) === "true"
-            || matchMedia("(prefers-reduced-motion: reduce)").matches;
           clearTimeout(state.findersHotSeatHandoffTimer);
           state.findersHotSeatHandoffTimer = setTimeout(() => {
             state.findersHotSeatHandoffTimer = null;
             if (state.gameMode === "hot-seat" && state.screen === "game") {
               queueHotSeatHandoff(requiredSeat, { room: message.room, view: message.view });
             }
-          }, reducedMotion ? 1_100 : 2_700);
+          }, state.findersSearchFlip?.reducedMotion ? 1_100 : 2_150);
           return;
         }
         if (isHotSeatCpuTurn(message.view)) {
@@ -3176,8 +3300,9 @@ function connectRoom(session) {
         state.lastPileSignature = null;
         state.rummyLinkTarget = null;
         state.findersBuildSelection = new Set();
-        state.findersSearchMode = false;
-        state.findersHighestRevealByScope = new Map();
+        state.findersSearchConfirmation = null;
+        state.findersPendingSearch = null;
+        if (previousGameId !== message.gameId) state.findersPresentedBuildKeys = new Set();
       }
       normalizeGameSort(message.gameId);
       state.room = message.room;
@@ -3192,14 +3317,17 @@ function connectRoom(session) {
       if (!state.selectedCards.size) state.juanChosenColor = null;
       if (message.gameId !== "rotating-rummy") state.rummyLinkTarget = null;
       if (message.gameId !== "finders-makers") {
-        state.findersSearchMode = false;
         state.findersBuildSelection = new Set();
+        state.findersSearchConfirmation = null;
+        state.findersPendingSearch = null;
       } else {
         const viewer = message.room.players.find((player) => player.isYou);
         const canKeepBuildSelection = message.view.state.activeSeat === viewer?.seat && message.view.state.turnMode === "build";
         if (!canKeepBuildSelection) state.findersBuildSelection = new Set();
-        if (message.view.state.activeSeat !== viewer?.seat || message.view.state.turnMode !== "choose") state.findersSearchMode = false;
+        const canKeepSearchConfirmation = message.view.state.activeSeat === viewer?.seat && message.view.state.turnMode === "choose";
+        if (!canKeepSearchConfirmation) state.findersSearchConfirmation = null;
       }
+      queueFindersBuildReveal(message.gameId, null, message.view);
       state.screen = "game";
       render();
     } else if (message.type === "table_closed") {
@@ -3209,6 +3337,8 @@ function connectRoom(session) {
     } else if (message.type === "error") {
       state.gameActionLock = false;
       state.hotSeatForceHandoff = false;
+      state.findersSearchConfirmation = null;
+      state.findersPendingSearch = null;
       showToast(message.error?.message || "The room rejected that action.");
       if (state.screen === "game") render();
     }
@@ -3236,7 +3366,7 @@ function enterRoom(session) {
 
 function enterGameSession(session, mode) {
   clearJuanPrismReveal();
-  clearFindersMakersReveal();
+  clearFindersMakersPresentation();
   state.session = { code: session.code, token: session.token, playerId: session.playerId, mode };
   state.room = session.room;
   state.gameView = session.game?.view || null;
@@ -3244,13 +3374,13 @@ function enterGameSession(session, mode) {
   state.selectedCards = new Set();
   state.juanChosenColor = null;
   state.rummyLinkTarget = null;
-  state.findersSearchMode = false;
   state.findersBuildSelection = new Set();
-  state.findersHighestRevealByScope = new Map();
+  state.findersPresentedBuildKeys = new Set();
   state.gameSort = defaultSortForGame(session.game?.gameId);
   state.gameActionLock = false;
   state.dealtHandOwners = new Set();
   state.lastPileSignature = null;
+  queueFindersBuildReveal(session.game?.gameId, null, state.gameView);
   localStorage.setItem(storageKeys.room, JSON.stringify(state.session));
   connectRoom(state.session);
   navigate("game");
@@ -3496,20 +3626,37 @@ document.addEventListener("click", async (event) => {
     state.rummyPatternHelpOpen = !state.rummyPatternHelpOpen;
     render();
   }
-  if (action === "finders-start-search") {
+  if (action === "finders-cancel-search") {
+    if (!state.findersSearchConfirmation || state.gameActionLock) return;
+    state.findersSearchConfirmation = null;
+    render();
+    return;
+  }
+  if (action === "finders-confirm-search") {
     const match = state.gameView?.state;
     const viewer = state.room?.players.find((player) => player.isYou);
-    if (state.gameActionLock || state.room?.gameId !== "finders-makers" || match?.activeSeat !== viewer?.seat || match?.turnMode !== "choose" || match?.roundOver) return;
-    state.findersSearchMode = !state.findersSearchMode;
-    state.findersBuildSelection = new Set();
-    render();
+    const confirmation = state.findersSearchConfirmation;
+    if (state.gameActionLock || findersPresentationIsActive() || !confirmation || state.room?.gameId !== "finders-makers" || match?.activeSeat !== viewer?.seat || match?.turnMode !== "choose" || match?.roundOver) return;
+    const baselineId = Number(state.gameView?.privateSearch?.id);
+    state.findersPendingSearch = {
+      position: confirmation.position,
+      scope: findersRoundScope(match),
+      baselineId: Number.isInteger(baselineId) ? baselineId : 0
+    };
+    state.findersSearchConfirmation = null;
+    state.gameActionLock = true;
+    if (!sendRoom({ type: "finders_search", position: confirmation.position })) {
+      state.gameActionLock = false;
+      state.findersPendingSearch = null;
+      render();
+    } else render();
     return;
   }
   if (action === "finders-card") {
     const match = state.gameView?.state;
     const viewer = state.room?.players.find((player) => player.isYou);
     const position = Number(button.dataset.findersPosition);
-    if (state.gameActionLock || state.room?.gameId !== "finders-makers" || !Number.isInteger(position) || match?.activeSeat !== viewer?.seat || match?.roundOver) return;
+    if (state.gameActionLock || findersPresentationIsActive() || state.findersSearchConfirmation || state.room?.gameId !== "finders-makers" || !Number.isInteger(position) || match?.activeSeat !== viewer?.seat || match?.roundOver) return;
     if (match.turnMode === "build") {
       if (state.findersBuildSelection.has(position)) state.findersBuildSelection.delete(position);
       else if (state.findersBuildSelection.size < 3) state.findersBuildSelection.add(position);
@@ -3517,22 +3664,18 @@ document.addEventListener("click", async (event) => {
       render();
       return;
     }
-    if (match.turnMode !== "choose" || !state.findersSearchMode) return;
-    state.gameActionLock = true;
-    state.findersSearchMode = false;
-    if (!sendRoom({ type: "finders_search", position })) {
-      state.gameActionLock = false;
-      render();
-    }
+    if (match.turnMode !== "choose") return;
+    state.findersBuildSelection = new Set();
+    state.findersSearchConfirmation = { position };
+    render();
     return;
   }
   if (action === "finders-begin-build" || action === "finders-cancel-build") {
     const match = state.gameView?.state;
     const viewer = state.room?.players.find((player) => player.isYou);
     const expectedMode = action === "finders-begin-build" ? "choose" : "build";
-    if (state.gameActionLock || state.room?.gameId !== "finders-makers" || match?.activeSeat !== viewer?.seat || match?.turnMode !== expectedMode || match?.roundOver) return;
+    if (state.gameActionLock || findersPresentationIsActive() || state.findersSearchConfirmation || state.room?.gameId !== "finders-makers" || match?.activeSeat !== viewer?.seat || match?.turnMode !== expectedMode || match?.roundOver) return;
     state.gameActionLock = true;
-    state.findersSearchMode = false;
     state.findersBuildSelection = new Set();
     if (!sendRoom({ type: action === "finders-begin-build" ? "finders_begin_build" : "finders_cancel_build" })) {
       state.gameActionLock = false;
@@ -3543,7 +3686,7 @@ document.addEventListener("click", async (event) => {
   if (action === "finders-commit-build") {
     const match = state.gameView?.state;
     const viewer = state.room?.players.find((player) => player.isYou);
-    if (state.gameActionLock || state.room?.gameId !== "finders-makers" || match?.activeSeat !== viewer?.seat || match?.turnMode !== "build" || state.findersBuildSelection.size !== 3) return;
+    if (state.gameActionLock || findersPresentationIsActive() || state.findersSearchConfirmation || state.room?.gameId !== "finders-makers" || match?.activeSeat !== viewer?.seat || match?.turnMode !== "build" || state.findersBuildSelection.size !== 3) return;
     state.gameActionLock = true;
     const positions = [...state.findersBuildSelection].sort((left, right) => left - right);
     if (!sendRoom({ type: "finders_attempt_build", positions })) {
@@ -3553,7 +3696,8 @@ document.addEventListener("click", async (event) => {
     return;
   }
   if (action === "finders-next-round" || action === "finders-start-sudden-death") {
-    state.findersSearchMode = false;
+    state.findersSearchConfirmation = null;
+    state.findersPendingSearch = null;
     state.findersBuildSelection = new Set();
     if (state.gameMode === "hot-seat") state.hotSeatForceHandoff = true;
     const type = action === "finders-next-round" ? "finders_next_round" : "finders_start_sudden_death";
@@ -3934,10 +4078,9 @@ document.addEventListener("click", async (event) => {
     state.gameView = null;
     state.selectedCards = new Set();
     state.juanChosenColor = null;
-    state.findersSearchMode = false;
     state.findersBuildSelection = new Set();
-    state.findersHighestRevealByScope = new Map();
-    clearFindersMakersReveal();
+    state.findersPresentedBuildKeys = new Set();
+    clearFindersMakersPresentation();
     state.gameActionLock = false;
     state.dealtHandOwners = new Set();
     state.lastPileSignature = null;
@@ -3946,6 +4089,12 @@ document.addEventListener("click", async (event) => {
 });
 
 document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && app.querySelector(".finders-search-confirmation")) {
+    event.preventDefault();
+    state.findersSearchConfirmation = null;
+    render();
+    return;
+  }
   if (event.key === "Escape" && app.querySelector(".juan-prism-dialog")) {
     event.preventDefault();
     state.selectedCards.clear();
@@ -4131,6 +4280,8 @@ function handleControllerButton(action) {
 function controllerTargetScope() {
   return controllerKeyboardRoot?.querySelector(".controller-keyboard-dialog")
     || document.querySelector("dialog[open]")
+    || findersMakersPresentationRoot?.querySelector(".finders-build-reveal")
+    || app.querySelector(".finders-search-confirmation")
     || app.querySelector(".juan-prism-dialog")
     || app.querySelector(".round-result")
     || document;
@@ -4253,6 +4404,11 @@ function controllerBack() {
   const prismCancel = app.querySelector('[data-action="cancel-juan-color"]');
   if (prismCancel) {
     prismCancel.click();
+    return;
+  }
+  const findersSearchCancel = app.querySelector('[data-action="finders-cancel-search"]');
+  if (findersSearchCancel) {
+    findersSearchCancel.click();
     return;
   }
   if (document.activeElement?.matches?.("input, select, textarea")) {
