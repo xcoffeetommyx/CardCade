@@ -1876,30 +1876,30 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 .rummy-meld-zone strong { margin-top: 2px; color: #fff4ce; font-size: .9rem; }
 .rummy-meld-zone small { margin-top: 3px; color: var(--muted); font-size: .68rem; line-height: 1.35; }
 .rummy-meld-groups { display: flex; flex-wrap: wrap; justify-content: end; gap: 8px; }
-.rummy-meld-group { min-height: 56px; display: flex; align-items: center; padding-left: 3px; }
-.rummy-meld-group .playing-card.played { position: relative; left: auto; top: auto; flex: 0 0 40px; width: 40px; height: 57px; margin-left: -13px; border-width: 2px; border-radius: 4px; transform: rotate(-3deg); box-shadow: 2px 3px 0 rgba(0,0,0,.46); }
-.rummy-meld-group .playing-card.played:first-child { margin-left: 0; }
+.rummy-meld-group,
+.rummy-link-group-cards { min-height: 39px; display: flex; align-items: center; overflow: hidden; padding-left: 2px; }
+.rummy-meld-group .playing-card.played,
+.rummy-link-group-cards .playing-card.played { position: relative; left: auto; top: auto; flex: 0 0 27px; width: 27px; height: 39px; margin-left: -9px; border-width: 1px; border-radius: 3px; transform: rotate(-3deg); box-shadow: 1px 2px 0 rgba(0,0,0,.45); }
+.rummy-meld-group .playing-card.played:first-child,
+.rummy-link-group-cards .playing-card.played:first-child { margin-left: 0; }
 .rummy-meld-group .rummy-card-ink,
 .rummy-link-group-cards .rummy-card-ink { background: linear-gradient(145deg, #17212d, #070b11 70%); }
 .rummy-meld-group .rummy-card-ink::before,
 .rummy-meld-group .rummy-card-ink::after,
 .rummy-link-group-cards .rummy-card-ink::before,
 .rummy-link-group-cards .rummy-card-ink::after { content: none; }
-.rummy-meld-group .rummy-card-center { inset-inline: 8%; }
-.rummy-meld-group .rummy-card-center > b { font-size: min(50cqw, 42cqh); text-shadow: 1px 2px 0 #02050a; }
-.rummy-meld-group .rummy-corner strong { max-width: 90%; font-size: min(28cqw, 22cqh); white-space: nowrap; }
+.rummy-meld-group .rummy-card-center,
+.rummy-link-group-cards .rummy-card-center { inset-inline: 7%; }
+.rummy-meld-group .rummy-card-center > b,
+.rummy-link-group-cards .rummy-card-center > b { font-size: min(48cqw, 40cqh); text-shadow: 1px 1px 0 #02050a; }
+.rummy-meld-group .rummy-corner strong,
+.rummy-link-group-cards .rummy-corner strong { max-width: 92%; font-size: min(26cqw, 20cqh); white-space: nowrap; }
 .rummy-link-board { padding: 9px 11px; border: 1px solid rgba(163,193,226,.38); border-radius: 12px; background: linear-gradient(135deg, rgba(10,28,49,.84), rgba(4,13,24,.8)); }
 .rummy-link-board-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 7px; }
 .rummy-link-board-heading small { color: var(--muted); font-size: .62rem; text-align: right; }
 .rummy-link-targets { display: grid; grid-template-columns: repeat(auto-fit, minmax(155px, 1fr)); gap: 7px; }
 .rummy-link-group-card { min-width: 0; padding: 6px; border: 1px solid rgba(163,193,226,.28); border-radius: 9px; background: rgba(3,11,20,.62); transition: border-color .16s ease, box-shadow .16s ease, background .16s ease; }
 .rummy-link-group-card.selected { border-color: #f5ca4d; background: rgba(111,78,18,.26); box-shadow: 0 0 13px rgba(245,202,77,.18); }
-.rummy-link-group-cards { min-height: 39px; display: flex; align-items: center; overflow: hidden; padding-left: 2px; }
-.rummy-link-group-cards .playing-card.played { position: relative; left: auto; top: auto; flex: 0 0 27px; width: 27px; height: 39px; margin-left: -9px; border-width: 1px; border-radius: 3px; transform: rotate(-3deg); box-shadow: 1px 2px 0 rgba(0,0,0,.45); }
-.rummy-link-group-cards .playing-card.played:first-child { margin-left: 0; }
-.rummy-link-group-cards .rummy-card-center { inset-inline: 7%; }
-.rummy-link-group-cards .rummy-card-center > b { font-size: min(48cqw, 40cqh); text-shadow: 1px 1px 0 #02050a; }
-.rummy-link-group-cards .rummy-corner strong { max-width: 92%; font-size: min(26cqw, 20cqh); white-space: nowrap; }
 .rummy-link-group-card button { width: 100%; min-height: 28px; margin-top: 5px; padding: 4px 5px; font-size: .55rem; }
 .rummy-actions { grid-template-columns: repeat(7, minmax(0, 1fr)); }
 .rummy-actions button.primary { border-color: #f5ca4d; background: linear-gradient(#b98425, #81531b); }
@@ -2663,12 +2663,11 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   .playing-game .rummy-meld-zone { min-height: 0; padding: 7px 9px; gap: 5px; }
   .playing-game .rummy-meld-zone strong { font-size: .74rem; }
   .playing-game .rummy-meld-zone small { font-size: .58rem; }
-  .playing-game .rummy-meld-group { min-height: 44px; }
-  .playing-game .rummy-meld-group .playing-card.played { flex-basis: 31px; width: 31px; height: 44px; margin-left: -10px; }
+  .playing-game .rummy-meld-group .playing-card.played,
+  .playing-game .rummy-link-group-cards .playing-card.played { flex-basis: 24px; width: 24px; height: 34px; margin-left: -8px; }
   .playing-game .rummy-link-board { padding: 7px; }
   .playing-game .rummy-link-targets { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .playing-game .rummy-link-group-card { padding: 5px; }
-  .playing-game .rummy-link-group-cards .playing-card.played { flex-basis: 24px; width: 24px; height: 34px; margin-left: -8px; }
   .playing-game .rummy-link-group-card button { min-height: 25px; margin-top: 3px; font-size: .49rem; }
   .playing-game .rummy-actions { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .playing-game .rummy-actions button { min-height: 39px; font-size: .58rem; }

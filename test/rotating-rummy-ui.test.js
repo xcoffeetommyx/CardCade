@@ -63,12 +63,11 @@ test("Rotating Rummy has its own Route UI, controls, and fanned-card renderer", 
   assert.match(css, /\.rummy-pattern-help/);
   assert.match(css, /\.rummy-meld-zone/);
   assert.match(css, /\.rummy-link-board/);
-  assert.match(css, /\.rummy-link-group-cards \.playing-card\.played \{[\s\S]*?border-radius: 3px/);
+  assert.match(css, /\.rummy-meld-group \.playing-card\.played,[\s\S]*?\.rummy-link-group-cards \.playing-card\.played \{[\s\S]*?flex: 0 0 27px;[\s\S]*?border-radius: 3px/);
   assert.match(css, /\.rummy-link-group-cards \.rummy-card-ink::before,[\s\S]*?content: none/);
-  assert.match(css, /\.rummy-meld-group \.rummy-card-center > b \{ font-size: min\(50cqw, 42cqh\)/);
-  assert.match(css, /\.rummy-meld-group \.rummy-corner strong \{[\s\S]*?font-size: min\(28cqw, 22cqh\)/);
-  assert.match(css, /\.rummy-link-group-cards \.rummy-card-center > b \{ font-size: min\(48cqw, 40cqh\)/);
-  assert.match(css, /\.rummy-link-group-cards \.rummy-corner strong \{[\s\S]*?font-size: min\(26cqw, 20cqh\)/);
+  assert.match(css, /\.rummy-meld-group \.rummy-card-center,[\s\S]*?\.rummy-link-group-cards \.rummy-card-center \{ inset-inline: 7%;/);
+  assert.match(css, /\.rummy-meld-group \.rummy-card-center > b,[\s\S]*?\.rummy-link-group-cards \.rummy-card-center > b \{ font-size: min\(48cqw, 40cqh\)/);
+  assert.match(css, /\.rummy-meld-group \.rummy-corner strong,[\s\S]*?\.rummy-link-group-cards \.rummy-corner strong \{[\s\S]*?font-size: min\(26cqw, 20cqh\)/);
   assert.match(css, /\.rummy-actions \{ grid-template-columns: repeat\(7/);
   assert.match(css, /@media \(max-width: 720px\)[\s\S]*?\.rummy-actions \{ grid-template-columns: repeat\(3/);
 });
