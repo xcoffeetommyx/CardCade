@@ -16,5 +16,15 @@
     return Boolean(first && second && first.rank === second.rank);
   }
 
-  return Object.freeze({ PHASES, ranksMatch });
+  function matchType(centerPile) {
+    if (!Array.isArray(centerPile)) return null;
+    const currentCard = centerPile.at(-1);
+    const previousCard = centerPile.at(-2);
+    const twoBackCard = centerPile.at(-3);
+    if (ranksMatch(currentCard, previousCard)) return "direct";
+    if (ranksMatch(currentCard, twoBackCard)) return "sandwich";
+    return null;
+  }
+
+  return Object.freeze({ PHASES, ranksMatch, matchType });
 });

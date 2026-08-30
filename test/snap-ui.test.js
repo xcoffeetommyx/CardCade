@@ -22,7 +22,10 @@ test("Snap uses the shared physical cards with explicit READY, countdown, and SN
   const css = read("public/app.css");
   assert.match(app, /function renderSnapGame/);
   assert.match(app, /renderPlayingCard\(match\.previousCard/);
+  assert.match(app, /renderPlayingCard\(match\.twoBackCard/);
   assert.match(app, /renderPlayingCard\(match\.currentCard/);
+  assert.match(app, /match\.matchType === "sandwich"/);
+  assert.match(app, /SNAP on matching ranks or a sandwich: 7 → K → 7/);
   assert.match(app, /snapCountdownValue/);
   assert.match(app, /data-action="\$\{match\.phase === snapRules\.PHASES\.REACTION \? "snap-react" : "snap-ready"\}"/);
   assert.match(app, /type: "snap_ready"/);

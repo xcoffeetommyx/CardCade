@@ -93,16 +93,58 @@ test("all players READY before a server-owned three-second reveal", () => {
   assert.equal(game.match.reactionId, "snap-1");
 });
 
-test("matching compares only the immediately adjacent ranks and ignores suit", () => {
+test("direct matching compares adjacent ranks only and ignores suit", () => {
   assert.equal(snapRules.ranksMatch({ rank: "7", suit: "S" }, { rank: "7", suit: "H" }), true);
   assert.equal(snapRules.ranksMatch({ rank: "7", suit: "S" }, { rank: "8", suit: "S" }), false);
   assert.equal(snapRules.ranksMatch(null, { rank: "A", suit: "C" }), false);
+  assert.equal(snapRules.matchType([{ rank: "7", suit: "S" }, { rank: "7", suit: "H" }]), "direct");
 
   const game = setup({ deck: scriptedDeck("AS", "AC", "2D", "3H") });
   game.readyAll(0);
   game.advanceTo(3_000);
   assert.equal(game.match.isMatch, true);
+  assert.equal(game.match.matchType, "direct");
   assert.deepEqual(game.match.centerPile.slice(-2).map((card) => card.id), ["AS", "AC"]);
+});
+
+test("sandwich matching uses equal ranks two center cards apart, with any middle card", () => {
+  assert.equal(snapRules.matchType([{ rank: "7", suit: "S" }]), null);
+  assert.equal(snapRules.matchType([{ rank: "7", suit: "S" }, { rank: "K", suit: "H" }]), null);
+  assert.equal(snapRules.matchType([{ rank: "7", suit: "S" }, { rank: "K", suit: "H" }, { rank: "7", suit: "D" }]), "sandwich");
+  assert.equal(snapRules.matchType([{ rank: "4", suit: "C" }, { rank: "9", suit: "S" }, { rank: "4", suit: "H" }]), "sandwich");
+  assert.equal(snapRules.matchType([{ rank: "Q", suit: "H" }, { rank: "2", suit: "C" }, { rank: "Q", suit: "S" }]), "sandwich");
+  assert.equal(snapRules.matchType([{ rank: "A", suit: "D" }, { rank: "6", suit: "H" }, { rank: "A", suit: "C" }]), "sandwich");
+  assert.equal(snapRules.matchType([{ rank: "7", suit: "S" }, { rank: "K", suit: "H" }, { rank: "8", suit: "S" }]), null);
+  assert.equal(snapRules.matchType([{ rank: "4", suit: "C" }, { rank: "9", suit: "S" }, { rank: "5", suit: "C" }]), null);
+  assert.equal(snapRules.matchType([{ rank: "7", suit: "S" }, { rank: "K", suit: "S" }, { rank: "8", suit: "S" }]), null);
+});
+
+test("a sandwich SNAP uses one reaction sequence, awards the pile once, and clears its history", () => {
+  const game = setup({ deck: scriptedDeck("7S", "KH", "7D", "2S", "2H") });
+  game.readyAll(0);
+  game.advanceTo(3_000);
+  assert.equal(game.match.isMatch, false);
+  game.advanceTo(4_500);
+  game.readyAll(4_500);
+  game.advanceTo(7_500);
+
+  const reactionId = game.match.reactionId;
+  assert.equal(game.match.isMatch, true);
+  assert.equal(game.match.matchType, "sandwich");
+  assert.equal(game.engine.viewFor(game.match, 0).state.twoBackCard.id, "7S");
+  game.engine.snap(game.match, 1, reactionId, 7_600);
+  assert.equal(game.match.players[1].capturedCount, 3);
+  assert.equal(game.match.players[1].skipNextReveal, false);
+  assert.equal(game.match.centerPile.length, 0);
+  assert.equal(game.match.phase, snapRules.PHASES.WAITING_FOR_READY);
+  assert.throws(() => game.engine.snap(game.match, 0, reactionId, 7_601), { code: "SNAP_NOT_AVAILABLE" });
+
+  game.readyAll(7_600);
+  game.advanceTo(10_600);
+  assert.equal(game.match.centerPile.length, 1);
+  assert.equal(game.match.isMatch, false);
+  assert.equal(game.match.matchType, null);
+  assert.throws(() => game.engine.snap(game.match, 0, reactionId, 10_601), { code: "STALE_REACTION" });
 });
 
 test("the first valid server SNAP wins the center pile exactly once", () => {
@@ -199,4 +241,23 @@ test("bots ready and react through the same delayed authoritative actions", () =
   assert.equal(game.match.players[1].capturedCount, 0);
   game.advanceTo(4_050);
   assert.equal(game.match.players[1].capturedCount, 2);
+});
+
+test("bots recognize a sandwich after their normal reaction delay", () => {
+  const game = setup({
+    deck: scriptedDeck("7S", "KH", "7D", "2S"),
+    players: [humans[0], { seat: 1, name: "Flash", type: "bot", style: "steady" }]
+  });
+  game.advanceTo(300);
+  game.engine.ready(game.match, 0, 300);
+  game.advanceTo(3_300);
+  game.advanceTo(4_800);
+  game.engine.ready(game.match, 0, 4_800);
+  game.advanceTo(5_100);
+  game.advanceTo(8_100);
+  assert.equal(game.match.matchType, "sandwich");
+  game.advanceTo(8_849);
+  assert.equal(game.match.players[1].capturedCount, 0);
+  game.advanceTo(8_850);
+  assert.equal(game.match.players[1].capturedCount, 3);
 });

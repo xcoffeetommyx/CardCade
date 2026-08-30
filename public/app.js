@@ -1034,7 +1034,7 @@ function renderSnapGame() {
     : match.phase === snapRules.PHASES.COUNTDOWN
       ? { kicker: "REVEAL IN", title: snapCountdownValue(match), detail: `${revealPlayer?.name || "Next player"}'s card stays hidden until zero.` }
       : match.phase === snapRules.PHASES.REACTION
-        ? { kicker: "REACT NOW", title: "SNAP?", detail: "Compare rank with the previous card. Suit does not matter." }
+        ? { kicker: "REACT NOW", title: match.matchType === "sandwich" ? "SANDWICH?" : "SNAP?", detail: "Match the previous rank or the rank two cards back. Suit does not matter." }
         : { kicker: "MATCH COMPLETE", title: match.winners.length > 1 ? "TIE GAME" : `${match.players.find((player) => player.seat === match.winners[0])?.name || "Winner"} WINS`, detail: match.lastMoveText };
   const resultClass = resolution?.type === "snap" ? "success" : resolution?.type === "failed-snap" ? "failure" : "neutral";
   const readyAction = match.actions?.ready === true;
@@ -1070,9 +1070,9 @@ function renderSnapGame() {
             </article>`).join("")}
         </div>
         <div class="snap-center-board">
-          <div class="snap-compare-card"><span>Previous</span>${match.previousCard ? renderPlayingCard(match.previousCard, 0, { played: true }) : `<div class="snap-empty-card">—</div>`}</div>
-          <div class="snap-compare-mark" aria-hidden="true">=</div>
-          <div class="snap-compare-card current"><span>Current</span>${match.currentCard ? renderPlayingCard(match.currentCard, 1, { played: true, enter: match.phase === snapRules.PHASES.REACTION }) : `<div class="snap-empty-card">?</div>`}</div>
+          <div class="snap-compare-card"><span>Two back</span>${match.twoBackCard ? renderPlayingCard(match.twoBackCard, 0, { played: true }) : `<div class="snap-empty-card">—</div>`}</div>
+          <div class="snap-compare-card"><span>Previous</span>${match.previousCard ? renderPlayingCard(match.previousCard, 1, { played: true }) : `<div class="snap-empty-card">—</div>`}</div>
+          <div class="snap-compare-card current"><span>Current</span>${match.currentCard ? renderPlayingCard(match.currentCard, 2, { played: true, enter: match.phase === snapRules.PHASES.REACTION }) : `<div class="snap-empty-card">?</div>`}</div>
           <div class="snap-hidden-source" aria-label="Upcoming card remains hidden">
             ${renderCardBack({ deckFamilyId: "standard-52", context: "snap-source", className: "playing-card played", ariaLabel: "Hidden upcoming card", parts: [{ tag: "i", text: "CC", ariaHidden: true }] })}
             <small>${escapeHtml(revealPlayer?.name || "Next reveal")}</small>
@@ -1082,7 +1082,7 @@ function renderSnapGame() {
       ${resolution ? `<div class="snap-result ${resultClass}" role="status"><strong>${resolution.type === "snap" ? "SNAP!" : resolution.type === "failed-snap" ? "FAILED SNAP" : "NO SNAP"}</strong><span>${escapeHtml(resolution.text)}</span></div>` : ""}
       <div class="snap-action-dock">
         <button class="snap-primary-action ${match.phase === snapRules.PHASES.REACTION ? "react" : "ready"}" type="button" data-action="${match.phase === snapRules.PHASES.REACTION ? "snap-react" : "snap-ready"}" ${(readyAction || snapAction) && !state.gameActionLock ? "" : "disabled"}>${escapeHtml(snapLabel)}</button>
-        <small>${match.phase === snapRules.PHASES.REACTION ? "First server-accepted SNAP wins. A wrong SNAP skips your next reveal." : "The server reveals only after every player is locked in."}</small>
+        <small>${match.phase === snapRules.PHASES.REACTION ? "SNAP on matching ranks or a sandwich: 7 → K → 7. First server-accepted SNAP wins; a wrong SNAP skips your next reveal." : "The server reveals only after every player is locked in."}</small>
       </div>
       ${isFinished ? `<section class="round-summary"><h2>Final captures</h2>${renderStandardFinalStandings({ ...match, players: match.players.map((player) => ({ ...player, score: player.capturedCount })) })}<button class="action-button" type="button" data-action="leave-game">Return to Cardcade</button></section>` : ""}
     </section>`;

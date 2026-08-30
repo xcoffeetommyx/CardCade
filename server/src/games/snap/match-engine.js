@@ -65,6 +65,7 @@ export class MatchEngine {
       revealSequence: 0,
       reactionId: null,
       isMatch: false,
+      matchType: null,
       snapSubmissions: [],
       snapWinnerSeat: null,
       failedSnapSeats: [],
@@ -227,6 +228,7 @@ export class MatchEngine {
     if (!viewer || viewer.type !== "human") throw new RoomError("No private Snap view exists for this seat.", "SEAT_NOT_FOUND", 404);
     const currentCard = match.centerPile.at(-1) || null;
     const previousCard = match.centerPile.at(-2) || null;
+    const twoBackCard = match.centerPile.at(-3) || null;
     return {
       type: "snap_match_state",
       state: {
@@ -245,6 +247,7 @@ export class MatchEngine {
         centerCount: match.centerPile.length,
         currentCard: currentCard ? { ...currentCard } : null,
         previousCard: previousCard ? { ...previousCard } : null,
+        twoBackCard: twoBackCard ? { ...twoBackCard } : null,
         upcomingRevealSeat: peekNextRevealSeat(match),
         revealSourceSeat: match.pendingRevealSeat ?? match.lastRevealSeat,
         lastSkippedSeats: match.lastSkippedSeats.slice(),
@@ -254,6 +257,7 @@ export class MatchEngine {
         revealSequence: match.revealSequence,
         reactionId: match.reactionId,
         isMatch: match.phase === rules.PHASES.REACTION ? match.isMatch : null,
+        matchType: match.phase === rules.PHASES.REACTION ? match.matchType : null,
         snapSubmissions: match.snapSubmissions.slice(),
         snapWinnerSeat: match.snapWinnerSeat,
         failedSnapSeats: match.failedSnapSeats.slice(),
@@ -297,7 +301,6 @@ export class MatchEngine {
     const source = getPlayer(match, match.pendingRevealSeat);
     const card = source?.drawPile.shift();
     if (!source || !card) throw new RoomError("Snap could not reveal the scheduled card.", "DECK_EMPTY", 500);
-    const previousCard = match.centerPile.at(-1) || null;
     match.centerPile.push(card);
     match.phase = rules.PHASES.REACTION;
     match.lastRevealSeat = source.seat;
@@ -307,7 +310,8 @@ export class MatchEngine {
     match.revealSequence += 1;
     match.reactionId = `snap-${match.revealSequence}`;
     match.reactionEndsAt = revealTime + this.reactionWindowMs;
-    match.isMatch = rules.ranksMatch(previousCard, card);
+    match.matchType = rules.matchType(match.centerPile);
+    match.isMatch = match.matchType !== null;
     match.snapSubmissions = [];
     match.snapWinnerSeat = null;
     match.failedSnapSeats = [];
@@ -329,6 +333,7 @@ export class MatchEngine {
     for (const player of match.players) player.botSnapAt = null;
     match.reactionEndsAt = null;
     match.isMatch = false;
+    match.matchType = null;
     if (!hasDrawCards(match)) {
       this.#finishMatch(match, now);
       return;
