@@ -1,6 +1,8 @@
 import { GameError } from "../../game-error.js";
 import { MatchEngine } from "./match-engine.js";
 
+const BOT_NAMES = ["Scout"];
+
 export class FindersMakersRuntime {
   #matches = new Map();
   #engine;
@@ -29,6 +31,21 @@ export class FindersMakersRuntime {
       throw new GameError("This Finders Makers match has already started.", "MATCH_STARTED", 409);
     }
     const players = room.players.map((player) => ({ seat: player.seat, name: player.name, type: "human" }));
+    const occupied = new Set(players.map((player) => player.seat));
+    const capacity = Number.isInteger(room.capacity) ? room.capacity : 2;
+    const botCount = Number.isInteger(room.gameSettings?.botCount) ? room.gameSettings.botCount : 0;
+    for (let index = 0; index < botCount; index += 1) {
+      const seat = Array.from({ length: capacity }, (_, candidate) => candidate)
+        .find((candidate) => !occupied.has(candidate));
+      if (seat === undefined) break;
+      occupied.add(seat);
+      players.push({
+        seat,
+        name: BOT_NAMES[index] || `CPU ${index + 1}`,
+        type: "bot"
+      });
+    }
+    players.sort((left, right) => left.seat - right.seat);
     const match = this.#engine.createMatch(players);
     this.#matches.set(room.code, match);
     return match;
@@ -74,13 +91,13 @@ export class FindersMakersRuntime {
     return this.#requireMatch(room.code);
   }
 
-  runBotTurn() {
-    return false;
+  runBotTurn(roomCode) {
+    return this.#engine.runBotTurn(this.#requireMatch(roomCode));
   }
 
-  replaceHumanWithBot() {
-    // This MVP intentionally has no bot policy for private-memory play.
-    return false;
+  replaceHumanWithBot(roomCode, seat) {
+    if (!this.#matches.has(roomCode)) return false;
+    return this.#engine.replaceWithBot(this.#matches.get(roomCode), seat);
   }
 
   snapshot(roomCode) {

@@ -1907,7 +1907,7 @@ function renderFindersMakersGame() {
       </header>
       <div class="finders-scoreboard" aria-label="Match score">${match.players.map((player) => `
         <article class="finders-player ${player.seat === match.activeSeat ? "active" : ""} ${player.seat === viewerSeat ? "you" : ""}">
-          <span>${escapeHtml(player.avatar)}</span><strong title="${escapeHtml(player.name)}">${escapeHtml(player.name)}</strong><b>${player.score}</b><small>${player.seat === match.activeSeat && !match.roundOver ? "TURN" : player.seat === viewerSeat ? "YOU" : ""}</small>
+          <span>${escapeHtml(player.avatar)}</span><strong title="${escapeHtml(player.name)}">${escapeHtml(player.name)}</strong><b>${player.score}</b><small>${player.seat === match.activeSeat && !match.roundOver ? "TURN" : player.seat === viewerSeat ? "YOU" : player.type === "bot" ? "CPU" : ""}</small>
         </article>`).join("")}</div>
       ${renderFindersBuild(objective, { shared: Boolean(match.sharedBuild) || match.suddenDeath })}
       <section class="finders-board-zone">

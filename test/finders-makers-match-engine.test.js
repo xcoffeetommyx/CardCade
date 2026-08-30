@@ -22,10 +22,11 @@ function deterministicBoard({ builds, layout }) {
   return pieceIds.map((pieceId, position) => ({ position, pieceId }));
 }
 
-function engine() {
+function engine({ selectBotPosition = (positions) => positions[0] } = {}) {
   return new MatchEngine({
     generatePieceBoard: deterministicBoard,
-    selectBuild: (builds) => builds[0]
+    selectBuild: (builds) => builds[0],
+    selectBotPosition
   });
 }
 
@@ -107,6 +108,67 @@ test("Build validation requires the exact three Pieces, and a failed Build neith
   assert.equal(match.roundWinnerSeat, 0);
   assert.equal(match.roundOver, true);
   assert.equal(match.phase, "round-result");
+});
+
+test("the CPU searches from only its own private map, then commits a Build it has found", () => {
+  const game = engine();
+  const match = game.createMatch([
+    { seat: 0, name: "Ada", type: "human" },
+    { seat: 1, name: "Scout", type: "bot" }
+  ], { buildIds: ["cake", "sundae"] });
+  putPiecesAtFront(match, ["bowl", "ice-cream", "cherry"]);
+
+  // Ada's private discoveries deliberately contain every Piece Scout needs.
+  // Scout must still search instead of using another player's hidden map.
+  match.privateDiscoveries["0"] = [
+    { id: 1, position: 0, pieceId: "bowl" },
+    { id: 2, position: 1, pieceId: "ice-cream" },
+    { id: 3, position: 2, pieceId: "cherry" }
+  ];
+  game.search(match, 0, 11);
+  assert.equal(match.activeSeat, 1);
+
+  assert.equal(game.runBotTurn(match), true);
+  assert.equal(match.turnMode, "choose");
+  assert.equal(match.lastBuildAttempt, null);
+  assert.equal(match.activeSeat, 0);
+  assert.equal(match.privateDiscoveries["1"].length, 1);
+
+  game.search(match, 0, 11);
+  match.privateDiscoveries["1"] = [
+    { id: 4, position: 0, pieceId: "bowl" },
+    { id: 5, position: 1, pieceId: "ice-cream" },
+    { id: 6, position: 2, pieceId: "cherry" }
+  ];
+
+  assert.equal(game.runBotTurn(match), true, "the CPU first announces its Build attempt");
+  assert.equal(match.activeSeat, 1);
+  assert.equal(match.turnMode, "build");
+  assert.equal(game.runBotTurn(match), true, "the next paced CPU turn commits the known Pieces");
+  assert.equal(match.roundWinnerSeat, 1);
+  assert.equal(match.players[1].score, 1);
+  assert.equal(match.phase, "round-result");
+});
+
+test("a departing player becomes a CPU without carrying over their private discoveries", () => {
+  const game = engine();
+  const match = matchFor(["cake", "sundae"]);
+  match.activeSeat = 1;
+  match.turnMode = "build";
+  match.privateDiscoveries["1"] = [
+    { id: 1, position: 0, pieceId: "bowl" },
+    { id: 2, position: 1, pieceId: "ice-cream" },
+    { id: 3, position: 2, pieceId: "cherry" }
+  ];
+
+  assert.equal(game.replaceWithBot(match, 1), true);
+  assert.equal(match.players[1].type, "bot");
+  assert.deepEqual(match.privateDiscoveries["1"], []);
+  assert.equal(match.turnMode, "choose");
+
+  assert.equal(game.runBotTurn(match), true);
+  assert.equal(match.lastBuildAttempt, null);
+  assert.equal(match.activeSeat, 0);
 });
 
 test("four normal rounds at 2–2 transition to a fresh shared Sudden Death board, whose success ends the match", () => {

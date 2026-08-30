@@ -14,6 +14,18 @@ function roomFor(viewerSeat = 0) {
   };
 }
 
+function soloRoom() {
+  return {
+    code: "SOLO42",
+    gameId: "finders-makers",
+    capacity: 2,
+    gameSettings: { botCount: 1 },
+    players: [
+      { seat: 0, name: "Host", role: "host", isYou: true, connected: true }
+    ]
+  };
+}
+
 test("the Finders Makers runtime maps private game actions and preserves host-only round progression", () => {
   const runtime = new FindersMakersRuntime();
   const hostRoom = roomFor(0);
@@ -35,4 +47,24 @@ test("the Finders Makers runtime maps private game actions and preserves host-on
     () => runtime.act(roomFor(1), { type: "finders_next_round" }),
     (error) => error instanceof GameError && error.code === "HOST_ONLY"
   );
+});
+
+test("the Finders Makers runtime adds a private-memory CPU to a Solo duel", () => {
+  const runtime = new FindersMakersRuntime();
+  const room = soloRoom();
+  runtime.start(room);
+
+  const opening = runtime.view(room);
+  assert.equal(opening.state.players.length, 2);
+  assert.equal(opening.state.players[1].type, "bot");
+  assert.equal(opening.state.players[1].connected, true);
+
+  runtime.act(room, { type: "finders_search", position: 0 });
+  assert.equal(opening.state.board[0].pieceId, undefined);
+  assert.equal(runtime.runBotTurn(room.code), true);
+
+  const afterBotSearch = runtime.view(room);
+  assert.equal(afterBotSearch.state.latestSearch.seat, 1);
+  assert.equal(afterBotSearch.state.board[afterBotSearch.state.latestSearch.position].pieceId, undefined);
+  assert.equal(afterBotSearch.privateSearch?.position, 0, "the human still sees only their own Search result");
 });

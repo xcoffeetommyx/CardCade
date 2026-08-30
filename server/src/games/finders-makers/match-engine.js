@@ -9,10 +9,12 @@ const PLAYER_COUNT = 2;
 export class MatchEngine {
   constructor({
     generatePieceBoard = generateBoard,
-    selectBuild = secureBuildChoice
+    selectBuild = secureBuildChoice,
+    selectBotPosition = secureBotPositionChoice
   } = {}) {
     this.generatePieceBoard = generatePieceBoard;
     this.selectBuild = selectBuild;
+    this.selectBotPosition = selectBotPosition;
   }
 
   createMatch(roomPlayers, { buildIds = null } = {}) {
@@ -111,8 +113,60 @@ export class MatchEngine {
     return match;
   }
 
-  runBotTurn() {
-    return false;
+  runBotTurn(match) {
+    if (!match || match.phase !== "playing" || match.roundOver || match.matchOver) return false;
+    const player = playerAt(match.players, match.activeSeat);
+    if (!player || player.type !== "bot") return false;
+
+    const knownPositions = knownBuildPositions(match, player);
+    if (match.turnMode === "build") {
+      if (knownPositions) {
+        this.attemptBuild(match, player.seat, knownPositions);
+      } else {
+        // A disconnected human can be replaced while a client-side Build
+        // selection is open. The CPU starts fresh rather than inheriting
+        // that player's private map or unfinished choice.
+        this.cancelBuild(match, player.seat);
+      }
+      return true;
+    }
+    if (match.turnMode !== "choose") return false;
+
+    if (knownPositions) {
+      // Use a separate paced turn for the actual commit so a human opponent
+      // sees that the CPU is attempting a Build before the result arrives.
+      this.beginBuild(match, player.seat);
+      return true;
+    }
+
+    const seenPositions = new Set((match.privateDiscoveries[String(player.seat)] || [])
+      .map((discovery) => discovery.position));
+    const candidates = match.board
+      .map((card) => card.position)
+      .filter((position) => !seenPositions.has(position));
+    const searchPositions = candidates.length ? candidates : match.board.map((card) => card.position);
+    if (!searchPositions.length) return false;
+    const position = Number(this.selectBotPosition(searchPositions.slice()));
+    if (!searchPositions.includes(position)) {
+      throw new GameError("Finders Makers CPU chose an invalid search position.", "BOT_SEARCH_FAILED", 500);
+    }
+    // search() is the only moment this CPU reads a Piece identity. Its move
+    // choice above uses only its own discoveries and public board positions.
+    this.search(match, player.seat, position);
+    return true;
+  }
+
+  replaceWithBot(match, seat) {
+    const player = playerAt(match?.players, Number(seat));
+    if (!player || player.type !== "human") return false;
+    player.type = "bot";
+    player.name = `${String(player.name).replace(/\s+·\s+CPU$/, "")} · CPU`;
+    player.avatar = initialsForName(player.name, `P${player.seat + 1}`);
+    match.privateDiscoveries[String(player.seat)] = [];
+    if (match.activeSeat === player.seat && match.turnMode === "build") match.turnMode = "choose";
+    match.lastMoveText = `${player.name} took over the memory duel.`;
+    match.log.unshift(match.lastMoveText);
+    return true;
   }
 
   viewFor(match, seat, connections = new Map()) {
@@ -143,7 +197,7 @@ export class MatchEngine {
           avatar: player.avatar,
           score: player.score,
           type: player.type,
-          connected: connections.get(player.seat) === true
+          connected: player.type === "bot" ? true : connections.get(player.seat) === true
         })),
         latestSearch: match.latestSearch ? { ...match.latestSearch } : null,
         lastBuildAttempt: match.lastBuildAttempt ? {
@@ -358,6 +412,17 @@ function samePieces(selectedPieceIds, requiredPieceIds) {
   return selectedPieceIds.slice().sort().join("|") === requiredPieceIds.slice().sort().join("|");
 }
 
+function knownBuildPositions(match, player) {
+  const build = buildForPlayer(match, player.seat);
+  const discoveries = match.privateDiscoveries[String(player.seat)] || [];
+  const positionByPiece = new Map();
+  for (const discovery of discoveries) {
+    if (!positionByPiece.has(discovery.pieceId)) positionByPiece.set(discovery.pieceId, discovery.position);
+  }
+  const positions = build.pieceIds.map((pieceId) => positionByPiece.get(pieceId));
+  return positions.every(Number.isInteger) && new Set(positions).size === 3 ? positions : null;
+}
+
 function generatedBoard(generatePieceBoard, builds, layout) {
   const board = generatePieceBoard({ builds, layout });
   assertBoardContains(board, requiredPiecesFor(builds), layout.cardCount);
@@ -386,4 +451,11 @@ function initialsForName(name, fallback) {
 function secureBuildChoice(builds) {
   if (!Array.isArray(builds) || !builds.length) throw new GameError("Finders Makers has no available Builds.", "BUILD_SELECTION_FAILED", 500);
   return builds[randomInt(builds.length)];
+}
+
+function secureBotPositionChoice(positions) {
+  if (!Array.isArray(positions) || !positions.length) {
+    throw new GameError("Finders Makers CPU has no searchable positions.", "BOT_SEARCH_FAILED", 500);
+  }
+  return positions[randomInt(positions.length)];
 }

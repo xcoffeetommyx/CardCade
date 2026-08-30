@@ -32,8 +32,8 @@ test("catalog groups games under ordered deck families", () => {
   assert.equal(catalog.families[3].games[0].id, "finders-makers");
   assert.equal(catalog.families[3].games[0].status, "available");
   assert.deepEqual(catalog.families[3].games[0].players, { min: 2, max: 2, recommended: 2 });
-  assert.deepEqual(catalog.families[3].games[0].modes, ["multiplayer", "hot-seat"]);
-  assert.equal(catalog.families[3].games[0].supportsBots, false);
+  assert.deepEqual(catalog.families[3].games[0].modes, ["solo", "multiplayer", "hot-seat"]);
+  assert.equal(catalog.families[3].games[0].supportsBots, true);
 });
 
 test("catalog can be filtered by game mode and returns defensive copies", () => {

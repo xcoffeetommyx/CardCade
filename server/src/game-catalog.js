@@ -128,9 +128,9 @@ export const games = [
     description: "Search a hidden shared board, remember your discoveries, then commit three Pieces to Build first.",
     deckFamilyId: "finders-makers",
     genres: ["memory", "set-building"],
-    modes: ["multiplayer", "hot-seat"],
+    modes: ["solo", "multiplayer", "hot-seat"],
     players: { min: 2, max: 2, recommended: 2 },
-    supportsBots: false,
+    supportsBots: true,
     status: "available",
     accent: "mint"
   }
