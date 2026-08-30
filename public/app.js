@@ -61,6 +61,7 @@ const state = {
   findersRevealTimer: null,
   findersHighestRevealByScope: new Map(),
   findersHotSeatHandoffTimer: null,
+  snapCountdownTimer: null,
   gameActionLock: false,
   dealtHandOwners: new Set(),
   lastPileSignature: null
@@ -81,6 +82,7 @@ const thirteenRules = globalThis.ThirteenRules;
 const cardPresentation = globalThis.CardcadePresentation;
 const cardSkins = globalThis.CardcadeCardSkins;
 const standard52 = globalThis.CardcadeStandard52;
+const snapRules = globalThis.CardcadeSnapRules;
 const hotSeatFlow = globalThis.CardcadeHotSeat;
 const juanDeck = globalThis.CardcadeJuanDeck;
 const juanRules = globalThis.JuanRules;
@@ -142,7 +144,7 @@ const rotatingRummyGameAdapter = {
 };
 
 function supportsGame(gameId) {
-  return Boolean(standardGameAdapters[gameId]) || gameId === "juan" || gameId === "rotating-rummy" || gameId === "finders-makers" || gameId === "blackjack" || gameId === "holdem" || gameId === "five-card-draw";
+  return Boolean(standardGameAdapters[gameId]) || gameId === "juan" || gameId === "rotating-rummy" || gameId === "finders-makers" || gameId === "blackjack" || gameId === "holdem" || gameId === "five-card-draw" || gameId === "snap";
 }
 
 function sortAdapterForGame(gameId = state.room?.gameId) {
@@ -1002,6 +1004,88 @@ function renderBlackjackCardBack(index, { enter = false } = {}) {
       { tag: "b", text: "", ariaHidden: true }
     ]
   });
+}
+
+function snapCountdownValue(match) {
+  const remaining = Number(match?.countdownEndsAt) - Date.now();
+  return remaining > 0 ? String(Math.max(1, Math.ceil(remaining / 1_000))) : "GO!";
+}
+
+function snapPlayerStatus(player, phase) {
+  if (player.skipNextReveal) return "Skip next reveal";
+  if (phase === snapRules?.PHASES?.WAITING_FOR_READY) return player.ready ? "READY" : "WAITING";
+  if (phase === snapRules?.PHASES?.COUNTDOWN) return "LOCKED IN";
+  return player.type === "bot" ? "CPU" : player.connected ? "ONLINE" : "OFFLINE";
+}
+
+function renderSnapGame() {
+  const view = state.gameView;
+  if (!view || !snapRules) return `<div class="empty-state">Snap is loading…</div>`;
+  const match = view.state;
+  const viewerSeat = state.room?.players.find((player) => player.isYou)?.seat;
+  const viewer = match.players.find((player) => player.seat === viewerSeat);
+  const revealPlayer = match.players.find((player) => player.seat === (match.phase === snapRules.PHASES.WAITING_FOR_READY ? match.upcomingRevealSeat : match.revealSourceSeat));
+  const resolution = match.phase === snapRules.PHASES.REACTION
+    && match.lastResolution?.reactionId !== match.reactionId
+    ? null
+    : match.lastResolution;
+  const phaseCopy = match.phase === snapRules.PHASES.WAITING_FOR_READY
+    ? { kicker: "NEXT REVEAL", title: revealPlayer ? `${revealPlayer.name} is up` : "Lock in", detail: "Every player readies before the card is revealed." }
+    : match.phase === snapRules.PHASES.COUNTDOWN
+      ? { kicker: "REVEAL IN", title: snapCountdownValue(match), detail: `${revealPlayer?.name || "Next player"}'s card stays hidden until zero.` }
+      : match.phase === snapRules.PHASES.REACTION
+        ? { kicker: "REACT NOW", title: "SNAP?", detail: "Compare rank with the previous card. Suit does not matter." }
+        : { kicker: "MATCH COMPLETE", title: match.winners.length > 1 ? "TIE GAME" : `${match.players.find((player) => player.seat === match.winners[0])?.name || "Winner"} WINS`, detail: match.lastMoveText };
+  const resultClass = resolution?.type === "snap" ? "success" : resolution?.type === "failed-snap" ? "failure" : "neutral";
+  const readyAction = match.actions?.ready === true;
+  const snapAction = match.actions?.snap === true;
+  const isFinished = match.phase === snapRules.PHASES.FINISHED;
+  const snapLabel = match.phase === snapRules.PHASES.WAITING_FOR_READY
+    ? (viewer?.ready ? "READY ✓" : "READY")
+    : match.phase === snapRules.PHASES.COUNTDOWN
+      ? "LOCKED IN"
+      : match.phase === snapRules.PHASES.REACTION
+        ? (match.centerCount < 2 ? "FIRST CARD" : match.snapSubmissions.includes(viewerSeat) ? "SNAP SENT" : "SNAP")
+        : "MATCH OVER";
+
+  return `
+    <section class="standard-card-game ${activeTableAppearanceClass()} snap-game" data-game-id="snap" data-snap-phase="${escapeHtml(match.phase)}">
+      <header class="game-topbar">
+        <button class="back-button" type="button" data-action="leave-game" aria-label="${state.gameMode === "multiplayer" ? "Return to room lobby" : "Leave game"}">←</button>
+        <div><span class="family-kicker">Standard 52 · Reaction</span><h2>Snap</h2><p>${escapeHtml(match.lastMoveText)}</p></div>
+        <button class="game-score" type="button" disabled><span>Center</span><strong>${match.centerCount}</strong></button>
+      </header>
+      <div class="snap-phase-banner ${match.phase === snapRules.PHASES.COUNTDOWN ? "counting" : ""}" aria-live="assertive">
+        <span>${escapeHtml(phaseCopy.kicker)}</span>
+        <strong>${escapeHtml(phaseCopy.title)}</strong>
+        <small>${escapeHtml(phaseCopy.detail)}</small>
+      </div>
+      <div class="snap-table-grid">
+        <div class="snap-player-grid">
+          ${match.players.map((player) => `
+            <article class="snap-player ${player.seat === viewerSeat ? "you" : ""} ${player.ready ? "ready" : ""} ${player.skipNextReveal ? "penalized" : ""}">
+              <div class="player-avatar">${escapeHtml(player.avatar)}</div>
+              <div><strong>${escapeHtml(player.name)}${player.seat === viewerSeat ? " · You" : ""}</strong><small>${escapeHtml(snapPlayerStatus(player, match.phase))}</small></div>
+              <dl><div><dt>Draw</dt><dd>${player.drawCount}</dd></div><div><dt>Captured</dt><dd>${player.capturedCount}</dd></div></dl>
+            </article>`).join("")}
+        </div>
+        <div class="snap-center-board">
+          <div class="snap-compare-card"><span>Previous</span>${match.previousCard ? renderPlayingCard(match.previousCard, 0, { played: true }) : `<div class="snap-empty-card">—</div>`}</div>
+          <div class="snap-compare-mark" aria-hidden="true">=</div>
+          <div class="snap-compare-card current"><span>Current</span>${match.currentCard ? renderPlayingCard(match.currentCard, 1, { played: true, enter: match.phase === snapRules.PHASES.REACTION }) : `<div class="snap-empty-card">?</div>`}</div>
+          <div class="snap-hidden-source" aria-label="Upcoming card remains hidden">
+            ${renderCardBack({ deckFamilyId: "standard-52", context: "snap-source", className: "playing-card played", ariaLabel: "Hidden upcoming card", parts: [{ tag: "i", text: "CC", ariaHidden: true }] })}
+            <small>${escapeHtml(revealPlayer?.name || "Next reveal")}</small>
+          </div>
+        </div>
+      </div>
+      ${resolution ? `<div class="snap-result ${resultClass}" role="status"><strong>${resolution.type === "snap" ? "SNAP!" : resolution.type === "failed-snap" ? "FAILED SNAP" : "NO SNAP"}</strong><span>${escapeHtml(resolution.text)}</span></div>` : ""}
+      <div class="snap-action-dock">
+        <button class="snap-primary-action ${match.phase === snapRules.PHASES.REACTION ? "react" : "ready"}" type="button" data-action="${match.phase === snapRules.PHASES.REACTION ? "snap-react" : "snap-ready"}" ${(readyAction || snapAction) && !state.gameActionLock ? "" : "disabled"}>${escapeHtml(snapLabel)}</button>
+        <small>${match.phase === snapRules.PHASES.REACTION ? "First server-accepted SNAP wins. A wrong SNAP skips your next reveal." : "The server reveals only after every player is locked in."}</small>
+      </div>
+      ${isFinished ? `<section class="round-summary"><h2>Final captures</h2>${renderStandardFinalStandings({ ...match, players: match.players.map((player) => ({ ...player, score: player.capturedCount })) })}<button class="action-button" type="button" data-action="leave-game">Return to Cardcade</button></section>` : ""}
+    </section>`;
 }
 
 function formatPoints(points) {
@@ -2483,6 +2567,7 @@ function render() {
   app.innerHTML = screen;
   syncJuanPrismReveal();
   syncFindersMakersReveal();
+  syncSnapCountdown();
   syncControllerTextEntry();
   if (state.screen === "game") {
     layoutActivePiles();
@@ -2493,6 +2578,21 @@ function render() {
   }
   if (controllerState.active) requestAnimationFrame(updateControllerHover);
   restoreGameScrollPosition(gameScrollPosition);
+}
+
+function syncSnapCountdown() {
+  clearTimeout(state.snapCountdownTimer);
+  state.snapCountdownTimer = null;
+  const match = state.gameView?.state;
+  if (state.screen !== "game" || state.room?.gameId !== "snap" || match?.phase !== snapRules?.PHASES?.COUNTDOWN) return;
+  const remaining = Number(match.countdownEndsAt) - Date.now();
+  if (remaining <= 0) return;
+  const shown = Math.max(1, Math.ceil(remaining / 1_000));
+  const untilNextNumber = remaining - ((shown - 1) * 1_000);
+  state.snapCountdownTimer = setTimeout(() => {
+    state.snapCountdownTimer = null;
+    if (state.screen === "game" && state.room?.gameId === "snap") render();
+  }, Math.max(30, untilNextNumber + 20));
 }
 
 function layoutActivePiles() {
@@ -2530,6 +2630,7 @@ function layoutActivePiles() {
 }
 
 function renderCurrentGame() {
+  if (state.room?.gameId === "snap") return renderSnapGame();
   if (state.room?.gameId === "rotating-rummy") return renderRotatingRummyGame();
   if (state.room?.gameId === "finders-makers") return renderFindersMakersGame();
   if (state.room?.gameId === "juan") return renderJuanGame();
@@ -2820,7 +2921,9 @@ function isHotSeatCpuTurn(view) {
 function queueHotSeatCpuTurn({ room = state.room, view = state.gameView } = {}) {
   clearFindersMakersReveal();
   clearTimeout(state.findersHotSeatHandoffTimer);
+  clearTimeout(state.snapCountdownTimer);
   state.findersHotSeatHandoffTimer = null;
+  state.snapCountdownTimer = null;
   state.room = room;
   state.gameView = hiddenPrivateView(view);
   state.hotSeatPendingPlayerId = null;
@@ -3583,6 +3686,23 @@ document.addEventListener("click", async (event) => {
     state.selectedCards.clear();
     state.juanChosenColor = null;
     if (!sendRoom({ type: actionTypes[action] })) {
+      state.gameActionLock = false;
+      render();
+    }
+  }
+  if (action === "snap-ready") {
+    if (state.gameActionLock || state.room?.gameId !== "snap" || state.gameView?.state?.actions?.ready !== true) return;
+    state.gameActionLock = true;
+    if (!sendRoom({ type: "snap_ready" })) {
+      state.gameActionLock = false;
+      render();
+    }
+  }
+  if (action === "snap-react") {
+    const match = state.gameView?.state;
+    if (state.gameActionLock || state.room?.gameId !== "snap" || match?.actions?.snap !== true || !match.reactionId) return;
+    state.gameActionLock = true;
+    if (!sendRoom({ type: "snap_react", reactionId: match.reactionId })) {
       state.gameActionLock = false;
       render();
     }

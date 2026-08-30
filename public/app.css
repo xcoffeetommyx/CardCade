@@ -24,6 +24,219 @@
   font-synthesis: none;
 }
 
+/* Snap keeps the shared Standard 52 table language while giving the
+   synchronized reveal and reaction controls a purpose-built focal point. */
+.snap-game {
+  --snap-coral: #ff6b57;
+  --snap-cyan: #63e5ff;
+  --snap-ink: #07101d;
+  padding-bottom: max(9rem, env(safe-area-inset-bottom));
+}
+
+.snap-phase-banner {
+  width: min(680px, calc(100% - 2rem));
+  margin: .4rem auto 1rem;
+  padding: .9rem 1.2rem;
+  border: 1px solid rgba(255, 255, 255, .18);
+  border-radius: 22px;
+  background: rgba(5, 17, 30, .66);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, .2);
+  text-align: center;
+  display: grid;
+  gap: .15rem;
+}
+
+.snap-phase-banner > span,
+.snap-phase-banner > small {
+  color: rgba(255, 255, 255, .72);
+  letter-spacing: .08em;
+}
+
+.snap-phase-banner > span { font-size: .72rem; font-weight: 800; }
+.snap-phase-banner > small { letter-spacing: 0; }
+.snap-phase-banner > strong {
+  color: #fffaf0;
+  font: 800 clamp(2.1rem, 8vw, 4.8rem)/.95 "Pixelify Sans", system-ui, sans-serif;
+  text-transform: uppercase;
+}
+
+.snap-phase-banner.counting {
+  border-color: color-mix(in srgb, var(--snap-coral) 70%, white);
+  box-shadow: 0 0 0 4px rgba(255, 107, 87, .12), 0 16px 48px rgba(0, 0, 0, .28);
+}
+
+.snap-phase-banner.counting > strong {
+  color: var(--snap-coral);
+  font-size: clamp(4.6rem, 16vw, 8.5rem);
+  text-shadow: 0 5px 0 rgba(0, 0, 0, .24);
+}
+
+.snap-table-grid {
+  width: min(1120px, calc(100% - 1.5rem));
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: minmax(240px, .8fr) minmax(440px, 1.2fr);
+  align-items: center;
+  gap: clamp(1rem, 3vw, 2.5rem);
+}
+
+.snap-player-grid {
+  display: grid;
+  gap: .65rem;
+}
+
+.snap-player {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: .7rem;
+  padding: .68rem .75rem;
+  border: 1px solid rgba(255, 255, 255, .14);
+  border-radius: 16px;
+  background: rgba(5, 17, 30, .62);
+}
+
+.snap-player.you { border-color: rgba(99, 229, 255, .7); }
+.snap-player.ready { box-shadow: inset 4px 0 0 #72eea8; }
+.snap-player.penalized { box-shadow: inset 4px 0 0 var(--snap-coral); }
+.snap-player .player-avatar { width: 2.5rem; height: 2.5rem; font-size: .82rem; }
+.snap-player > div:nth-child(2) { min-width: 0; display: grid; }
+.snap-player > div:nth-child(2) strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.snap-player > div:nth-child(2) small { color: rgba(255, 255, 255, .66); font-size: .68rem; letter-spacing: .07em; }
+.snap-player dl { margin: 0; display: flex; gap: .55rem; }
+.snap-player dl div { display: grid; text-align: center; }
+.snap-player dt { color: rgba(255, 255, 255, .58); font-size: .62rem; text-transform: uppercase; }
+.snap-player dd { margin: 0; color: #fff; font-weight: 800; }
+
+.snap-center-board {
+  min-height: 330px;
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) auto minmax(120px, 1fr) minmax(90px, .65fr);
+  align-items: center;
+  justify-items: center;
+  gap: clamp(.4rem, 2vw, 1.2rem);
+  padding: 1rem;
+  border-radius: 28px;
+  border: 1px solid rgba(255, 255, 255, .16);
+  background: radial-gradient(circle at 50% 45%, rgba(255, 255, 255, .1), transparent 60%), rgba(5, 17, 30, .32);
+}
+
+.snap-compare-card,
+.snap-hidden-source {
+  display: grid;
+  justify-items: center;
+  gap: .45rem;
+  color: rgba(255, 255, 255, .68);
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.snap-center-board .playing-card {
+  width: clamp(106px, 15vw, 156px);
+  height: clamp(151px, 21.3vw, 222px);
+}
+
+.snap-compare-card.current .playing-card {
+  box-shadow: 0 0 0 5px rgba(99, 229, 255, .2), 0 20px 38px rgba(0, 0, 0, .32);
+}
+
+.snap-compare-mark {
+  color: rgba(255, 255, 255, .45);
+  font: 800 clamp(1.8rem, 4vw, 3.6rem)/1 "Pixelify Sans", system-ui, sans-serif;
+}
+
+.snap-empty-card {
+  width: clamp(106px, 15vw, 156px);
+  aspect-ratio: 5 / 7;
+  display: grid;
+  place-items: center;
+  border: 2px dashed rgba(255, 255, 255, .24);
+  border-radius: 12px;
+  color: rgba(255, 255, 255, .42);
+  font: 800 3rem/1 "Pixelify Sans", system-ui, sans-serif;
+}
+
+.snap-hidden-source .card-back { opacity: .82; }
+
+.snap-result {
+  width: min(720px, calc(100% - 2rem));
+  margin: .8rem auto 0;
+  padding: .7rem 1rem;
+  border-radius: 14px;
+  display: flex;
+  justify-content: center;
+  gap: .65rem;
+  background: rgba(5, 17, 30, .72);
+  color: #fff;
+  text-align: center;
+}
+
+.snap-result.success strong { color: #72eea8; }
+.snap-result.failure strong { color: var(--snap-coral); }
+.snap-result.neutral strong { color: var(--snap-cyan); }
+
+.snap-action-dock {
+  position: fixed;
+  z-index: 24;
+  left: 50%;
+  bottom: max(.8rem, env(safe-area-inset-bottom));
+  translate: -50% 0;
+  width: min(680px, calc(100% - 1.4rem));
+  display: grid;
+  justify-items: center;
+  gap: .35rem;
+  padding: .72rem;
+  border: 1px solid rgba(255, 255, 255, .2);
+  border-radius: 22px;
+  background: rgba(4, 13, 25, .92);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, .45);
+  backdrop-filter: blur(14px);
+}
+
+.snap-action-dock small { color: rgba(255, 255, 255, .62); text-align: center; }
+.snap-primary-action {
+  width: 100%;
+  min-height: 64px;
+  border: 0;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #75f0ff, #36bfd7);
+  color: var(--snap-ink);
+  font: 800 clamp(1.5rem, 5vw, 2.5rem)/1 "Pixelify Sans", system-ui, sans-serif;
+  letter-spacing: .05em;
+  box-shadow: inset 0 -5px 0 rgba(7, 16, 29, .24), 0 8px 20px rgba(0, 0, 0, .24);
+  touch-action: manipulation;
+}
+
+.snap-primary-action.react:not(:disabled) {
+  min-height: 78px;
+  background: linear-gradient(180deg, #ff8b72, var(--snap-coral));
+  animation: snap-pulse .58s ease-in-out infinite alternate;
+}
+
+.snap-primary-action:disabled { opacity: .48; filter: grayscale(.25); }
+
+@keyframes snap-pulse {
+  to { scale: 1.015; box-shadow: inset 0 -5px 0 rgba(7, 16, 29, .24), 0 0 0 6px rgba(255, 107, 87, .17), 0 12px 28px rgba(0, 0, 0, .3); }
+}
+
+@media (max-width: 760px) {
+  .snap-table-grid { grid-template-columns: 1fr; }
+  .snap-player-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); order: 2; }
+  .snap-player { grid-template-columns: auto minmax(0, 1fr); }
+  .snap-player dl { grid-column: 1 / -1; justify-content: space-around; }
+  .snap-center-board { min-height: 260px; grid-template-columns: minmax(86px, 1fr) auto minmax(86px, 1fr); padding: .7rem; }
+  .snap-hidden-source { display: none; }
+  .snap-center-board .playing-card,
+  .snap-empty-card { width: clamp(88px, 27vw, 128px); }
+  .snap-result { align-items: center; flex-direction: column; gap: .15rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .snap-primary-action.react:not(:disabled) { animation: none; }
+}
+
 @font-face {
   font-family: "Cardcade Pixel";
   src: url("assets/fonts/cardcade-pixel-ranks.woff2") format("woff2");
@@ -3046,4 +3259,24 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   .finders-piece-board { gap: 4px; }
   .finders-actions { position: static; bottom: auto; min-height: 0; padding: 4px; border-radius: 9px; }
   .finders-actions button { min-height: 38px; font-size: .62rem; }
+}
+
+/* These overrides sit after the shared pile rules so Snap's comparison cards
+   stay in normal grid flow instead of taking the absolute pile position. */
+.snap-game .snap-center-board .playing-card {
+  position: relative;
+  inset: auto;
+  translate: none;
+  transform: none;
+  margin: 0;
+}
+
+.snap-game .snap-hidden-source .card-back { position: relative; }
+
+@media (max-width: 760px) {
+  .snap-game .snap-center-board .snap-compare-card .playing-card,
+  .snap-game .snap-center-board .snap-empty-card {
+    width: clamp(88px, 27vw, 128px);
+    height: clamp(125px, 38.3vw, 182px);
+  }
 }

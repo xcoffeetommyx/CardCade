@@ -83,7 +83,7 @@ test("health, catalog, and launcher are served from one process", async (t) => {
 
   const catalog = await fetch(`${origin}/api/catalog`);
   const catalogBody = await catalog.json();
-  assert.deepEqual(catalogBody.families[0].games.map((game) => game.id), ["three-seven", "thirteen", "blackjack", "holdem", "five-card-draw"]);
+  assert.deepEqual(catalogBody.families[0].games.map((game) => game.id), ["three-seven", "thirteen", "blackjack", "holdem", "five-card-draw", "snap"]);
 
   const launcher = await fetch(origin);
   assert.equal(launcher.status, 200);
@@ -93,6 +93,7 @@ test("health, catalog, and launcher are served from one process", async (t) => {
   assert.match(launcherBody, /shared\/blackjack-rules\.js/);
   assert.match(launcherBody, /shared\/holdem-rules\.js/);
   assert.match(launcherBody, /shared\/five-card-draw-rules\.js/);
+  assert.match(launcherBody, /shared\/snap-rules\.js/);
   assert.match(launcherBody, /shared\/hot-seat-flow\.js/);
   assert.match(launcherBody, /shared\/juan-deck\.js/);
   assert.match(launcherBody, /shared\/juan-rules\.js/);

@@ -96,6 +96,19 @@ export const games = [
     accent: "violet"
   },
   {
+    id: "snap",
+    name: "Snap",
+    eyebrow: "Fast reaction card game",
+    description: "Lock in, watch the reveal, and SNAP the matching cards first.",
+    deckFamilyId: "standard-52",
+    genres: ["reaction"],
+    modes: ["solo", "multiplayer"],
+    players: { min: 2, max: 4, recommended: 2 },
+    supportsBots: true,
+    status: "available",
+    accent: "coral"
+  },
+  {
     id: "juan",
     name: "JUAN",
     eyebrow: "One card changes everything",

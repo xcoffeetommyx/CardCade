@@ -23,7 +23,8 @@ Cardcade server
          ├─ Rotating Rummy adapter (playable)
          ├─ Blackjack adapter (playable)
          ├─ Texas Hold'em adapter (playable)
-         └─ Five Card Draw adapter (playable)
+         ├─ Five Card Draw adapter (playable)
+         └─ Snap adapter (playable)
 ```
 
 The server is intentionally build-tool-free for the first milestone. It serves native browser modules and uses `ws` for the lobby connection.
@@ -54,7 +55,7 @@ The current games implement a narrow runtime boundary resembling:
 }
 ```
 
-3s & 7s, Thirteen, JUAN, Rotating Rummy, Blackjack, Texas Hold'em, and Five Card Draw now prove this boundary in practice: Cardcade supplies rooms, identity, connections, persistence, physical fan behavior, and private Hot Seat handoffs. Each runtime owns its deck contract where needed, rules, private views, CPU turns, round transitions, and scoring. Shared behavior should be generalized only when multiple implementations actually need it.
+3s & 7s, Thirteen, JUAN, Rotating Rummy, Blackjack, Texas Hold'em, Five Card Draw, and Snap now prove this boundary in practice: Cardcade supplies rooms, identity, connections, persistence, physical card behavior, and private Hot Seat handoffs. Each runtime owns its deck contract where needed, rules, private views, CPU turns, timed transitions, round transitions, and scoring. Shared behavior should be generalized only when multiple implementations actually need it.
 
 ## Rooms and sessions
 
@@ -72,7 +73,7 @@ The platform lobby supports these game-neutral actions:
 
 Game actions travel through the selected game-runtime boundary after a match starts.
 
-Hot Seat creates a normal server-authoritative room with one private session per human seat plus any configured CPU seats. Only the current human seat is connected to the shared device. Between human turns, the client removes the prior hand from its render state, disconnects that session, and shows either a covered pass-the-device screen or a covered automatic CPU turn. Round transitions return to the host, while 3s & 7s mercy decisions return to the guaranteed leader.
+Hot Seat creates a normal server-authoritative room with one private session per human seat plus any configured CPU seats. Only the current human seat is connected to the shared device. Between human turns, the client removes the prior hand from its render state, disconnects that session, and shows either a covered pass-the-device screen or a covered automatic CPU turn. Round transitions return to the host, while 3s & 7s mercy decisions return to the guaranteed leader. Snap omits Hot Seat because its reaction window expects simultaneous independent controls.
 
 ## What to reuse from ThreeSeven
 

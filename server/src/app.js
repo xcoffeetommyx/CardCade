@@ -14,6 +14,7 @@ import { FindersMakersRuntime } from "./games/finders-makers/runtime.js";
 import { BlackjackRuntime } from "./games/blackjack/runtime.js";
 import { HoldemRuntime } from "./games/holdem/runtime.js";
 import { FiveCardDrawRuntime } from "./games/five-card-draw/runtime.js";
+import { SnapRuntime } from "./games/snap/runtime.js";
 import { RoomStore } from "./room-store.js";
 
 const moduleDirectory = path.dirname(fileURLToPath(import.meta.url));
@@ -128,6 +129,7 @@ export function createCardcadeServer({
   blackjackRuntime,
   holdemRuntime,
   fiveCardDrawRuntime,
+  snapRuntime,
   snapshotStore = null,
   publicRoot = defaultPublicRoot,
   sharedRoot = defaultSharedRoot,
@@ -145,6 +147,7 @@ export function createCardcadeServer({
   const blackjack = blackjackRuntime ?? new BlackjackRuntime();
   const holdem = holdemRuntime ?? new HoldemRuntime();
   const fiveCardDraw = fiveCardDrawRuntime ?? new FiveCardDrawRuntime();
+  const snap = snapRuntime ?? new SnapRuntime();
   const gameRuntimes = new Map([
     ["three-seven", threeSeven],
     ["thirteen", thirteen],
@@ -153,7 +156,8 @@ export function createCardcadeServer({
     ["finders-makers", findersMakers],
     ["blackjack", blackjack],
     ["holdem", holdem],
-    ["five-card-draw", fiveCardDraw]
+    ["five-card-draw", fiveCardDraw],
+    ["snap", snap]
   ]);
   const roomSockets = new Map();
   const botTimers = new Map();
@@ -427,6 +431,41 @@ export function createCardcadeServer({
   }
 
   function scheduleBotTurns(code) {
+    let scheduledRoom;
+    try {
+      scheduledRoom = rooms.privateSnapshot(code);
+    } catch {
+      return;
+    }
+    const scheduledRuntime = gameRuntimes.get(scheduledRoom.gameId);
+    if (typeof scheduledRuntime?.nextActionDelay === "function") {
+      const existingTimer = botTimers.get(code);
+      if (existingTimer) clearTimeout(existingTimer);
+      botTimers.delete(code);
+      const delay = scheduledRuntime.nextActionDelay(code);
+      if (delay == null) return;
+      const tick = () => {
+        botTimers.delete(code);
+        try {
+          const room = rooms.privateSnapshot(code);
+          const runtime = gameRuntimes.get(room.gameId);
+          if (!runtime?.has(code)) return;
+          const changed = runtime.runScheduledStep(code);
+          if (changed) {
+            persistRoom(code);
+            broadcastRoom(code);
+          }
+          scheduleBotTurns(code);
+        } catch (error) {
+          const payload = errorPayload(error);
+          for (const socket of roomSockets.get(code) ?? []) {
+            send(socket, { type: "error", error: payload.body.error });
+          }
+        }
+      };
+      botTimers.set(code, setTimeout(tick, Math.max(0, delay)));
+      return;
+    }
     if (botTimers.has(code)) return;
     const tick = () => {
       botTimers.delete(code);
