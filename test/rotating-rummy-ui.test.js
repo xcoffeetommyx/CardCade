@@ -52,6 +52,9 @@ test("Rotating Rummy has its own Route UI, controls, and fanned-card renderer", 
   assert.match(app, /data-game-card=/);
   assert.match(app, /renderMiniCardBack\("rotating-rummy"/);
   assert.match(app, /standard-card-game \$\{activeTableAppearanceClass\(\)\} rotating-rummy-game/);
+  assert.match(app, /class="rummy-table-stage"/);
+  assert.match(app, /class="rummy-route-stage"/);
+  assert.match(app, /desktopRummyFit/);
 
   const renderer = app.slice(app.indexOf("function renderRotatingRummyCard"), app.indexOf("function renderRummyRouteProgress"));
   assert.match(renderer, /rummy-card-center/);
@@ -70,6 +73,10 @@ test("Rotating Rummy has its own Route UI, controls, and fanned-card renderer", 
   assert.match(css, /\.rummy-meld-group \.rummy-corner strong,[\s\S]*?\.rummy-link-group-cards \.rummy-corner strong \{[\s\S]*?font-size: min\(26cqw, 20cqh\)/);
   assert.match(css, /\.rummy-actions \{ grid-template-columns: repeat\(7/);
   assert.match(css, /@media \(max-width: 720px\)[\s\S]*?\.rummy-actions \{ grid-template-columns: repeat\(3/);
+  assert.match(css, /\.rummy-table-stage,\n\.rummy-route-stage \{ display: contents; \}/);
+  assert.match(css, /\.playing-game \.rotating-rummy-game \{[\s\S]*?height: calc\(var\(--game-viewport-height\)[\s\S]*?grid-template-rows:/);
+  assert.match(css, /\.rummy-table-stage \{ min-height: 0; display: grid; grid-template-columns:/);
+  assert.match(css, /\.rotating-rummy-game \.rummy-link-board \{ min-height: 0;[\s\S]*?overflow: auto;/);
 });
 
 test("Blackout Edition remains a deck-family-scoped visual preference", () => {

@@ -1778,6 +1778,8 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   --rummy-green: #55c878;
   --rummy-yellow: #f5ca4d;
 }
+.rummy-table-stage,
+.rummy-route-stage { display: contents; }
 .rummy-route-banner {
   min-height: 76px;
   padding: 10px 14px;
@@ -2366,6 +2368,98 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   .standard-card-game { grid-template-columns: minmax(0, 1fr); }
   .physical-hand { min-height: 290px; }
   .game-hand { min-height: 235px; }
+}
+
+/* Rotating Rummy has more table information than the other card games. On a
+   desktop, keep it in one intentional viewport layout rather than pushing the
+   hand or controls below the fold. Narrower screens retain the stacked view. */
+@media (min-width: 900px) {
+  .playing-game .rotating-rummy-game {
+    --game-card-width: clamp(68px, 7vw, 88px);
+    --game-card-height: calc(var(--game-card-width) * 1.42);
+    height: calc(var(--game-viewport-height) - var(--safe-top) - var(--game-main-top) - var(--game-main-bottom));
+    min-height: 0;
+    grid-template-rows:
+      clamp(48px, 7vh, 58px)
+      clamp(54px, 8vh, 64px)
+      30px
+      clamp(54px, 8vh, 64px)
+      minmax(120px, 1fr)
+      clamp(195px, 30vh, 248px)
+      clamp(48px, 7vh, 60px);
+    gap: 6px;
+    overflow: hidden;
+  }
+  .playing-game .rotating-rummy-game > :is(.game-topbar, .rummy-route-banner, .rummy-pattern-help, .game-opponents, .rummy-table-stage, .physical-hand, .game-actions) { min-height: 0; }
+  .rotating-rummy-game .game-topbar { min-height: 0; padding: 3px 6px; }
+  .rotating-rummy-game .game-topbar h2 { font-size: 1.18rem; }
+  .rotating-rummy-game .game-topbar p { font-size: .65rem; }
+  .rotating-rummy-game .game-score { min-width: 58px; min-height: 40px; padding: 3px 6px; }
+  .rotating-rummy-game .game-score span { font-size: .57rem; }
+  .rotating-rummy-game .game-score strong { font-size: 1rem; }
+
+  .rotating-rummy-game .rummy-route-banner { min-height: 0; padding: 7px 10px; gap: 10px; }
+  .rotating-rummy-game .rummy-route-banner h3 { font-size: .88rem; }
+  .rotating-rummy-game .rummy-route-banner p { font-size: .62rem; }
+  .rotating-rummy-game .rummy-route-progress { grid-template-columns: repeat(5, 8px); gap: 4px; }
+  .rotating-rummy-game .rummy-route-progress i { width: 8px; height: 8px; }
+  .rotating-rummy-game .rummy-pattern-help { position: relative; z-index: 40; overflow: visible; }
+  .rotating-rummy-game .rummy-pattern-help-toggle { padding: 6px 10px; font-size: .6rem; }
+  .rotating-rummy-game .rummy-pattern-help > div:not([hidden]) {
+    position: absolute;
+    z-index: 41;
+    top: calc(100% + 5px);
+    right: 0;
+    left: 0;
+    max-height: min(330px, calc(var(--game-viewport-height) - 120px));
+    overflow: auto;
+    border: 1px solid rgba(126,159,194,.48);
+    border-radius: 0 0 10px 10px;
+    background: #081423;
+    box-shadow: 5px 7px 0 rgba(0,0,0,.35);
+  }
+
+  .rotating-rummy-game .game-opponents { min-height: 0; gap: 6px; }
+  .rotating-rummy-game .game-seat { min-height: 0; padding: 5px 6px; grid-template-columns: 36px minmax(0, 1fr) auto; gap: 6px; }
+  .rotating-rummy-game .seat-last-card { width: 30px; height: 40px; border-width: 1px; box-shadow: 2px 3px 0 rgba(1,6,13,.52); }
+  .rotating-rummy-game .seat-last-card strong { font-size: .78rem; }
+  .rotating-rummy-game .game-seat .mini-deck { width: 30px; height: 40px; border-width: 1px; box-shadow: 2px 3px 0 #020710; font-size: .57rem; }
+  .rotating-rummy-game .game-seat-copy > small { margin-top: 1px; font-size: .6rem; }
+
+  .rummy-table-stage { min-height: 0; display: grid; grid-template-columns: minmax(220px, .78fr) minmax(0, 1.22fr); gap: 6px; }
+  .rummy-route-stage { min-width: 0; min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 6px; }
+  .rotating-rummy-game .rummy-table { min-height: 0; padding: 8px; border-radius: 14px; }
+  .rotating-rummy-game .rummy-table .game-status small { font-size: .65rem; }
+  .rotating-rummy-game .rummy-pile-zone { --rummy-table-card-width: clamp(68px, 6vw, 80px); min-height: 0; height: 100%; gap: clamp(15px, 3vw, 34px); }
+  .rotating-rummy-game .rummy-pile-zone .active-pile { min-height: 0; min-width: var(--rummy-table-card-width, 72px); }
+  .rotating-rummy-game .rummy-pile-zone .active-pile.cards-pile { width: var(--rummy-table-card-width, 72px); min-width: var(--rummy-table-card-width, 72px); flex-basis: var(--rummy-table-card-width, 72px); }
+  .rotating-rummy-game .rummy-stock,
+  .rotating-rummy-game .rummy-pile-zone .rummy-card.played {
+    width: var(--rummy-table-card-width);
+    height: calc(var(--rummy-table-card-width) * 1.42);
+  }
+  .rotating-rummy-game .rummy-stock { border-width: 3px; font-size: .72rem; }
+  .rotating-rummy-game .rummy-stock::before { inset: 7px; }
+  .rotating-rummy-game .rummy-pile-zone .rummy-card.played { flex-basis: var(--rummy-table-card-width); }
+
+  .rotating-rummy-game .rummy-route-stage .rummy-meld-zone { min-height: 0; padding: 7px 9px; gap: 8px; border-width: 1px; border-radius: 10px; overflow: hidden; }
+  .rotating-rummy-game .rummy-route-stage .rummy-meld-zone strong { font-size: .78rem; }
+  .rotating-rummy-game .rummy-route-stage .rummy-meld-zone small { font-size: .6rem; }
+  .rotating-rummy-game .rummy-meld-groups { gap: 5px; }
+  .rotating-rummy-game .rummy-link-board { min-height: 0; padding: 6px 8px; overflow: auto; overscroll-behavior: contain; }
+  .rotating-rummy-game .rummy-link-board-heading { margin-bottom: 4px; }
+  .rotating-rummy-game .rummy-link-board-heading small { font-size: .56rem; }
+  .rotating-rummy-game .rummy-link-targets { grid-template-columns: repeat(auto-fit, minmax(126px, 1fr)); gap: 5px; }
+  .rotating-rummy-game .rummy-link-group-card { padding: 4px; }
+  .rotating-rummy-game .rummy-link-group-card button { min-height: 22px; margin-top: 3px; padding: 3px 4px; font-size: .48rem; }
+
+  .rotating-rummy-game .physical-hand { min-height: 0; padding: 7px 10px 0; }
+  .rotating-rummy-game .hand-heading { min-height: 30px; }
+  .rotating-rummy-game .hand-heading small { font-size: .62rem; }
+  .rotating-rummy-game .selection-status { font-size: .66rem; }
+  .rotating-rummy-game .game-hand { min-height: 0; margin-top: 0; }
+  .rotating-rummy-game .game-actions { position: static; bottom: auto; min-height: 0; gap: 5px; padding: 4px; border-radius: 10px; }
+  .rotating-rummy-game .game-actions button { min-height: 40px; border-width: 1px; font-size: .6rem; }
 }
 
 @media (min-width: 1040px) {
