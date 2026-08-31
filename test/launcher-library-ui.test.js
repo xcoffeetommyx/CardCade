@@ -48,8 +48,7 @@ test("the orbital launcher uses CSS depth, fixed-scene mode scrolling, and respo
   assert.match(css, /--deck-box-depth: clamp/);
   assert.match(css, /\.orbital-deck \{[\s\S]*?filter: none;[\s\S]*?transform-style: preserve-3d/);
   assert.match(css, /\.deck-box-front,[\s\S]*?brightness\(var\(--orbit-face-brightness\)\)/);
-  assert.match(css, /\.orbital-deck-box::after[\s\S]*?translateZ\(calc\(var\(--deck-box-half-depth\) \+ 3px\)\)/);
-  assert.match(css, /\.orbital-deck:is\(:focus-visible, \.controller-hover, \.controller-focus\) \.orbital-deck-box::after \{ opacity: 1; \}/);
+  assert.match(css, /\.orbital-deck:focus-visible \{ outline: 0 !important; \}/);
   assert.match(css, /\.controller-hover\.orbital-deck,[\s\S]*?outline: 0 !important;[\s\S]*?filter: none !important;/);
   assert.match(css, /\.deck-box-side-left/);
   assert.match(css, /\.deck-box-side-right/);

@@ -624,6 +624,7 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   will-change: transform;
   cursor: pointer;
 }
+.orbital-deck:focus-visible { outline: 0 !important; }
 .orbital-deck[data-orbit-slot="0"] {
   z-index: 8;
   --orbit-face-brightness: 1.08;
@@ -679,28 +680,6 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   transition: transform 140ms ease;
   transform: rotateX(-5deg);
 }
-.orbital-deck-box::after {
-  content: "";
-  position: absolute;
-  z-index: 6;
-  inset: -5px;
-  pointer-events: none;
-  background:
-    linear-gradient(#81d5ff 0 0) 0 0 / 25px 3px,
-    linear-gradient(#81d5ff 0 0) 0 0 / 3px 25px,
-    linear-gradient(#81d5ff 0 0) 100% 0 / 25px 3px,
-    linear-gradient(#81d5ff 0 0) 100% 0 / 3px 25px,
-    linear-gradient(#81d5ff 0 0) 0 100% / 25px 3px,
-    linear-gradient(#81d5ff 0 0) 0 100% / 3px 25px,
-    linear-gradient(#81d5ff 0 0) 100% 100% / 25px 3px,
-    linear-gradient(#81d5ff 0 0) 100% 100% / 3px 25px;
-  background-repeat: no-repeat;
-  filter: drop-shadow(0 0 5px rgba(77, 178, 236, .58));
-  opacity: 0;
-  transform: translateZ(calc(var(--deck-box-half-depth) + 3px));
-  transition: opacity 120ms ease;
-}
-.orbital-deck:is(:focus-visible, .controller-hover, .controller-focus) .orbital-deck-box::after { opacity: 1; }
 .orbital-deck:hover .orbital-deck-box,
 .orbital-deck.controller-hover .orbital-deck-box { transform: translateY(-5px) rotateX(-5deg); }
 .orbital-deck.active .orbital-deck-box {
