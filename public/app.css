@@ -4085,13 +4085,15 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 /* Layered command menus: choose first, configure one level deeper. */
 .layered-menu-screen { overflow: hidden; }
 .menu-depth-background {
+  position: relative;
   min-height: calc(100dvh - max(44px, calc(var(--safe-top) + 32px)) - max(56px, calc(var(--safe-bottom) + 28px)));
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
-  align-content: start;
+  grid-template-rows: auto auto;
+  align-content: center;
   transition: opacity 170ms ease, transform 210ms cubic-bezier(.2,.78,.2,1), filter 170ms ease;
   transform-origin: 50% 46%;
 }
+.menu-depth-background > .game-shell-nav { position: absolute; inset: 0 0 auto; }
 .panel-open .menu-depth-background {
   opacity: .16;
   filter: blur(3px);
@@ -4099,21 +4101,24 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   pointer-events: none;
   user-select: none;
 }
-.game-menu-title-block { margin: clamp(18px, 6vh, 58px) auto clamp(20px, 5vh, 42px); }
+.game-menu-title-block { margin: 0 auto clamp(20px, 5vh, 42px); }
 .game-command-menu {
-  width: min(470px, 92vw);
+  width: min(360px, 88vw);
   margin: 0 auto;
   display: grid;
+  gap: 2px;
   align-self: start;
 }
 .game-command-option {
   width: 100%;
   min-height: 62px;
-  padding: 7px 14px;
+  padding: 6px 18px;
   display: grid;
-  grid-template-columns: 25px minmax(0, 1fr) auto;
+  grid-template-columns: 24px minmax(0, 1fr);
+  grid-template-rows: auto auto;
   align-items: center;
-  gap: 8px;
+  column-gap: 0;
+  row-gap: 2px;
   border: 0;
   color: rgba(222, 235, 245, .62);
   background: transparent;
@@ -4122,14 +4127,15 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   transition: color 110ms ease, transform 110ms ease, background 110ms ease;
 }
 .game-command-option > span:first-child {
+  grid-row: 1 / 3;
   color: #ff7471;
   opacity: 0;
   font: 900 1.3rem var(--font-display);
   transform: translateX(-7px);
   transition: opacity 110ms ease, transform 110ms ease;
 }
-.game-command-option strong { font: 900 clamp(.92rem, 2.3vw, 1.14rem) var(--font-display); letter-spacing: .07em; text-transform: uppercase; }
-.game-command-option small { color: #8299ae; font: .68rem var(--font-ui); letter-spacing: .03em; text-align: right; }
+.game-command-option strong { font: 900 clamp(1.18rem, 3vw, 1.55rem) var(--font-display); letter-spacing: .08em; text-transform: uppercase; }
+.game-command-option small { color: #8299ae; font: .64rem var(--font-ui); letter-spacing: .03em; text-align: left; }
 .game-command-option:is(:hover, :focus-visible, .controller-hover, .controller-focus) {
   outline: 0;
   color: #fff;
@@ -4203,9 +4209,11 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 .room-code-entry input { text-transform: uppercase; letter-spacing: .17em; }
 
 @media (max-width: 720px) {
-  .game-menu-title-block { margin-block: 14px 24px; }
-  .game-command-menu { width: min(390px, 100%); }
-  .game-command-option { min-height: 57px; padding-inline: 8px; }
+  .game-menu-title-block { margin: 0 auto 20px; }
+  .game-command-menu { width: min(310px, 92vw); }
+  .game-command-option { min-height: 55px; padding: 5px 14px; }
+  .game-command-option strong { font-size: 1.02rem; }
+  .game-command-option small { font-size: .58rem; }
   .menu-layer { inset: max(44px, var(--safe-top)) max(8px, var(--safe-right)) max(8px, var(--safe-bottom)) max(8px, var(--safe-left)); width: calc(100% - 16px); max-height: calc(100dvh - max(16px, calc(var(--safe-top) + var(--safe-bottom)))); padding: 14px; }
   .layer-screen-head { margin-bottom: 10px; }
   .layer-title-block { margin-bottom: 22px; }
@@ -4213,9 +4221,7 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 }
 
 @media (max-width: 430px) {
-  .game-command-option { grid-template-columns: 20px minmax(0, 1fr) auto; }
-  .game-command-option strong { font-size: .78rem; }
-  .game-command-option small { max-width: 92px; font-size: .61rem; }
+  .game-command-option { grid-template-columns: 20px minmax(0, 1fr); }
   .menu-entry-row { padding-left: 6px; grid-template-columns: 1fr; gap: 4px; }
   .menu-entry-row input { min-height: 45px; }
 }
@@ -4329,11 +4335,11 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   .appearance-layer-title { margin-bottom: 8px; }
   .appearance-layer-title h2 { font-size: clamp(1.8rem, 10vw, 2.8rem); }
   .appearance-loadout-layout { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); gap: 8px; }
-  .appearance-category-menu { padding: 0 0 6px; grid-auto-flow: column; grid-auto-columns: minmax(94px, 1fr); align-content: stretch; overflow-x: auto; overscroll-behavior-inline: contain; scrollbar-width: none; }
-  .appearance-category-menu::-webkit-scrollbar { display: none; }
-  .appearance-category-option { min-height: 52px; grid-template-columns: 25px minmax(0, 1fr); padding: 5px 4px; border-left: 0; border-bottom: 2px solid transparent; }
-  .appearance-category-option strong { font-size: .54rem; }
-  .appearance-category-option small { font-size: .52rem; }
+  .appearance-category-menu { padding: 0 0 6px; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 2px; align-content: stretch; overflow: visible; }
+  .appearance-category-option { min-width: 0; min-height: 54px; padding: 4px 2px; grid-template-columns: 1fr; grid-template-rows: 18px auto; place-items: center; align-content: center; border-left: 0; border-bottom: 2px solid transparent; text-align: center; }
+  .appearance-category-option > span { grid-row: 1; }
+  .appearance-category-option strong { grid-row: 2; font-size: clamp(.46rem, 1.7vw, .54rem); line-height: 1.15; overflow-wrap: anywhere; }
+  .appearance-category-option small { display: none; }
   .appearance-choice-stage { grid-template-rows: auto auto minmax(150px, 1fr) auto auto; }
   .appearance-object-stage { min-height: 165px; }
   .appearance-object-stage .table-skin-preview { min-height: 145px; }
@@ -4351,9 +4357,7 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 
 @media (max-width: 430px) {
   .appearance-layer-title small { display: none; }
-  .appearance-category-option small { display: none; }
-  .appearance-category-option { min-height: 46px; grid-template-rows: 1fr; }
-  .appearance-category-option > span { grid-row: 1; }
+  .appearance-category-option { min-height: 50px; grid-template-rows: 16px auto; }
 }
 
 @media (orientation: landscape) and (max-height: 660px) {

@@ -47,9 +47,13 @@ test("Options uses the shared shell while preserving readable utility controls",
   assert.match(appearance, /data-action="cycle-appearance-choice"/);
   assert.match(app, /function handleAppearanceKeydown/);
   assert.match(css, /\.game-command-option \{/);
+  assert.match(css, /\.game-command-menu \{[\s\S]*?width: min\(360px, 88vw\)/);
+  assert.match(css, /\.game-command-option strong \{ font: 900 clamp\(1\.18rem, 3vw, 1\.55rem\)/);
+  assert.match(css, /\.game-command-option small \{[^}]*text-align: left;/);
   assert.match(css, /\.panel-open \.menu-depth-background/);
   assert.match(css, /\.appearance-loadout-layout/);
   assert.match(css, /\.appearance-object-stage/);
+  assert.match(css, /\.appearance-category-menu \{ padding: 0 0 6px; grid-template-columns: repeat\(5, minmax\(0, 1fr\)\);[^}]*overflow: visible;/);
 });
 
 test("local and multiplayer setup use shared game-shell configuration controls", () => {
