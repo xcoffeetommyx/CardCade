@@ -475,29 +475,22 @@ function libraryOrbitSlot(index, activeIndex, total) {
   return delta;
 }
 
-function deckFamilySymbols(family) {
-  if (family.id === "standard-52") return ["♠", "♥", "♣", "♦"];
-  if (family.id === "color-action") return ["✦", "↻", "+2", "▰"];
-  if (family.id === "rotating-rummy") return ["1", "2", "3", "↻"];
-  return ["?", "◆", "?", "●"];
-}
-
 function renderOrbitalDeck(family, slot, active) {
   const gameCount = family.games.length;
+  const mark = escapeHtml(deckFamilyMark(family));
   const accessibleState = active ? "Selected. Open games." : "Rotate this deck toward the front.";
   return `
     <button class="orbital-deck ${active ? "active" : ""}" type="button" data-action="select-orbital-deck" data-family-id="${escapeHtml(family.id)}" data-orbit-slot="${slot}" aria-pressed="${active}" aria-label="${escapeHtml(family.name)}. ${accessibleState}" tabindex="${active ? "0" : "-1"}">
       <span class="orbital-deck-box" data-family="${escapeHtml(family.id)}" aria-hidden="true">
-        <span class="deck-box-side deck-box-side-right"></span>
-        <span class="deck-box-side deck-box-side-left"></span>
-        <span class="deck-box-top"></span>
+        <span class="deck-box-side deck-box-side-right"><i>${mark}</i></span>
+        <span class="deck-box-side deck-box-side-left"><i>${mark}</i></span>
+        <span class="deck-box-top"><i>${mark}</i></span>
         <span class="deck-box-bottom"></span>
-        <span class="deck-box-rear"><span>${deckFamilyMark(family)}</span><b>Cardcade</b></span>
+        <span class="deck-box-rear"><span>${mark}</span><b>Cardcade</b></span>
         <span class="deck-box-front">
-          <small>Cardcade deck</small>
-          <span class="deck-box-symbols">${deckFamilySymbols(family).map((symbol) => `<i>${escapeHtml(symbol)}</i>`).join("")}</span>
+          <small>Cardcade</small>
+          <span class="deck-box-emblem">${mark}</span>
           <strong>${escapeHtml(family.name)}</strong>
-          <em>${escapeHtml(family.shortName)}</em>
           <b>${gameCount} game${gameCount === 1 ? "" : "s"}</b>
         </span>
       </span>
