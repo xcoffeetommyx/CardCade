@@ -2,7 +2,9 @@
 
 ## Guiding rule
 
-Cards are objects on a table, not buttons inside a UI panel. Presentation is shared where it is truly reusable; game rules remain isolated.
+Games, decks, players, and tables are objects in a space. UI exists to operate those objects. Cards remain objects on a table, not buttons inside a UI panel. Presentation is shared where it is truly reusable; game rules remain isolated.
+
+The launcher follows the same rule through the existing `state.screen` render architecture. Home, library, setup, room, and game screens share a compact game-shell language—menu commands, game objects, configuration selectors, player seats, prompts, and action docks—without turning those presentation primitives into game rules or introducing a client router. Major-screen transitions communicate movement through that hierarchy and become effectively instantaneous when reduced motion is enabled. Settings remains a legibility-first utility surface.
 
 ## Runtime shape
 

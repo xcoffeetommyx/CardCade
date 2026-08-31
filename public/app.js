@@ -71,7 +71,9 @@ const state = {
   snapCountdownTimer: null,
   gameActionLock: false,
   dealtHandOwners: new Set(),
-  lastPileSignature: null
+  lastPileSignature: null,
+  renderedScreen: null,
+  navigationDirection: "forward"
 };
 
 const pwaState = {
@@ -414,13 +416,21 @@ function setupPwaShell() {
 
 function screenHeader(title, copy, back = "home") {
   return `
-    <div class="screen-head">
+    <div class="screen-head utility-screen-head">
       <button class="back-button" type="button" data-action="${back}" aria-label="Go back">←</button>
       <div>
         <p class="eyebrow">Cardcade</p>
         <h2>${escapeHtml(title)}</h2>
-        <p class="lede">${escapeHtml(copy)}</p>
+        ${copy ? `<p class="lede">${escapeHtml(copy)}</p>` : ""}
       </div>
+    </div>`;
+}
+
+function gameShellNav(label, back = "home", backLabel = "Go back") {
+  return `
+    <div class="screen-head game-shell-nav">
+      <button class="back-button" type="button" data-action="${back}" aria-label="${escapeHtml(backLabel)}">←</button>
+      <span>${escapeHtml(label)}</span>
     </div>`;
 }
 
@@ -455,6 +465,22 @@ function deckFamilyMark(family) {
   if (family.id === "color-action") return "✦";
   if (family.id === "rotating-rummy") return "↻";
   return "▣";
+}
+
+function familyForGame(gameId) {
+  return state.catalog.families.find((family) => family.games.some((game) => game.id === gameId)) || null;
+}
+
+function renderGameObject(game, { compact = false } = {}) {
+  const family = familyForGame(game?.id);
+  const familyId = family?.id || "standard-52";
+  const mark = escapeHtml(deckFamilyMark(family || { id: familyId }));
+  return `
+    <div class="game-object ${compact ? "compact" : ""}" data-family="${escapeHtml(familyId)}" aria-hidden="true">
+      <span class="game-object-shadow"></span>
+      <span class="game-object-deck"><small>Cardcade</small><i>${mark}</i><b>${escapeHtml(family?.shortName || "Card deck")}</b></span>
+      <span class="game-object-card"><i>${mark}</i></span>
+    </div>`;
 }
 
 function libraryModeLabel(mode = state.mode) {
@@ -678,30 +704,23 @@ function moveLibraryGameFocus(direction, { controller = false } = {}) {
 
 function renderHome() {
   return `
-    <section class="home-grid">
-      <div class="home-copy">
-        <h1>Every table starts here.</h1>
-        <p class="lede">Pick a game, gather around one room code, and handle cards that feel like physical objects—not tiny buttons in a panel.</p>
-        <div class="home-actions mode-launcher">
-          <button class="arcade-button primary" type="button" data-action="open-solo">
-            <span class="button-icon">▶</span><span><span class="button-label">Single / Solo</span><span class="button-copy">Choose a game and fill seats with smart rivals</span></span><span class="button-arrow">›</span>
-          </button>
-          <button class="arcade-button" type="button" data-action="open-hot-seat">
-            <span class="button-icon">▣</span><span><span class="button-label">Hot Seat</span><span class="button-copy">Pass one device around a private table</span></span><span class="button-arrow">›</span>
-          </button>
-          <button class="arcade-button" type="button" data-action="open-multiplayer">
-            <span class="button-icon">♟</span><span><span class="button-label">Multiplayer</span><span class="button-copy">Host one global room or join with a code</span></span><span class="button-arrow">›</span>
-          </button>
-          <button class="arcade-button" type="button" data-action="open-settings">
-            <span class="button-icon">⚙</span><span><span class="button-label">Options</span><span class="button-copy">Player name, motion, sound, and accessibility</span></span><span class="button-arrow">›</span>
-          </button>
-        </div>
+    <section class="game-shell-screen title-screen" aria-labelledby="cardcade-title">
+      <div class="title-atmosphere" aria-hidden="true">
+        <span class="title-card-object title-card-left">CC</span>
+        <span class="title-card-object title-card-center">♠</span>
+        <span class="title-card-object title-card-right">✦</span>
       </div>
-      <div class="hero-table" aria-label="A fanned hand of three playing cards">
-        <div class="hero-card one"><span>3</span><span class="suit">♣</span></div>
-        <div class="hero-card two red"><span>7</span><span class="suit">♥</span></div>
-        <div class="hero-card three"><span>K</span><span class="suit">♠</span></div>
+      <div class="title-lockup">
+        <p>One arcade · many tables</p>
+        <h1 id="cardcade-title" aria-label="Cardcade"><span>Card</span><span>cade</span></h1>
       </div>
+      <nav class="main-menu" aria-label="Cardcade main menu">
+        <button class="main-menu-option" type="button" data-action="open-solo"><span aria-hidden="true">›</span><strong>Solo</strong></button>
+        <button class="main-menu-option" type="button" data-action="open-hot-seat"><span aria-hidden="true">›</span><strong>Hot Seat</strong></button>
+        <button class="main-menu-option" type="button" data-action="open-multiplayer"><span aria-hidden="true">›</span><strong>Multiplayer</strong></button>
+        <button class="main-menu-option" type="button" data-action="open-settings"><span aria-hidden="true">›</span><strong>Options</strong></button>
+      </nav>
+      <p class="controller-hint">MOVE TO CHOOSE · CONFIRM TO ENTER</p>
     </section>`;
 }
 
@@ -746,95 +765,153 @@ function renderLocalLobby() {
   const modeLabel = state.mode === "hot-seat" ? "Hot Seat" : "Solo";
   const hotSeatTotal = state.hotSeatPlayerCount + state.hotSeatBots;
   return `
-    ${screenHeader(`${game.name} lobby`, `${modeLabel} setup stays local to this device.`, "back-to-library")}
-    <div class="solo-panel">
-      <div class="family-header">
-        <div><span class="family-kicker">${escapeHtml(game.eyebrow)}</span><h3>${escapeHtml(game.name)}</h3></div>
-        <span class="badge">${escapeHtml(statusLabel(game.status))}</span>
+    <section class="game-shell-screen pregame-screen" data-family="${escapeHtml(familyForGame(game.id)?.id || "standard-52")}" aria-labelledby="pregame-title">
+      ${gameShellNav(`${modeLabel} · Table setup`, "back-to-library", "Return to game selection")}
+      <div class="pregame-layout">
+        <header class="pregame-game-identity">
+          ${renderGameObject(game)}
+          <p class="shell-kicker">${escapeHtml(game.eyebrow)}</p>
+          <h1 id="pregame-title">${escapeHtml(game.name)}</h1>
+          <span class="game-player-range">${game.players.min}–${game.players.max} players</span>
+        </header>
+        <div class="table-setup-console" aria-label="${escapeHtml(game.name)} table configuration">
+          ${state.mode === "solo" ? `
+            <div class="configuration-selector player-identity-selector">
+              <label for="local-name">Player</label>
+              <input id="local-name" maxlength="24" value="${escapeHtml(playerName())}" autocomplete="nickname">
+            </div>
+            <div class="configuration-selector">
+              <span class="configuration-label">CPU players</span>
+              <div class="stepper game-stepper">
+                <button type="button" data-action="local-bot-down" aria-label="Remove CPU player" ${state.localBots <= minBots ? "disabled" : ""}>−</button>
+                <output><strong>${state.localBots}</strong><span>CPU${state.localBots === 1 ? "" : "s"}</span></output>
+                <button type="button" data-action="local-bot-up" aria-label="Add CPU player" ${state.localBots >= maxBots ? "disabled" : ""}>+</button>
+              </div>
+            </div>` : `
+            <div class="configuration-selector">
+              <span class="configuration-label">Human players</span>
+              <div class="stepper game-stepper">
+                <button type="button" data-action="hot-seat-player-down" aria-label="Remove Hot Seat player" ${state.hotSeatPlayerCount <= (game.supportsBots ? 1 : game.players.min) ? "disabled" : ""}>−</button>
+                <output><strong>${state.hotSeatPlayerCount}</strong><span>Human${state.hotSeatPlayerCount === 1 ? "" : "s"}</span></output>
+                <button type="button" data-action="hot-seat-player-up" aria-label="Add Hot Seat player" ${state.hotSeatPlayerCount >= game.players.max || (state.hotSeatBots === 0 && hotSeatTotal >= game.players.max) ? "disabled" : ""}>+</button>
+              </div>
+            </div>
+            <div class="player-seat-config-grid" aria-label="Hot Seat player names">
+              ${state.hotSeatNames.map((name, index) => `
+                <div class="player-name-slot">
+                  <span aria-hidden="true">${index + 1}</span>
+                  <div class="field">
+                    <label for="hot-seat-name-${index}">Seat ${index + 1}${index === 0 ? " · table host" : ""}</label>
+                    <input id="hot-seat-name-${index}" data-hot-seat-name maxlength="24" value="${escapeHtml(name)}" autocomplete="off" required>
+                  </div>
+                </div>`).join("")}
+            </div>
+            ${game.supportsBots ? `
+              <div class="configuration-selector">
+                <span class="configuration-label">CPU players</span>
+                <div class="stepper game-stepper">
+                  <button type="button" data-action="hot-seat-bot-down" aria-label="Remove Hot Seat CPU" ${state.hotSeatBots <= 0 || hotSeatTotal <= game.players.min ? "disabled" : ""}>−</button>
+                  <output><strong>${state.hotSeatBots}</strong><span>CPU${state.hotSeatBots === 1 ? "" : "s"}</span></output>
+                  <button type="button" data-action="hot-seat-bot-up" aria-label="Add Hot Seat CPU" ${hotSeatTotal >= game.players.max ? "disabled" : ""}>+</button>
+                </div>
+              </div>
+              <p class="setup-note">${hotSeatTotal} seats · hands are covered between players · CPU turns run automatically</p>` : `
+              <p class="setup-note">Two private human seats · the table is covered between turns</p>`}
+          `}
+        </div>
       </div>
-      ${state.mode === "solo" ? `
-        <div class="field">
-          <label for="local-name">Your name</label>
-          <input id="local-name" maxlength="24" value="${escapeHtml(playerName())}" autocomplete="nickname">
-        </div>
-        <label><strong>CPU players</strong></label>
-        <div class="stepper">
-          <button type="button" data-action="local-bot-down" aria-label="Remove CPU player" ${state.localBots <= minBots ? "disabled" : ""}>−</button>
-          <output>${state.localBots} CPU${state.localBots === 1 ? "" : "s"}</output>
-          <button type="button" data-action="local-bot-up" aria-label="Add CPU player" ${state.localBots >= maxBots ? "disabled" : ""}>+</button>
-        </div>
-        <div class="callout coral">${escapeHtml(game.name)} is ready. Cardcade will create a private local table and fill the open seats with CPUs.</div>` : `
-        <label><strong>Human players</strong></label>
-        <div class="stepper">
-          <button type="button" data-action="hot-seat-player-down" aria-label="Remove Hot Seat player" ${state.hotSeatPlayerCount <= (game.supportsBots ? 1 : game.players.min) ? "disabled" : ""}>−</button>
-          <output>${state.hotSeatPlayerCount} human${state.hotSeatPlayerCount === 1 ? "" : "s"}</output>
-          <button type="button" data-action="hot-seat-player-up" aria-label="Add Hot Seat player" ${state.hotSeatPlayerCount >= game.players.max || (state.hotSeatBots === 0 && hotSeatTotal >= game.players.max) ? "disabled" : ""}>+</button>
-        </div>
-        <div class="hot-seat-names">
-          ${state.hotSeatNames.map((name, index) => `
-            <div class="field">
-              <label for="hot-seat-name-${index}">Seat ${index + 1}${index === 0 ? " · table host" : ""}</label>
-              <input id="hot-seat-name-${index}" data-hot-seat-name maxlength="24" value="${escapeHtml(name)}" autocomplete="off" required>
-            </div>`).join("")}
-        </div>
-        ${game.supportsBots ? `
-          <label><strong>CPU players</strong></label>
-          <div class="stepper">
-            <button type="button" data-action="hot-seat-bot-down" aria-label="Remove Hot Seat CPU" ${state.hotSeatBots <= 0 || hotSeatTotal <= game.players.min ? "disabled" : ""}>−</button>
-            <output>${state.hotSeatBots} CPU${state.hotSeatBots === 1 ? "" : "s"}</output>
-            <button type="button" data-action="hot-seat-bot-up" aria-label="Add Hot Seat CPU" ${hotSeatTotal >= game.players.max ? "disabled" : ""}>+</button>
-          </div>
-          <div class="callout coral">${escapeHtml(game.name)} will use ${hotSeatTotal} total seats. Cardcade hides human hands between turns; CPU turns play automatically on the covered table.</div>` : `
-          <div class="callout coral">${escapeHtml(game.name)} is a two-human memory duel. Pass the device between private turns.</div>`}`}
-      <div class="button-row" style="margin-top: 1rem">
-        <button class="action-button" type="button" data-action="back-to-library">Choose another game</button>
-        <button class="action-button primary" type="button" data-action="${game.status === "available" ? (isHotSeat ? "start-hot-seat" : "start-local-game") : "not-playable-yet"}" ${game.status === "available" ? "" : "disabled"}>Start ${isHotSeat ? `${hotSeatTotal}-seat ` : ""}game</button>
+      <div class="game-shell-action-dock pregame-actions">
+        <button class="game-secondary-action" type="button" data-action="back-to-library">Choose another game</button>
+        <button class="game-primary-action" type="button" data-action="${game.status === "available" ? (isHotSeat ? "start-hot-seat" : "start-local-game") : "not-playable-yet"}" ${game.status === "available" ? "" : "disabled"}>Start ${isHotSeat ? `${hotSeatTotal}-seat ` : ""}game</button>
       </div>
-    </div>`;
+    </section>`;
 }
 
 function renderMultiplayer() {
   const savedSession = JSON.parse(localStorage.getItem(storageKeys.room) || "null");
   return `
-    ${screenHeader("Multiplayer", "The room code comes first. The host chooses the game after everyone arrives.")}
-    ${savedSession ? `<div class="callout" style="max-width:620px;margin:0 auto 1rem">A private session for room <strong>${escapeHtml(savedSession.code)}</strong> is saved on this device. <button class="action-button" type="button" data-action="resume-room" style="margin-left:.6rem;min-height:38px;padding:.4rem .7rem">Resume</button></div>` : ""}
-    <div class="form-panel">
-      <div class="segmented">
-        <button type="button" data-action="multiplayer-tab" data-tab="host" class="${state.multiplayerTab === "host" ? "active" : ""}">Host</button>
-        <button type="button" data-action="multiplayer-tab" data-tab="join" class="${state.multiplayerTab === "join" ? "active" : ""}">Join</button>
+    <section class="game-shell-screen multiplayer-entry-screen" aria-labelledby="multiplayer-title">
+      ${gameShellNav("Network tables")}
+      <header class="shell-title-block">
+        <p class="shell-kicker">Choose a seat</p>
+        <h1 id="multiplayer-title">Multiplayer</h1>
+      </header>
+      ${savedSession ? `<div class="resume-table-strip"><span>Saved table</span><strong>${escapeHtml(savedSession.code)}</strong><button type="button" data-action="resume-room">Resume</button></div>` : ""}
+      <div class="multiplayer-mode-choices" role="tablist" aria-label="Host or join a room">
+        <button type="button" role="tab" aria-controls="multiplayer-entry-panel" aria-selected="${state.multiplayerTab === "host"}" data-action="multiplayer-tab" data-tab="host" class="multiplayer-mode-choice ${state.multiplayerTab === "host" ? "active" : ""}"><span aria-hidden="true">◆</span><strong>Host</strong><small>Open a new table</small></button>
+        <button type="button" role="tab" aria-controls="multiplayer-entry-panel" aria-selected="${state.multiplayerTab === "join"}" data-action="multiplayer-tab" data-tab="join" class="multiplayer-mode-choice ${state.multiplayerTab === "join" ? "active" : ""}"><span aria-hidden="true">→</span><strong>Join</strong><small>Enter a room code</small></button>
       </div>
-      ${state.multiplayerTab === "host" ? `
-        <form data-form="host-room">
-          <div class="field"><label for="host-name">Your name</label><input id="host-name" name="name" maxlength="24" value="${escapeHtml(playerName())}" autocomplete="nickname" required><span class="field-help">You can choose the game after the room opens.</span></div>
-          <button class="action-button primary" type="submit">Create global room</button>
-        </form>` : `
-        <form data-form="join-room">
-          <div class="field"><label for="join-code">Room code</label><input id="join-code" name="code" maxlength="6" inputmode="text" autocapitalize="characters" autocomplete="off" placeholder="ABC234" required></div>
-          <div class="field"><label for="join-name">Your name</label><input id="join-name" name="name" maxlength="24" value="${escapeHtml(playerName())}" autocomplete="nickname" required></div>
-          <button class="action-button primary" type="submit">Join room</button>
-        </form>`}
-      <hr style="border:0;border-top:1px solid var(--line);margin:1.4rem 0">
-      <button class="action-button" type="button" data-action="open-hot-seat" style="width:100%">Hot Seat · share this device</button>
-    </div>`;
+      <div class="multiplayer-entry-console" id="multiplayer-entry-panel" role="tabpanel">
+        ${state.multiplayerTab === "host" ? `
+          <form data-form="host-room" aria-label="Host a Cardcade room">
+            <div class="configuration-selector player-identity-selector"><label for="host-name">Player name</label><input id="host-name" name="name" maxlength="24" value="${escapeHtml(playerName())}" autocomplete="nickname" required></div>
+            <button class="game-primary-action" type="submit">Create room</button>
+          </form>` : `
+          <form data-form="join-room" aria-label="Join a Cardcade room">
+            <div class="configuration-selector room-code-entry"><label for="join-code">Room code</label><input class="room-code-input" id="join-code" name="code" maxlength="6" inputmode="text" autocapitalize="characters" autocomplete="off" placeholder="ABC234" required></div>
+            <div class="configuration-selector player-identity-selector"><label for="join-name">Player name</label><input id="join-name" name="name" maxlength="24" value="${escapeHtml(playerName())}" autocomplete="nickname" required></div>
+            <button class="game-primary-action" type="submit">Enter room</button>
+          </form>`}
+      </div>
+      <button class="game-secondary-action multiplayer-hot-seat-link" type="button" data-action="open-hot-seat">Hot Seat · share this device</button>
+      <p class="controller-hint">CHOOSE HOST OR JOIN · CONFIRM TO CONTINUE</p>
+    </section>`;
 }
 
 function roomGamePicker(room, isHost) {
+  const family = room.game ? familyForGame(room.game.id) : null;
   if (!isHost) {
     return room.game
-      ? `<div class="callout">The host selected <strong>${escapeHtml(room.game.name)}</strong>.</div>`
-      : `<div class="empty-state">Waiting for the host to choose a game.</div>`;
+      ? `<div class="lobby-game-selection">${renderGameObject(room.game, { compact: true })}<span class="lobby-game-family">${escapeHtml(family?.shortName || room.game.eyebrow)}</span><strong>${escapeHtml(room.game.name)}</strong><small>Selected by the host</small></div>`
+      : `<div class="lobby-game-selection empty"><span class="empty-deck" aria-hidden="true">?</span><strong>Waiting for game</strong><small>The host is choosing a deck.</small></div>`;
   }
   return `
-    <div class="room-game-choice">
-      <span class="family-kicker">${room.game ? escapeHtml(room.game.eyebrow) : "Orbital game cabinet"}</span>
-      <strong>${room.game ? escapeHtml(room.game.name) : "No game selected"}</strong>
-      <p>${room.game ? escapeHtml(room.game.description) : "Enter the cabinet to choose a deck and game."}</p>
-      <button class="action-button" type="button" data-action="open-room-library">${room.game ? "Change game" : "Choose a game"}</button>
+    <div class="lobby-game-selection ${room.game ? "" : "empty"}">
+      ${room.game ? renderGameObject(room.game, { compact: true }) : `<span class="empty-deck" aria-hidden="true">?</span>`}
+      <span class="lobby-game-family">${room.game ? escapeHtml(family?.shortName || room.game.eyebrow) : "Deck bay empty"}</span>
+      <strong>${room.game ? escapeHtml(room.game.name) : "Choose a game"}</strong>
+      <button class="game-secondary-action" type="button" data-action="open-room-library">${room.game ? "Change game" : "Open game library"}</button>
     </div>`;
 }
 
 function initials(name) {
   return String(name).split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
+}
+
+function lobbySeatSlots(count) {
+  const layouts = {
+    1: [5],
+    2: [5, 1],
+    3: [5, 0, 2],
+    4: [5, 1, 7, 3],
+    5: [5, 1, 7, 3, 0],
+    6: [5, 1, 7, 3, 0, 2],
+    7: [5, 1, 7, 3, 0, 2, 6],
+    8: [5, 1, 7, 3, 0, 2, 6, 4]
+  };
+  return layouts[Math.max(1, Math.min(8, count))] || layouts[8];
+}
+
+function renderLobbySeat(occupant, seatIndex, slot) {
+  if (!occupant) {
+    return `
+      <article class="lobby-seat empty" data-lobby-slot="${slot}" aria-label="Open seat ${seatIndex + 1}">
+        <span class="lobby-seat-marker" aria-hidden="true">+</span>
+        <span class="lobby-seat-copy"><strong>Open seat</strong><small>Waiting for player</small></span>
+      </article>`;
+  }
+  const isCpu = occupant.type === "bot";
+  const connected = isCpu || occupant.connected;
+  const ready = isCpu || occupant.ready;
+  const hostLabel = occupant.role === "host" ? "Host · " : "";
+  const status = !connected ? "Reconnecting" : ready ? `${hostLabel}Ready` : `${hostLabel}Not ready`;
+  const classes = ["lobby-seat", "occupied", ready ? "ready" : "", occupant.role === "host" ? "host" : "", occupant.isYou ? "you" : "", isCpu ? "cpu" : "", connected ? "" : "offline"].filter(Boolean).join(" ");
+  return `
+    <article class="${classes}" data-lobby-slot="${slot}" aria-label="${escapeHtml(occupant.name)}. ${escapeHtml(status)}.">
+      <span class="lobby-seat-marker">${isCpu ? "CPU" : escapeHtml(initials(occupant.name))}</span>
+      <span class="lobby-seat-copy"><strong>${escapeHtml(occupant.name)}${occupant.isYou ? " · You" : ""}</strong><small>${escapeHtml(status)}</small></span>
+      <i class="lobby-ready-light" aria-hidden="true"></i>
+    </article>`;
 }
 
 function renderRoom() {
@@ -844,52 +921,55 @@ function renderRoom() {
   const isHost = you?.role === "host";
   const botCount = room.gameSettings.botCount || 0;
   const maxBots = room.game ? Math.max(0, room.game.players.max - room.players.length) : 0;
-  const playerRows = room.players.map((player) => `
-    <div class="player-row">
-      <span class="player-avatar">${escapeHtml(initials(player.name))}</span>
-      <span><strong>${escapeHtml(player.name)}${player.isYou ? " · You" : ""}</strong><small><span class="connection-dot ${player.connected ? "online" : ""}"></span>${player.role === "host" ? "Host" : "Guest"} · ${player.connected ? "connected" : "reconnecting"}</small></span>
-      <span class="ready-pill ${player.ready ? "ready" : ""}">${player.ready ? "Ready" : "Wait"}</span>
-    </div>`).join("");
-  const botRows = Array.from({ length: botCount }, (_, index) => `
-    <div class="player-row">
-      <span class="player-avatar">CPU</span><span><strong>CPU ${index + 1}</strong><small>Computer player</small></span><span class="ready-pill ready">Ready</span>
-    </div>`).join("");
+  const occupants = Array.from({ length: room.capacity }, () => null);
+  room.players.forEach((player) => { occupants[player.seat] = player; });
+  for (let index = 0; index < botCount; index += 1) {
+    const openSeat = occupants.findIndex((occupant) => occupant === null);
+    if (openSeat < 0) break;
+    occupants[openSeat] = { type: "bot", name: `CPU ${index + 1}`, connected: true, ready: true, role: "guest", isYou: false };
+  }
+  const seatSlots = lobbySeatSlots(room.capacity);
+  const seats = occupants.map((occupant, index) => renderLobbySeat(occupant, index, seatSlots[index] ?? index)).join("");
+  const totalPlayers = room.players.length + botCount;
+  const prompt = room.startBlocker || "Every seat is locked in. Start when ready.";
 
   return `
-    ${screenHeader("Room lobby", isHost ? "Share the code, choose a game, then configure the table." : "The host controls the game and table settings.", "open-multiplayer")}
-    <div class="room-layout">
-      <section class="room-panel">
-        <div class="room-code-box">
-          <span class="room-code-label">Private table code</span>
-          <div class="room-code">${escapeHtml(room.code)}</div>
-          <div class="button-row">
-            <button class="action-button" type="button" data-action="copy-code">Copy code</button>
-            <button class="action-button" type="button" data-action="share-code">Share</button>
+    <section class="game-shell-screen room-lobby-screen" aria-labelledby="room-lobby-title">
+      ${gameShellNav("Multiplayer · Game lobby", "open-multiplayer", "Return to multiplayer entry")}
+      <h1 class="sr-only" id="room-lobby-title">Cardcade room ${escapeHtml(room.code)}</h1>
+      <div class="lobby-seat-ring" data-seat-count="${room.capacity}">
+        <section class="lobby-table-core" aria-label="Room ${escapeHtml(room.code)} table">
+          <div class="lobby-room-code">
+            <span>Room code</span>
+            <strong class="room-code">${escapeHtml(room.code)}</strong>
+            <div class="room-code-actions">
+              <button type="button" data-action="copy-code">Copy</button>
+              <button type="button" data-action="share-code">Share</button>
+            </div>
           </div>
+          ${roomGamePicker(room, isHost)}
+          ${isHost && room.game?.supportsBots ? `
+            <div class="configuration-selector lobby-bot-selector">
+              <span class="configuration-label">CPU seats</span>
+              <div class="stepper game-stepper compact">
+                <button type="button" data-action="room-bot-down" aria-label="Remove CPU player" ${botCount <= 0 ? "disabled" : ""}>−</button>
+                <output><strong>${botCount}</strong><span>CPU</span></output>
+                <button type="button" data-action="room-bot-up" aria-label="Add CPU player" ${botCount >= maxBots ? "disabled" : ""}>+</button>
+              </div>
+            </div>` : ""}
+          <span class="lobby-capacity">${totalPlayers} / ${room.capacity} seats occupied</span>
+        </section>
+        ${seats}
+      </div>
+      <div class="lobby-action-dock">
+        <p class="game-prompt ${room.canStart ? "ready" : ""}"><span aria-hidden="true"></span>${escapeHtml(prompt)}</p>
+        <div class="lobby-actions">
+          <button class="game-ready-action ${you?.ready ? "ready" : ""}" type="button" data-action="toggle-ready" ${!room.game ? "disabled" : ""}>${you?.ready ? "Ready ✓" : "Ready up"}</button>
+          <button class="game-primary-action" type="button" data-action="start-room" ${room.canStart ? "" : "disabled"}>Start ${room.game ? escapeHtml(room.game.name) : "game"}</button>
+          <button class="game-tertiary-action" type="button" data-action="leave-room">Leave room</button>
         </div>
-        <h3>Players · ${room.players.length + botCount}/${room.capacity}</h3>
-        <div class="player-list">${playerRows}${botRows}</div>
-        ${isHost && room.game?.supportsBots ? `
-          <label><strong>CPU players</strong></label>
-          <div class="stepper">
-            <button type="button" data-action="room-bot-down" aria-label="Remove CPU player" ${botCount <= 0 ? "disabled" : ""}>−</button>
-            <output>${botCount} CPU${botCount === 1 ? "" : "s"}</output>
-            <button type="button" data-action="room-bot-up" aria-label="Add CPU player" ${botCount >= maxBots ? "disabled" : ""}>+</button>
-          </div>` : ""}
-      </section>
-      <section class="room-panel">
-        <div class="family-header"><div><span class="family-kicker">Game cabinet</span><h3>${room.game ? escapeHtml(room.game.name) : "Choose a game"}</h3></div>${room.game ? `<span class="badge">${escapeHtml(statusLabel(room.game.status))}</span>` : ""}</div>
-        ${roomGamePicker(room, isHost)}
-      </section>
-      <section class="room-panel full-width">
-        <div class="callout coral">${escapeHtml(room.startBlocker || "The table is ready.")}</div>
-        <div class="button-row" style="margin-top:1rem">
-          <button class="action-button" type="button" data-action="toggle-ready" ${!room.game ? "disabled" : ""}>${you?.ready ? "Not ready" : "Mark ready"}</button>
-          <button class="action-button primary" type="button" data-action="start-room" ${room.canStart ? "" : "disabled"}>Start ${room.game ? escapeHtml(room.game.name) : "game"}</button>
-          <button class="action-button" type="button" data-action="leave-room">Leave room</button>
-        </div>
-      </section>
-    </div>`;
+      </div>
+    </section>`;
 }
 
 function currentStandardGame() {
@@ -2835,6 +2915,7 @@ function restoreGameScrollPosition(position) {
 }
 
 function render() {
+  const screenChanged = state.renderedScreen !== state.screen;
   const shouldPreserveGameScroll = state.screen === "game" && Boolean(app.querySelector(".standard-card-game"));
   const gameScrollPosition = shouldPreserveGameScroll ? captureGameScrollPosition() : null;
   const previousHand = captureStandardHandSnapshot();
@@ -2852,9 +2933,18 @@ function render() {
   document.body.classList.toggle("playing-game", ["game", "hot-seat-handoff"].includes(state.screen));
   document.body.classList.toggle("home-screen", state.screen === "home");
   document.body.classList.toggle("library-screen", state.screen === "library");
+  document.body.classList.toggle("game-shell-flow", ["home", "local-lobby", "multiplayer", "room"].includes(state.screen));
+  document.body.classList.toggle("reduced-motion", libraryReducedMotion());
   document.body.classList.toggle("legacy-standard-mode", state.screen === "game" && standardLegacyModeEnabled());
   const screen = (screens[state.screen] || renderHome)();
   app.innerHTML = screen;
+  app.dataset.screen = state.screen;
+  app.classList.remove("shell-transition-forward", "shell-transition-back");
+  if (screenChanged) {
+    void app.offsetWidth;
+    app.classList.add(state.navigationDirection === "back" ? "shell-transition-back" : "shell-transition-forward");
+  }
+  state.renderedScreen = state.screen;
   syncJuanPrismReveal();
   syncFindersBuildReveal();
   syncSnapCountdown();
@@ -3149,10 +3239,27 @@ function animateStandardHandExit(cardIds, onComplete) {
   setTimeout(onComplete, 430 + Math.max(0, nodes.length - 1) * 34);
 }
 
-function navigate(screen) {
+function screenDepth(screen) {
+  return ({
+    home: 0,
+    multiplayer: 1,
+    settings: 1,
+    library: 2,
+    room: 2,
+    "appearance-settings": 2,
+    "local-lobby": 3,
+    game: 4,
+    "hot-seat-handoff": 4
+  })[screen] ?? 0;
+}
+
+function navigate(screen, { direction = null } = {}) {
+  if (screen !== state.screen) {
+    state.navigationDirection = direction || (screenDepth(screen) < screenDepth(state.screen) ? "back" : "forward");
+  }
   state.screen = screen;
   render();
-  window.scrollTo({ top: 0, behavior: "smooth" });
+  window.scrollTo({ top: 0, behavior: libraryReducedMotion() ? "auto" : "smooth" });
   app.focus({ preventScroll: true });
 }
 
@@ -4329,7 +4436,31 @@ function handleLibraryKeydown(event) {
   return false;
 }
 
+function handleMainMenuKeydown(event) {
+  if (state.screen !== "home" || !["ArrowUp", "ArrowDown", "Home", "End"].includes(event.key)) return false;
+  const options = [...app.querySelectorAll(".main-menu-option:not([disabled])")];
+  if (!options.length) return false;
+  event.preventDefault();
+  const nextIndex = event.key === "Home" ? 0
+    : event.key === "End" ? options.length - 1
+      : mainMenuTargetIndex(event.key === "ArrowUp" ? -1 : 1, options);
+  options[nextIndex].focus({ preventScroll: true });
+  return true;
+}
+
+function mainMenuTargetIndex(direction, options = [...app.querySelectorAll(".main-menu-option:not([disabled])")]) {
+  if (!options.length) return -1;
+  const current = controllerState.hoveredTarget && options.includes(controllerState.hoveredTarget)
+    ? controllerState.hoveredTarget
+    : options.includes(document.activeElement) ? document.activeElement : null;
+  const currentIndex = options.indexOf(current);
+  return currentIndex < 0
+    ? direction < 0 ? options.length - 1 : 0
+    : (currentIndex + (direction < 0 ? -1 : 1) + options.length) % options.length;
+}
+
 document.addEventListener("keydown", (event) => {
+  if (handleMainMenuKeydown(event)) return;
   if (handleLibraryKeydown(event)) return;
   const findersSearchDialog = app.querySelector(".finders-search-confirmation");
   if (event.key === "Tab" && findersSearchDialog) {
@@ -4562,6 +4693,22 @@ function hideControllerCursor() {
 }
 
 function handleControllerButton(action) {
+  if (state.screen === "home") {
+    const options = [...app.querySelectorAll(".main-menu-option:not([disabled])")];
+    if (["up", "down"].includes(action) && options.length) {
+      const target = options[mainMenuTargetIndex(action === "up" ? -1 : 1, options)];
+      if (target) focusControllerTarget(target);
+      return;
+    }
+    if (["left", "right"].includes(action)) return;
+    if (action === "activate" && options.length) {
+      const hovered = controllerState.hoveredTarget;
+      const target = hovered && options.includes(hovered) ? hovered : options[0];
+      focusControllerTarget(target);
+      target.click();
+      return;
+    }
+  }
   if (state.screen === "library") {
     if (action === "back") {
       libraryBack({ controller: true });
