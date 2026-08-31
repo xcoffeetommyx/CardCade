@@ -17,7 +17,7 @@ test("Finders Makers content loads before the app and is part of the offline she
   assert.match(worker, /shared\/finders-makers-content\.js/);
 });
 
-test("Finders Makers searches directly from cards, flips private results in place, and keeps Build controls explicit", () => {
+test("Finders Makers reveals the Build objective, searches directly from cards, and keeps Build controls explicit", () => {
   const app = read("public/app.js");
   const css = read("public/app.css");
   const html = read("public/index.html");
@@ -25,7 +25,8 @@ test("Finders Makers searches directly from cards, flips private results in plac
   assert.match(app, /function renderFindersSearchConfirmation/);
   assert.match(app, /function queueFindersSearchFlip/);
   assert.match(app, /hasPrivateFindersReveal \|\| !state\.findersSearchFlip/);
-  assert.doesNotMatch(app, /function queueFindersBuildReveal/);
+  assert.match(app, /function queueFindersBuildReveal/);
+  assert.match(app, /Find these 3 Pieces/);
   assert.match(app, /privateSearch/);
   assert.match(app, /finders-confirm-search/);
   assert.match(app, /finders-cancel-search/);
@@ -39,7 +40,7 @@ test("Finders Makers searches directly from cards, flips private results in plac
   assert.match(app, /Lock in Build/);
   assert.doesNotMatch(app, /finders-start-search/);
   assert.doesNotMatch(app, /findersSearchMode/);
-  assert.doesNotMatch(html, /finders-makers-presentation-root/);
+  assert.match(html, /finders-makers-presentation-root/);
   assert.match(css, /\.finders-piece-board/);
   assert.match(css, /\.finders-piece-card-inner/);
   assert.match(css, /aspect-ratio: 5 \/ 7/);
@@ -49,7 +50,9 @@ test("Finders Makers searches directly from cards, flips private results in plac
   assert.match(css, /\.finders-search-confirmation/);
   assert.match(css, /\.finders-search-confirmation \{[\s\S]*?z-index: 2100/);
   assert.match(css, /\.finders-search-confirmation\.reduced-motion/);
-  assert.doesNotMatch(css, /\.finders-build-reveal/);
+  assert.match(css, /\.finders-build-reveal/);
+  assert.match(css, /findersBuildObjectiveDeal/);
+  assert.match(css, /findersBuildObjectiveFlip/);
   assert.match(css, /\.finders-actions\.idle/);
   assert.match(css, /\.playing-game \.finders-makers-game \{[\s\S]*?height: calc\(var\(--game-viewport-height\)/);
   assert.match(css, /touch-action: manipulation/);

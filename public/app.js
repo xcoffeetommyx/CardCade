@@ -10,6 +10,7 @@ const systemBannerAction = systemBanner?.querySelector('[data-action="apply-app-
 const siteShell = document.querySelector(".site-shell");
 const skipLink = document.querySelector(".skip-link");
 const juanPrismRevealRoot = document.querySelector("#juan-prism-reveal-root");
+const findersMakersPresentationRoot = document.querySelector("#finders-makers-presentation-root");
 const controllerKeyboardRoot = document.querySelector("#controller-keyboard-root");
 const controllerCursor = document.querySelector("#controller-cursor");
 
@@ -61,6 +62,9 @@ const state = {
   findersPendingSearch: null,
   findersSearchFlip: null,
   findersSearchFlipTimer: null,
+  findersBuildReveal: null,
+  findersBuildRevealTimer: null,
+  findersPresentedBuildKeys: new Set(),
   findersHotSeatHandoffTimer: null,
   snapCountdownTimer: null,
   gameActionLock: false,
@@ -1970,7 +1974,7 @@ function findersRoundScope(match) {
 }
 
 function findersPresentationIsActive() {
-  return Boolean(state.findersSearchFlip);
+  return Boolean(state.findersBuildReveal || state.findersSearchFlip);
 }
 
 function renderFindersPieceCard(card, {
@@ -2223,15 +2227,52 @@ function queueJuanPrismReveal(gameId, previousView, nextView) {
   }, reducedMotion ? 900 : 1_900);
 }
 
+function renderFindersBuildReveal() {
+  const reveal = state.findersBuildReveal;
+  if (!reveal?.build) return "";
+  const title = reveal.shared ? "Shared Build" : "Your Build";
+  return `
+    <section class="finders-build-reveal ${reveal.shared ? "shared" : ""} ${reveal.reducedMotion ? "reduced-motion" : ""}" data-reveal-key="${escapeHtml(reveal.key)}" role="dialog" aria-modal="true" aria-labelledby="finders-build-reveal-title" tabindex="-1">
+      <div class="finders-build-reveal-card">
+        <div class="finders-build-reveal-card-inner">
+          <div class="finders-build-reveal-card-face finders-build-reveal-card-back" aria-hidden="true"><span>F</span><span>M</span><b>BUILD</b></div>
+          <div class="finders-build-reveal-card-face finders-build-reveal-card-front">
+            <span class="family-kicker">${title}</span>
+            <strong id="finders-build-reveal-title">${escapeHtml(reveal.build.name)}</strong>
+            <i aria-hidden="true">${escapeHtml(reveal.build.art)}</i>
+            <small>Find these 3 Pieces</small>
+            <div>${reveal.build.pieces.map((piece) => `<span><i aria-hidden="true">${escapeHtml(piece.art)}</i>${escapeHtml(piece.name)}</span>`).join("")}</div>
+          </div>
+        </div>
+      </div>
+      <p>${reveal.shared ? "Everyone is racing to complete this Build." : "Memorize this Build, then find its three Pieces on the board."}</p>
+    </section>`;
+}
+
 function syncFindersModalIsolation() {
   const searchDialog = app?.querySelector(".finders-search-confirmation");
-  const anyFindersModal = Boolean(searchDialog);
+  const buildRevealActive = state.screen === "game" && Boolean(state.findersBuildReveal);
+  const anyFindersModal = buildRevealActive || Boolean(searchDialog);
   for (const child of siteShell?.children || []) {
-    child.toggleAttribute("inert", child !== app && anyFindersModal);
+    child.toggleAttribute("inert", child === app ? buildRevealActive : anyFindersModal);
   }
   skipLink?.toggleAttribute("inert", anyFindersModal);
   const game = searchDialog?.closest(".finders-makers-game");
   for (const child of game?.children || []) child.toggleAttribute("inert", child !== searchDialog);
+}
+
+function syncFindersBuildReveal() {
+  const reveal = state.screen === "game" ? state.findersBuildReveal : null;
+  if (findersMakersPresentationRoot) {
+    const existing = findersMakersPresentationRoot.firstElementChild;
+    if (!reveal) {
+      if (existing) findersMakersPresentationRoot.replaceChildren();
+    } else if (existing?.dataset.revealKey !== reveal.key) {
+      findersMakersPresentationRoot.innerHTML = renderFindersBuildReveal();
+      requestAnimationFrame(() => findersMakersPresentationRoot.firstElementChild?.focus({ preventScroll: true }));
+    }
+  }
+  syncFindersModalIsolation();
 }
 
 function clearFindersSearchFlip() {
@@ -2240,11 +2281,18 @@ function clearFindersSearchFlip() {
   state.findersSearchFlip = null;
 }
 
+function clearFindersBuildReveal() {
+  clearTimeout(state.findersBuildRevealTimer);
+  state.findersBuildRevealTimer = null;
+  state.findersBuildReveal = null;
+  syncFindersBuildReveal();
+}
+
 function clearFindersMakersPresentation() {
   state.findersSearchConfirmation = null;
   state.findersPendingSearch = null;
   clearFindersSearchFlip();
-  syncFindersModalIsolation();
+  clearFindersBuildReveal();
 }
 
 function queueFindersSearchFlip(gameId, previousView, nextView) {
@@ -2273,6 +2321,33 @@ function queueFindersSearchFlip(gameId, previousView, nextView) {
     clearFindersSearchFlip();
     if (state.screen === "game") render();
   }, reducedMotion ? 1_250 : 3_300);
+  return true;
+}
+
+function queueFindersBuildReveal(gameId, nextView) {
+  if (gameId !== "finders-makers") return false;
+  const match = nextView?.state;
+  const build = match?.sharedBuild || nextView?.ownBuild;
+  if (!match || match.phase !== "playing" || !build?.id || !Array.isArray(build.pieces)) return false;
+  const viewerSeat = state.room?.players?.find((player) => player.isYou)?.seat ?? "viewer";
+  const revealKey = `${viewerSeat}:${findersRoundScope(match)}:${build.id}`;
+  if (state.findersPresentedBuildKeys.has(revealKey) || state.findersBuildReveal?.key === revealKey) return false;
+  state.findersPresentedBuildKeys.add(revealKey);
+  clearFindersBuildReveal();
+  state.findersSearchConfirmation = null;
+  state.findersPendingSearch = null;
+  const reducedMotion = findersReducedMotion();
+  state.findersBuildReveal = {
+    key: revealKey,
+    shared: Boolean(match.sharedBuild),
+    build: { ...build, pieces: build.pieces.map((piece) => ({ ...piece })) },
+    reducedMotion
+  };
+  state.findersBuildRevealTimer = setTimeout(() => {
+    if (state.findersBuildReveal?.key !== revealKey) return;
+    clearFindersBuildReveal();
+    if (state.screen === "game") render();
+  }, reducedMotion ? 2_400 : 6_300);
   return true;
 }
 
@@ -2634,7 +2709,7 @@ function render() {
   const screen = (screens[state.screen] || renderHome)();
   app.innerHTML = screen;
   syncJuanPrismReveal();
-  syncFindersModalIsolation();
+  syncFindersBuildReveal();
   syncSnapCountdown();
   syncControllerTextEntry();
   if (state.screen === "game") {
@@ -3035,6 +3110,7 @@ function queueHotSeatHandoff(seatNumber, { room = state.room, view = state.gameV
 function beginHotSeatSession(session) {
   clearJuanPrismReveal();
   clearFindersMakersPresentation();
+  state.findersPresentedBuildKeys = new Set();
   state.gameMode = "hot-seat";
   state.hotSeatSeats = session.hotSeat?.seats || [];
   state.session = { code: session.code, token: session.token, playerId: session.playerId, mode: "hot-seat" };
@@ -3076,6 +3152,7 @@ async function revealHotSeatHand() {
   state.gameActionLock = false;
   state.dealtHandOwners = new Set();
   state.lastPileSignature = null;
+  queueFindersBuildReveal(session.room?.gameId, state.gameView);
   saveHotSeatSession();
   connectRoom(state.session);
   navigate("game");
@@ -3099,6 +3176,7 @@ function clearGameSession() {
   state.juanChosenColor = null;
   state.rummyLinkTarget = null;
   state.findersBuildSelection = new Set();
+  state.findersPresentedBuildKeys = new Set();
   state.gameActionLock = false;
   state.dealtHandOwners = new Set();
   state.lastPileSignature = null;
@@ -3186,6 +3264,7 @@ function connectRoom(session) {
         state.findersBuildSelection = new Set();
         state.findersSearchConfirmation = null;
         state.findersPendingSearch = null;
+        state.findersPresentedBuildKeys = new Set();
         clearJuanPrismReveal();
         clearFindersMakersPresentation();
         state.gameActionLock = false;
@@ -3240,6 +3319,7 @@ function connectRoom(session) {
         state.findersBuildSelection = new Set();
         state.findersSearchConfirmation = null;
         state.findersPendingSearch = null;
+        if (previousGameId !== message.gameId) state.findersPresentedBuildKeys = new Set();
       }
       normalizeGameSort(message.gameId);
       state.room = message.room;
@@ -3264,6 +3344,7 @@ function connectRoom(session) {
         const canKeepSearchConfirmation = message.view.state.activeSeat === viewer?.seat && message.view.state.turnMode === "choose";
         if (!canKeepSearchConfirmation) state.findersSearchConfirmation = null;
       }
+      queueFindersBuildReveal(message.gameId, message.view);
       state.screen = "game";
       if (hasPrivateFindersReveal || !state.findersSearchFlip) render();
     } else if (message.type === "table_closed") {
@@ -3311,10 +3392,12 @@ function enterGameSession(session, mode) {
   state.juanChosenColor = null;
   state.rummyLinkTarget = null;
   state.findersBuildSelection = new Set();
+  state.findersPresentedBuildKeys = new Set();
   state.gameSort = defaultSortForGame(session.game?.gameId);
   state.gameActionLock = false;
   state.dealtHandOwners = new Set();
   state.lastPileSignature = null;
+  queueFindersBuildReveal(session.game?.gameId, state.gameView);
   localStorage.setItem(storageKeys.room, JSON.stringify(state.session));
   connectRoom(state.session);
   navigate("game");
@@ -4015,6 +4098,7 @@ document.addEventListener("click", async (event) => {
     state.selectedCards = new Set();
     state.juanChosenColor = null;
     state.findersBuildSelection = new Set();
+    state.findersPresentedBuildKeys = new Set();
     clearFindersMakersPresentation();
     state.gameActionLock = false;
     state.dealtHandOwners = new Set();
@@ -4232,6 +4316,7 @@ function handleControllerButton(action) {
 function controllerTargetScope() {
   return controllerKeyboardRoot?.querySelector(".controller-keyboard-dialog")
     || document.querySelector("dialog[open]")
+    || findersMakersPresentationRoot?.querySelector(".finders-build-reveal")
     || app.querySelector(".finders-search-confirmation")
     || app.querySelector(".juan-prism-dialog")
     || app.querySelector(".round-result")
