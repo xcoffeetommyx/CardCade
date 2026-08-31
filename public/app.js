@@ -705,13 +705,7 @@ function moveLibraryGameFocus(direction, { controller = false } = {}) {
 function renderHome() {
   return `
     <section class="game-shell-screen title-screen" aria-labelledby="cardcade-title">
-      <div class="title-atmosphere" aria-hidden="true">
-        <span class="title-card-object title-card-left">CC</span>
-        <span class="title-card-object title-card-center">♠</span>
-        <span class="title-card-object title-card-right">✦</span>
-      </div>
       <div class="title-lockup">
-        <p>One arcade · many tables</p>
         <h1 id="cardcade-title" aria-label="Cardcade"><span>Card</span><span>cade</span></h1>
       </div>
       <nav class="main-menu" aria-label="Cardcade main menu">
@@ -720,7 +714,6 @@ function renderHome() {
         <button class="main-menu-option" type="button" data-action="open-multiplayer"><span aria-hidden="true">›</span><strong>Multiplayer</strong></button>
         <button class="main-menu-option" type="button" data-action="open-settings"><span aria-hidden="true">›</span><strong>Options</strong></button>
       </nav>
-      <p class="controller-hint">MOVE TO CHOOSE · CONFIRM TO ENTER</p>
     </section>`;
 }
 
@@ -2845,30 +2838,60 @@ function renderLegacyModePreview() {
 function renderSettings() {
   const reducedMotion = localStorage.getItem(storageKeys.reducedMotion) === "true";
   return `
-    ${screenHeader("Options", "Readable first, physical second, pixelated with restraint.")}
-    <div class="form-panel">
-      <form data-form="settings">
-        <div class="field"><label for="settings-name">Default player name</label><input id="settings-name" name="name" maxlength="24" value="${escapeHtml(playerName())}" autocomplete="nickname"></div>
-        <div class="settings-grid">
-          <button class="setting-row settings-submenu-button" type="button" data-action="open-appearance-settings">
-            <span><strong>Appearance &amp; skins</strong><p>Choose table felt, card decks, and Legacy Mode.</p></span><span class="settings-submenu-arrow" aria-hidden="true">›</span>
-          </button>
-          <label class="setting-row"><span><strong>Reduce card motion</strong><p>Use gentler transitions when game modules are connected.</p></span><input type="checkbox" name="reducedMotion" ${reducedMotion ? "checked" : ""}></label>
-          <div class="setting-row"><span><strong>Sound</strong><p>Audio controls arrive with the shared game runtime.</p></span><span class="badge">Coming later</span></div>
+    <section class="game-shell-screen options-screen" aria-labelledby="options-title">
+      ${gameShellNav("System")}
+      <header class="shell-title-block options-title-block">
+        <p class="shell-kicker">Player system</p>
+        <h1 id="options-title">Options</h1>
+      </header>
+      <form class="options-console" data-form="settings">
+        <section class="options-section" aria-labelledby="player-profile-label">
+          <h2 class="options-section-label" id="player-profile-label">Player profile</h2>
+          <div class="configuration-selector player-identity-selector options-player-name">
+            <label for="settings-name">Default player name</label>
+            <input id="settings-name" name="name" maxlength="24" value="${escapeHtml(playerName())}" autocomplete="nickname">
+          </div>
+        </section>
+        <section class="options-section" aria-labelledby="preferences-label">
+          <h2 class="options-section-label" id="preferences-label">Preferences</h2>
+          <div class="option-command-list">
+            <button class="option-command settings-submenu-button" type="button" data-action="open-appearance-settings">
+              <span class="option-command-mark" aria-hidden="true">◆</span>
+              <span><strong>Appearance &amp; skins</strong><small>Table felt, card decks, and Legacy Mode</small></span>
+              <span class="settings-submenu-arrow" aria-hidden="true">›</span>
+            </button>
+            <label class="option-command option-toggle-command">
+              <span class="option-command-mark" aria-hidden="true">↟</span>
+              <span><strong>Reduce card motion</strong><small>Use quieter transitions throughout Cardcade</small></span>
+              <span class="arcade-switch"><input type="checkbox" name="reducedMotion" ${reducedMotion ? "checked" : ""}><i aria-hidden="true"></i></span>
+            </label>
+            <div class="option-command unavailable" aria-disabled="true">
+              <span class="option-command-mark" aria-hidden="true">♪</span>
+              <span><strong>Sound</strong><small>Audio controls will arrive with the shared runtime</small></span>
+              <span class="option-command-status">Coming later</span>
+            </div>
+          </div>
+        </section>
+        <div class="game-shell-action-dock options-actions">
+          <button class="game-primary-action" type="submit">Save options</button>
         </div>
-        <button class="action-button primary" type="submit" style="margin-top:1rem">Save options</button>
       </form>
-    </div>`;
+    </section>`;
 }
 
 function renderAppearanceSettings() {
   const legacyMode = appearancePreferences.legacyMode === true;
   return `
-    ${screenHeader("Appearance & skins", "Choose a table skin and a card skin for each deck family.", "open-settings")}
-    <div class="form-panel">
-      <form data-form="appearance-settings">
+    <section class="game-shell-screen options-screen appearance-options-screen" aria-labelledby="appearance-screen-title">
+      ${gameShellNav("Options · Appearance", "open-settings", "Return to Options")}
+      <header class="shell-title-block options-title-block">
+        <p class="shell-kicker">Table workshop</p>
+        <h1 id="appearance-screen-title">Appearance</h1>
+      </header>
+      <form class="options-console appearance-console" data-form="appearance-settings">
+        <p class="options-local-note"><span aria-hidden="true"></span>Saved on this device only · never changes room rules</p>
         <section class="appearance-settings appearance-settings-screen" aria-labelledby="appearance-settings-title">
-          <div class="appearance-settings-heading"><span><strong id="appearance-settings-title">Table and card appearance</strong><p>Appearance is saved only on this device and never changes a room or its rules.</p></span><span class="badge">Local only</span></div>
+          <div class="appearance-settings-heading"><span><strong id="appearance-settings-title">Table and card appearance</strong><p>Choose the surface and deck artwork used at your tables.</p></span></div>
           <div class="table-skin-grid">${renderTableSkinSetting()}</div>
           <p class="appearance-section-label">Card decks</p>
           <div class="appearance-family-grid">
@@ -2881,9 +2904,11 @@ function renderAppearanceSettings() {
             <input type="checkbox" name="legacyMode" ${legacyMode ? "checked" : ""}>
           </label>
         </div>
-        <button class="action-button primary" type="submit" style="margin-top:1rem">Save appearance</button>
+        <div class="game-shell-action-dock options-actions">
+          <button class="game-primary-action" type="submit">Save appearance</button>
+        </div>
       </form>
-    </div>`;
+    </section>`;
 }
 
 let gameScrollRestoreFrame = null;
@@ -2933,7 +2958,7 @@ function render() {
   document.body.classList.toggle("playing-game", ["game", "hot-seat-handoff"].includes(state.screen));
   document.body.classList.toggle("home-screen", state.screen === "home");
   document.body.classList.toggle("library-screen", state.screen === "library");
-  document.body.classList.toggle("game-shell-flow", ["home", "local-lobby", "multiplayer", "room"].includes(state.screen));
+  document.body.classList.toggle("game-shell-flow", ["home", "local-lobby", "multiplayer", "room", "settings", "appearance-settings"].includes(state.screen));
   document.body.classList.toggle("reduced-motion", libraryReducedMotion());
   document.body.classList.toggle("legacy-standard-mode", state.screen === "game" && standardLegacyModeEnabled());
   const screen = (screens[state.screen] || renderHome)();

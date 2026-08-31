@@ -19,9 +19,30 @@ test("the launcher is a controller-friendly title menu instead of a landing page
   assert.match(home, />Options</);
   assert.doesNotMatch(home, /Every table starts here/);
   assert.doesNotMatch(home, /button-copy/);
+  assert.doesNotMatch(home, /title-atmosphere/);
+  assert.doesNotMatch(home, /One arcade · many tables/);
+  assert.doesNotMatch(home, /MOVE TO CHOOSE/);
   assert.match(app, /function handleMainMenuKeydown/);
   assert.match(app, /function mainMenuTargetIndex/);
   assert.match(app, /if \(state\.screen === "home"\)/);
+});
+
+test("Options uses the shared shell while preserving readable utility controls", () => {
+  const app = read("public/app.js");
+  const css = read("public/app.css");
+  const settings = app.slice(app.indexOf("function renderSettings"), app.indexOf("function renderAppearanceSettings"));
+  const appearance = app.slice(app.indexOf("function renderAppearanceSettings"), app.indexOf("let gameScrollRestoreFrame"));
+
+  assert.match(settings, /class="game-shell-screen options-screen"/);
+  assert.match(settings, /class="options-console" data-form="settings"/);
+  assert.match(settings, /class="configuration-selector player-identity-selector options-player-name"/);
+  assert.match(settings, /class="arcade-switch"><input type="checkbox" name="reducedMotion"/);
+  assert.match(settings, /class="game-primary-action" type="submit">Save options/);
+  assert.match(appearance, /class="game-shell-screen options-screen appearance-options-screen"/);
+  assert.match(appearance, /class="options-console appearance-console" data-form="appearance-settings"/);
+  assert.match(css, /\.option-command \{/);
+  assert.match(css, /\.arcade-switch input/);
+  assert.match(css, /\.appearance-options-screen \.skin-setting/);
 });
 
 test("local and multiplayer setup use shared game-shell configuration controls", () => {
