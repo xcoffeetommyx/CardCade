@@ -3362,6 +3362,7 @@ function sendRoom(message) {
 function roomReconnectEligible() {
   if (!state.session || state.socketIntentionalClose) return false;
   if (["room", "game"].includes(state.screen)) return true;
+  if (state.screen === "library" && state.mode === "multiplayer" && state.room) return true;
   return state.screen === "hot-seat-handoff" && state.hotSeatWaitingForCpu;
 }
 
@@ -3686,8 +3687,7 @@ document.addEventListener("click", async (event) => {
     state.libraryGameIndex = family.games.indexOf(game);
     state.selectedGameId = game.id;
     if (state.mode === "multiplayer" && state.room) {
-      sendRoom({ type: "select_game", gameId: game.id });
-      navigate("room");
+      if (sendRoom({ type: "select_game", gameId: game.id })) navigate("room");
     } else {
       navigate("local-lobby");
     }
@@ -4394,7 +4394,7 @@ document.addEventListener("pointerup", (event) => {
   const deltaX = event.clientX - gesture.x;
   const deltaY = event.clientY - gesture.y;
   if (performance.now() - gesture.time > 900 || Math.abs(deltaX) < 42 || Math.abs(deltaX) < Math.abs(deltaY) * 1.2) return;
-  librarySuppressDeckClickUntil = performance.now() + 450;
+  librarySuppressDeckClickUntil = performance.now() + 120;
   rotateLibraryDeck(deltaX < 0 ? 1 : -1, { focus: false });
 });
 

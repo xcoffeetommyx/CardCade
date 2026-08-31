@@ -20,12 +20,14 @@ test("the launcher keeps catalog and launch behavior behind one spatial deck-to-
   assert.match(app, /data-action="select-orbital-deck"/);
   assert.match(app, /data-action="select-library-game"/);
   assert.match(app, /data-action="open-room-library"/);
-  assert.match(app, /sendRoom\(\{ type: "select_game", gameId: game\.id \}\)/);
+  assert.match(app, /if \(sendRoom\(\{ type: "select_game", gameId: game\.id \}\)\) navigate\("room"\)/);
+  assert.match(app, /state\.screen === "library" && state\.mode === "multiplayer" && state\.room/);
   assert.match(app, /data-action="open-hot-seat"/);
   assert.match(app, /state\.libraryStage === "decks"/);
   assert.match(app, /app\.querySelector\("\.spatial-mode-list"\)\?\.scrollBy/);
   assert.match(app, /const availableTargets = controllerTargets\(\)/);
   assert.match(app, /librarySwipeGesture/);
+  assert.match(app, /librarySuppressDeckClickUntil = performance\.now\(\) \+ 120/);
   assert.match(app, /document\.addEventListener\("wheel"/);
 });
 
