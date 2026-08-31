@@ -25,15 +25,18 @@ test("appearance settings are versioned, family-scoped, and local-only", () => {
   assert.match(app, /function loadAppearancePreferences/);
   assert.match(app, /function saveAppearancePreferences/);
   assert.match(app, /function selectedTableSkin/);
-  assert.match(app, /Object\.keys\(cardSkins\.DEFAULT_SKIN_IDS\)\.map\(renderSkinSetting\)/);
-  assert.match(app, /data-skin-family=/);
-  assert.match(app, /data-table-skin/);
-  assert.match(app, /Table loadout/);
+  assert.match(app, /function createAppearanceDraft/);
+  assert.match(app, /function appearanceCategories/);
+  assert.match(app, /cardSkins\.skinsForFamily\(id\)/);
+  assert.match(app, /function renderAppearanceDraftInputs/);
+  assert.match(app, /name="tableSkin"/);
+  assert.match(app, /name="skin-\$\{escapeHtml\(deckFamilyId\)\}"/);
+  assert.match(app, /Loadout bay/);
   assert.match(app, /Saved on this device only/);
   assert.match(app, /tableSkin: String\(data\.get\("tableSkin"\) \|\| ""\)/);
   assert.doesNotMatch(app.match(/function saveAppearancePreferences[\s\S]*?\n}/)?.[0] || "", /sendRoom|socket|api\(/);
-  assert.match(css, /\.appearance-family-grid/);
-  assert.match(css, /@media \(max-width: 520px\)[\s\S]*?\.appearance-family-grid \{ grid-template-columns: 1fr; \}/);
+  assert.match(css, /\.appearance-loadout-layout/);
+  assert.match(css, /@media \(max-width: 720px\)[\s\S]*?\.appearance-category-menu/);
 });
 
 test("Options moves table and card appearance into a dedicated submenu", () => {
@@ -51,7 +54,8 @@ test("Options moves table and card appearance into a dedicated submenu", () => {
   assert.match(app, /if \(action === "open-appearance-settings"\) \{[\s\S]*?navigate\("appearance-settings"\);/);
   assert.match(app, /if \(formType === "appearance-settings"\) \{[\s\S]*?saveAppearancePreferences/);
   assert.match(css, /\.game-command-option \{/);
-  assert.match(css, /\.appearance-menu-layer \.appearance-settings/);
+  assert.match(css, /\.appearance-category-menu/);
+  assert.match(css, /\.appearance-choice-stage/);
 });
 
 test("faces and all hidden-card contexts use the shared skin boundary", () => {
@@ -100,9 +104,9 @@ test("table skins are independently previewed and applied to every game table", 
   const css = read("public/app.css");
 
   assert.match(app, /function renderTableSkinPreview/);
-  assert.match(app, /function renderTableSkinSetting/);
-  assert.match(app, /data-table-skin-preview/);
-  assert.match(app, /data-table-skin-setting/);
+  assert.match(app, /type: "table",[\s\S]*?options: cardSkins\.tableSkins\(\)/);
+  assert.match(app, /function renderAppearanceChoicePreview[\s\S]*?renderTableSkinPreview\(choice\)/);
+  assert.match(app, /data-appearance-category=/);
   for (const gameClass of ["blackjack-game", "holdem-game", "five-card-draw-game", "juan-game", "rotating-rummy-game"]) {
     assert.match(app, new RegExp("standard-card-game \\$\\{activeTableAppearanceClass\\(\\)\\} " + gameClass));
   }
@@ -183,7 +187,7 @@ test("Legacy Mode restores the original 3s & 7s and Thirteen cards without becom
   const css = read("public/app.css");
 
   assert.match(app, /name="legacyMode"/);
-  assert.match(app, /original 3s &amp; 7s and Thirteen illustrated Standard 52 cards/);
+  assert.match(app, /original illustrated 3s & 7s and Thirteen cards/);
   assert.match(app, /function standardLegacyModeEnabled/);
   assert.match(app, /function renderLegacyStandardCenter/);
   assert.match(app, /legacy-card-center legacy-court/);

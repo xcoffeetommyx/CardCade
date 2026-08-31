@@ -42,9 +42,14 @@ test("Options uses the shared shell while preserving readable utility controls",
   assert.match(appearance, /class="game-shell-screen layered-menu-screen options-menu-screen appearance-options-screen panel-open"/);
   assert.match(appearance, /renderOptionsMenuBackground\(\{ staticOnly: true \}\)/);
   assert.match(appearance, /class="menu-layer appearance-menu-layer" role="dialog"/);
+  assert.match(appearance, /class="appearance-category-menu" role="tablist"/);
+  assert.match(appearance, /class="appearance-choice-stage"/);
+  assert.match(appearance, /data-action="cycle-appearance-choice"/);
+  assert.match(app, /function handleAppearanceKeydown/);
   assert.match(css, /\.game-command-option \{/);
   assert.match(css, /\.panel-open \.menu-depth-background/);
-  assert.match(css, /\.appearance-menu-layer \.skin-setting/);
+  assert.match(css, /\.appearance-loadout-layout/);
+  assert.match(css, /\.appearance-object-stage/);
 });
 
 test("local and multiplayer setup use shared game-shell configuration controls", () => {

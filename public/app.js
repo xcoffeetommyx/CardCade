@@ -34,6 +34,8 @@ const state = {
   multiplayerTab: "host",
   multiplayerPanel: null,
   optionsPanel: null,
+  appearanceCategoryIndex: 0,
+  appearanceDraft: null,
   selectedGameId: null,
   selectedDeckFamilyId: null,
   libraryStage: "decks",
@@ -2792,49 +2794,11 @@ function renderSkinPreview(skin) {
     </div>`;
 }
 
-function renderSkinSetting(deckFamilyId) {
-  const skins = cardSkins.skinsForFamily(deckFamilyId);
-  const selected = selectedCardSkin(deckFamilyId);
-  const family = appearanceFamilyName(deckFamilyId);
-  if (!selected || !skins.length) return "";
-  const inputId = `settings-skin-${deckFamilyId}`;
-  return `
-    <article class="skin-setting" data-skin-setting="${escapeHtml(deckFamilyId)}">
-      <div class="skin-setting-heading"><span><strong>${escapeHtml(family.name)}</strong><small>${escapeHtml(family.shortName)}</small></span></div>
-      <div class="field">
-        <label for="${escapeHtml(inputId)}">Card skin</label>
-        <select id="${escapeHtml(inputId)}" name="skin-${escapeHtml(deckFamilyId)}" data-skin-family="${escapeHtml(deckFamilyId)}">
-          ${skins.map((skin) => `<option value="${escapeHtml(skin.id)}" ${skin.id === selected.id ? "selected" : ""}>${escapeHtml(skin.name)}</option>`).join("")}
-        </select>
-      </div>
-      ${renderSkinPreview(selected)}
-      <p class="skin-description" data-skin-description>${escapeHtml(selected.description)}</p>
-    </article>`;
-}
-
 function renderTableSkinPreview(tableSkin) {
   return `
     <div class="table-skin-preview ${tableSkin.className}" data-table-skin-preview role="img" aria-label="${escapeHtml(tableSkin.name)} card table preview">
       <span>Table felt</span><i aria-hidden="true"></i>
     </div>`;
-}
-
-function renderTableSkinSetting() {
-  const skins = cardSkins.tableSkins();
-  const selected = selectedTableSkin();
-  if (!selected || !skins.length) return "";
-  return `
-    <article class="skin-setting table-skin-setting" data-table-skin-setting>
-      <div class="skin-setting-heading"><span><strong>Card table</strong><small>All game modes</small></span></div>
-      <div class="field">
-        <label for="settings-table-skin">Table skin</label>
-        <select id="settings-table-skin" name="tableSkin" data-table-skin>
-          ${skins.map((skin) => `<option value="${escapeHtml(skin.id)}" ${skin.id === selected.id ? "selected" : ""}>${escapeHtml(skin.name)}</option>`).join("")}
-        </select>
-      </div>
-      ${renderTableSkinPreview(selected)}
-      <p class="skin-description" data-table-skin-description>${escapeHtml(selected.description)}</p>
-    </article>`;
 }
 
 function renderLegacyModePreview() {
@@ -2846,6 +2810,77 @@ function renderLegacyModePreview() {
       </span>
       <span class="legacy-preview-card legacy-preview-back" aria-hidden="true"></span>
     </span>`;
+}
+
+function createAppearanceDraft() {
+  return {
+    tableSkin: appearancePreferences.tableSkin,
+    skins: { ...appearancePreferences.skins },
+    legacyMode: appearancePreferences.legacyMode === true
+  };
+}
+
+function currentAppearanceDraft() {
+  if (!state.appearanceDraft) state.appearanceDraft = createAppearanceDraft();
+  return state.appearanceDraft;
+}
+
+function appearanceCategories(draft = currentAppearanceDraft()) {
+  const categoryForDeck = (id, label, kicker, mark) => ({
+    id,
+    label,
+    kicker,
+    mark,
+    type: "deck",
+    deckFamilyId: id,
+    options: cardSkins.skinsForFamily(id),
+    selectedId: draft.skins[id]
+  });
+  return [
+    {
+      id: "table",
+      label: "Table felt",
+      kicker: "Surface",
+      mark: "◇",
+      type: "table",
+      options: cardSkins.tableSkins(),
+      selectedId: draft.tableSkin
+    },
+    categoryForDeck("standard-52", "Standard deck", "52 cards", "♠"),
+    categoryForDeck("color-action", "JUAN deck", "Color & action", "1"),
+    categoryForDeck("rotating-rummy", "Route deck", "Rotating Rummy", "7"),
+    {
+      id: "legacy",
+      label: "Legacy mode",
+      kicker: "Classic tables",
+      mark: "K",
+      type: "legacy",
+      options: [
+        { id: "off", name: "Modern mode", description: "Use the current physical fan, selected Standard deck skin, and full table presentation." },
+        { id: "on", name: "Legacy mode", description: "Use the original illustrated 3s & 7s and Thirteen cards with the smaller flat hand." }
+      ],
+      selectedId: draft.legacyMode ? "on" : "off"
+    }
+  ];
+}
+
+function selectedAppearanceChoice(category) {
+  return category.options.find((option) => option.id === category.selectedId) || category.options[0];
+}
+
+function renderAppearanceChoicePreview(category, choice, draft) {
+  if (category.type === "table") return renderTableSkinPreview(choice);
+  if (category.type === "deck") return renderSkinPreview(choice);
+  return draft.legacyMode
+    ? `<div class="appearance-legacy-preview active">${renderLegacyModePreview()}</div>`
+    : `<div class="appearance-modern-preview">${renderSkinPreview(cardSkins.resolveSkin("standard-52", draft.skins["standard-52"]))}</div>`;
+}
+
+function renderAppearanceDraftInputs(draft) {
+  return `
+    <input type="hidden" name="tableSkin" value="${escapeHtml(draft.tableSkin)}">
+    ${Object.keys(cardSkins.DEFAULT_SKIN_IDS).map((deckFamilyId) => `<input type="hidden" name="skin-${escapeHtml(deckFamilyId)}" value="${escapeHtml(draft.skins[deckFamilyId])}">`).join("")}
+    <input type="hidden" name="legacyMode" value="on" ${draft.legacyMode ? "" : "disabled"}>`;
 }
 
 function renderOptionsCommands({ staticOnly = false } = {}) {
@@ -2897,7 +2932,12 @@ function renderSettings() {
 }
 
 function renderAppearanceSettings() {
-  const legacyMode = appearancePreferences.legacyMode === true;
+  const draft = currentAppearanceDraft();
+  const categories = appearanceCategories(draft);
+  state.appearanceCategoryIndex = Math.max(0, Math.min(state.appearanceCategoryIndex, categories.length - 1));
+  const category = categories[state.appearanceCategoryIndex];
+  const choice = selectedAppearanceChoice(category);
+  const choiceIndex = Math.max(0, category.options.findIndex((option) => option.id === choice.id));
   return `
     <section class="game-shell-screen layered-menu-screen options-menu-screen appearance-options-screen panel-open" aria-labelledby="appearance-screen-title">
       ${renderOptionsMenuBackground({ staticOnly: true })}
@@ -2907,31 +2947,76 @@ function renderAppearanceSettings() {
           <span>Options · Appearance &amp; skins</span>
         </div>
         <header class="layer-title-block appearance-layer-title">
-          <p class="shell-kicker">Table loadout</p>
+          <p class="shell-kicker">Loadout bay</p>
           <h2 id="appearance-screen-title">Appearance</h2>
           <small><span aria-hidden="true"></span>Saved on this device only</small>
         </header>
         <form class="appearance-console" data-form="appearance-settings">
-        <section class="appearance-settings appearance-settings-screen" aria-labelledby="appearance-settings-title">
-          <h3 class="sr-only" id="appearance-settings-title">Table and card appearance</h3>
-          <div class="table-skin-grid">${renderTableSkinSetting()}</div>
-          <p class="appearance-section-label"><span>Card decks</span></p>
-          <div class="appearance-family-grid">
-            ${Object.keys(cardSkins.DEFAULT_SKIN_IDS).map(renderSkinSetting).join("")}
+          ${renderAppearanceDraftInputs(draft)}
+          <div class="appearance-loadout-layout">
+            <nav class="appearance-category-menu" role="tablist" aria-label="Appearance categories">
+              ${categories.map((candidate, index) => `
+                <button id="appearance-category-${index}" type="button" role="tab" tabindex="${index === state.appearanceCategoryIndex ? "0" : "-1"}" aria-selected="${index === state.appearanceCategoryIndex}" aria-controls="appearance-choice-stage" class="appearance-category-option ${index === state.appearanceCategoryIndex ? "active" : ""}" data-action="select-appearance-category" data-category-index="${index}">
+                  <span aria-hidden="true">${escapeHtml(candidate.mark)}</span>
+                  <strong>${escapeHtml(candidate.label)}</strong>
+                  <small>${escapeHtml(candidate.kicker)}</small>
+                </button>`).join("")}
+            </nav>
+            <section class="appearance-choice-stage" id="appearance-choice-stage" role="tabpanel" aria-labelledby="appearance-category-${state.appearanceCategoryIndex}">
+              <p class="appearance-stage-kicker">${escapeHtml(category.kicker)}</p>
+              <h3>${escapeHtml(category.label)}</h3>
+              <div class="appearance-object-stage" data-appearance-category="${escapeHtml(category.id)}">
+                ${renderAppearanceChoicePreview(category, choice, draft)}
+              </div>
+              <div class="appearance-choice-selector" aria-label="Choose ${escapeHtml(category.label)}">
+                <button type="button" data-action="cycle-appearance-choice" data-direction="-1" aria-label="Previous ${escapeHtml(category.label)}">‹</button>
+                <output aria-live="polite"><strong>${escapeHtml(choice.name)}</strong><small>${choiceIndex + 1} / ${category.options.length}</small></output>
+                <button type="button" data-action="cycle-appearance-choice" data-direction="1" aria-label="Next ${escapeHtml(category.label)}">›</button>
+              </div>
+              <p class="appearance-choice-description">${escapeHtml(choice.description)}</p>
+            </section>
           </div>
-        </section>
-        <div class="settings-grid">
-          <label class="setting-row legacy-mode-setting">
-            <span class="legacy-mode-copy"><strong>Legacy mode</strong><p>Use the original 3s &amp; 7s and Thirteen illustrated Standard 52 cards in a smaller, flat scrolling hand. Your selected modern skin stays remembered, JUAN is unchanged, and this never enters online room state.</p>${renderLegacyModePreview()}</span>
-            <input type="checkbox" name="legacyMode" ${legacyMode ? "checked" : ""}>
-          </label>
-        </div>
-        <div class="game-shell-action-dock options-actions">
-          <button class="game-primary-action" type="submit">Save appearance</button>
-        </div>
+          <div class="appearance-command-bar">
+            <span>UP / DOWN · CATEGORY&nbsp;&nbsp;&nbsp; LEFT / RIGHT · STYLE</span>
+            <button class="game-primary-action" type="submit">Save appearance</button>
+          </div>
         </form>
       </section>
     </section>`;
+}
+
+function selectAppearanceCategory(index, { focus = true } = {}) {
+  const categories = appearanceCategories();
+  state.appearanceCategoryIndex = Math.max(0, Math.min(Number(index) || 0, categories.length - 1));
+  render();
+  if (focus) requestAnimationFrame(() => app.querySelector(`[data-category-index="${state.appearanceCategoryIndex}"]`)?.focus({ preventScroll: true }));
+}
+
+function moveAppearanceCategory(direction, { controller = false } = {}) {
+  const count = appearanceCategories().length;
+  state.appearanceCategoryIndex = (state.appearanceCategoryIndex + (Number(direction) < 0 ? -1 : 1) + count) % count;
+  render();
+  requestAnimationFrame(() => {
+    const target = app.querySelector(`[data-category-index="${state.appearanceCategoryIndex}"]`);
+    if (!target) return;
+    if (controller) focusControllerTarget(target);
+    else target.focus({ preventScroll: true });
+  });
+}
+
+function cycleAppearanceChoice(direction, { focus = true } = {}) {
+  const draft = currentAppearanceDraft();
+  const categories = appearanceCategories(draft);
+  const category = categories[state.appearanceCategoryIndex] || categories[0];
+  if (!category?.options.length) return;
+  const currentIndex = Math.max(0, category.options.findIndex((option) => option.id === category.selectedId));
+  const step = Number(direction) < 0 ? -1 : 1;
+  const next = category.options[(currentIndex + step + category.options.length) % category.options.length];
+  if (category.type === "table") draft.tableSkin = next.id;
+  else if (category.type === "deck") draft.skins[category.deckFamilyId] = next.id;
+  else draft.legacyMode = next.id === "on";
+  render();
+  if (focus) requestAnimationFrame(() => app.querySelector(`[data-action="cycle-appearance-choice"][data-direction="${step}"]`)?.focus({ preventScroll: true }));
 }
 
 let gameScrollRestoreFrame = null;
@@ -3824,12 +3909,15 @@ document.addEventListener("click", async (event) => {
   }
   if (action === "open-settings") {
     state.optionsPanel = null;
+    state.appearanceDraft = null;
     navigate("settings");
   }
   if (action === "open-appearance-settings") {
     state.optionsPanel = null;
+    state.appearanceCategoryIndex = 0;
+    state.appearanceDraft = createAppearanceDraft();
     navigate("appearance-settings");
-    focusMenuLayer();
+    requestAnimationFrame(() => app.querySelector('[data-action="select-appearance-category"][aria-selected="true"]')?.focus({ preventScroll: true }));
   }
   if (action === "back-to-library") {
     state.libraryStage = "games";
@@ -3864,6 +3952,8 @@ document.addEventListener("click", async (event) => {
     render();
     requestAnimationFrame(() => app.querySelector('[data-action="toggle-reduced-motion-setting"]')?.focus({ preventScroll: true }));
   }
+  if (action === "select-appearance-category") selectAppearanceCategory(Number(button.dataset.categoryIndex));
+  if (action === "cycle-appearance-choice") cycleAppearanceChoice(Number(button.dataset.direction));
   if (action === "library-back") libraryBack();
   if (action === "rotate-library-deck") rotateLibraryDeck(Number(button.dataset.direction));
   if (action === "select-orbital-deck") {
@@ -4566,6 +4656,14 @@ function handleMenuLayerKeydown(event) {
   return false;
 }
 
+function handleAppearanceKeydown(event) {
+  if (state.screen !== "appearance-settings" || !["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key)) return false;
+  event.preventDefault();
+  if (event.key === "ArrowUp" || event.key === "ArrowDown") moveAppearanceCategory(event.key === "ArrowUp" ? -1 : 1);
+  else cycleAppearanceChoice(event.key === "ArrowLeft" ? -1 : 1);
+  return true;
+}
+
 function mainMenuTargetIndex(direction, options = [...app.querySelectorAll(".main-menu-option:not([disabled])")]) {
   if (!options.length) return -1;
   const current = controllerState.hoveredTarget && options.includes(controllerState.hoveredTarget)
@@ -4579,6 +4677,7 @@ function mainMenuTargetIndex(direction, options = [...app.querySelectorAll(".mai
 
 document.addEventListener("keydown", (event) => {
   if (handleMenuLayerKeydown(event)) return;
+  if (handleAppearanceKeydown(event)) return;
   if (handleMainMenuKeydown(event)) return;
   if (handleLibraryKeydown(event)) return;
   const findersSearchDialog = app.querySelector(".finders-search-confirmation");
@@ -4674,28 +4773,6 @@ document.addEventListener("pointermove", (event) => {
   hideControllerCursor();
 }, { passive: true });
 
-document.addEventListener("change", (event) => {
-  const tableSelect = event.target.closest?.("[data-table-skin]");
-  if (tableSelect) {
-    const tableSkin = cardSkins.resolveTableSkin(tableSelect.value);
-    const setting = tableSelect.closest("[data-table-skin-setting]");
-    const preview = setting?.querySelector("[data-table-skin-preview]");
-    const description = setting?.querySelector("[data-table-skin-description]");
-    if (preview && tableSkin) preview.outerHTML = renderTableSkinPreview(tableSkin);
-    if (description && tableSkin) description.textContent = tableSkin.description;
-    return;
-  }
-  const select = event.target.closest?.("[data-skin-family]");
-  if (!select) return;
-  const deckFamilyId = select.dataset.skinFamily;
-  const skin = cardSkins.resolveSkin(deckFamilyId, select.value);
-  const setting = select.closest("[data-skin-setting]");
-  const preview = setting?.querySelector("[data-skin-preview]");
-  const description = setting?.querySelector("[data-skin-description]");
-  if (preview && skin) preview.outerHTML = renderSkinPreview(skin);
-  if (description && skin) description.textContent = skin.description;
-});
-
 document.addEventListener("submit", async (event) => {
   const form = event.target.closest("[data-form]");
   if (!form) return;
@@ -4730,6 +4807,7 @@ document.addEventListener("submit", async (event) => {
         tableSkin: String(data.get("tableSkin") || ""),
         legacyMode: data.get("legacyMode") === "on"
       });
+      state.appearanceDraft = null;
       showToast("Appearance saved.");
       navigate("settings");
     }
@@ -4812,6 +4890,21 @@ function hideControllerCursor() {
 }
 
 function handleControllerButton(action) {
+  if (state.screen === "appearance-settings") {
+    if (["up", "down"].includes(action)) {
+      moveAppearanceCategory(action === "up" ? -1 : 1, { controller: true });
+      return;
+    }
+    if (["left", "right"].includes(action)) {
+      const step = action === "left" ? -1 : 1;
+      cycleAppearanceChoice(step, { focus: false });
+      requestAnimationFrame(() => {
+        const target = app.querySelector(`[data-action="cycle-appearance-choice"][data-direction="${step}"]`);
+        if (target) focusControllerTarget(target);
+      });
+      return;
+    }
+  }
   const gameMenuOptions = activeGameMenuOptions();
   if (gameMenuOptions.length) {
     const options = gameMenuOptions;
