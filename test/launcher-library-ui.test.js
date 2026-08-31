@@ -46,11 +46,17 @@ test("the orbital launcher uses CSS depth, fixed-scene mode scrolling, and respo
   assert.match(css, /translate3d\([\s\S]*?rotateY/);
   assert.match(css, /\.orbital-deck-box/);
   assert.match(css, /--deck-box-depth: clamp/);
+  assert.match(css, /\.orbital-deck \{[\s\S]*?filter: none;[\s\S]*?transform-style: preserve-3d/);
+  assert.match(css, /\.deck-box-front,[\s\S]*?brightness\(var\(--orbit-face-brightness\)\)/);
+  assert.match(css, /\.orbital-deck-box::after[\s\S]*?translateZ\(calc\(var\(--deck-box-half-depth\) \+ 3px\)\)/);
+  assert.match(css, /\.orbital-deck:is\(:focus-visible, \.controller-hover, \.controller-focus\) \.orbital-deck-box::after \{ opacity: 1; \}/);
+  assert.match(css, /\.controller-hover\.orbital-deck,[\s\S]*?outline: 0 !important;[\s\S]*?filter: none !important;/);
   assert.match(css, /\.deck-box-side-left/);
   assert.match(css, /\.deck-box-side-right/);
   assert.match(css, /\.deck-box-bottom/);
   assert.match(css, /translateZ\(var\(--deck-box-half-depth\)\)/);
   assert.match(css, /rotateX\(-12deg\) rotateY\(-20deg\)/);
+  assert.match(css, /data-orbit-slot="2"[^}]*rotateY\(-164deg\)/);
   assert.match(css, /--deck-box-face: #234d8b/);
   assert.match(css, /\.show-games \.orbital-deck-stage/);
   assert.match(css, /\.spatial-game-option/);
