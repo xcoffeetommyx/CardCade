@@ -34,6 +34,8 @@ const state = {
   multiplayerTab: "host",
   selectedGameId: null,
   selectedDeckFamilyId: null,
+  libraryStage: "decks",
+  libraryGameIndex: 0,
   localBots: 3,
   hotSeatPlayerCount: 1,
   hotSeatBots: 2,
@@ -116,6 +118,9 @@ const controllerTextState = {
   uppercase: false,
   roomCode: false
 };
+
+let librarySwipeGesture = null;
+let librarySuppressDeckClickUntil = 0;
 
 const standardGameAdapters = {
   "three-seven": {
@@ -427,21 +432,6 @@ function statusLabel(status) {
   }[status] || status;
 }
 
-function gameCard(game, mode) {
-  const isPlanned = game.status === "planned";
-  const action = mode === "multiplayer" ? "select-room-game" : "select-local-game";
-  return `
-    <button class="game-card" type="button" data-action="${action}" data-game-id="${escapeHtml(game.id)}" data-accent="${escapeHtml(game.accent)}" ${isPlanned ? "disabled" : ""}>
-      <span>
-        <span class="badge">${escapeHtml(statusLabel(game.status))}</span>
-        <h3>${escapeHtml(game.name)}</h3>
-        <p>${escapeHtml(game.description)}</p>
-        <small>${game.players.min}–${game.players.max} players · ${escapeHtml(game.eyebrow)}</small>
-      </span>
-      <span class="mini-card" aria-hidden="true">${game.deckFamilyId === "standard-52" ? "A♠" : "↻"}</span>
-    </button>`;
-}
-
 function compatibleDeckFamilies(mode) {
   return state.catalog.families
     .map((family) => ({
@@ -463,70 +453,232 @@ function setDeckFamilyForMode(mode, preferredId = null) {
 function deckFamilyMark(family) {
   if (family.id === "standard-52") return "♠";
   if (family.id === "color-action") return "✦";
+  if (family.id === "rotating-rummy") return "↻";
   return "▣";
 }
 
-function deckFamilyPicker(mode, { compact = false, selectedGameId = null } = {}) {
-  const families = compatibleDeckFamilies(mode);
-  const selectedGameFamilyId = selectedGameId
-    ? families.find((family) => family.games.some((game) => game.id === selectedGameId))?.id
-    : null;
-  const activeFamily = selectedDeckFamily(mode, state.selectedDeckFamilyId || selectedGameFamilyId);
-  if (!activeFamily) return "";
-  const prefix = compact ? "Choose a deck family" : "Step 1 · Choose a deck family";
-  return `
-    <div class="deck-family-picker ${compact ? "compact" : ""}">
-      <p class="library-step">${prefix}</p>
-      <div class="deck-family-rail" aria-label="Deck families">
-        ${families.map((family) => {
-          const active = family.id === activeFamily.id;
-          return `
-            <button class="deck-family-button ${active ? "active" : ""}" type="button" data-action="select-deck-family" data-family-id="${escapeHtml(family.id)}" aria-pressed="${active}">
-              <span class="deck-family-mark" data-family="${escapeHtml(family.id)}" aria-hidden="true">${deckFamilyMark(family)}</span>
-              <span class="deck-family-copy"><strong>${escapeHtml(family.name)}</strong><small>${escapeHtml(family.shortName)} · ${family.games.length} game${family.games.length === 1 ? "" : "s"}</small></span>
-              <span class="deck-family-arrow" aria-hidden="true">${active ? "●" : "›"}</span>
-            </button>`;
-        }).join("")}
-      </div>
-    </div>`;
+function libraryModeLabel(mode = state.mode) {
+  if (mode === "hot-seat") return "HOT SEAT";
+  if (mode === "multiplayer") return "MULTIPLAYER";
+  return "SOLO";
 }
 
-function compactGameCard(game, selectedGameId) {
-  const isPlanned = game.status === "planned";
+function libraryReducedMotion() {
+  return localStorage.getItem(storageKeys.reducedMotion) === "true"
+    || matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function libraryOrbitSlot(index, activeIndex, total) {
+  if (!total) return 0;
+  let delta = (index - activeIndex + total) % total;
+  if (delta > total / 2) delta -= total;
+  return delta;
+}
+
+function deckFamilySymbols(family) {
+  if (family.id === "standard-52") return ["♠", "♥", "♣", "♦"];
+  if (family.id === "color-action") return ["✦", "↻", "+2", "▰"];
+  if (family.id === "rotating-rummy") return ["1", "2", "3", "↻"];
+  return ["?", "◆", "?", "●"];
+}
+
+function renderOrbitalDeck(family, slot, active) {
+  const gameCount = family.games.length;
+  const accessibleState = active ? "Selected. Open games." : "Rotate this deck toward the front.";
   return `
-    <button class="compact-game ${selectedGameId === game.id ? "selected" : ""}" type="button" data-action="select-room-game" data-game-id="${escapeHtml(game.id)}" data-accent="${escapeHtml(game.accent)}" ${isPlanned ? "disabled" : ""}>
-      <span class="compact-game-mark" aria-hidden="true">${game.deckFamilyId === "standard-52" ? "A♠" : "✦"}</span>
-      <span class="compact-game-copy"><strong>${escapeHtml(game.name)}</strong><small>${escapeHtml(game.eyebrow)}</small></span>
-      <span class="badge">${escapeHtml(statusLabel(game.status))}</span>
+    <button class="orbital-deck ${active ? "active" : ""}" type="button" data-action="select-orbital-deck" data-family-id="${escapeHtml(family.id)}" data-orbit-slot="${slot}" aria-pressed="${active}" aria-label="${escapeHtml(family.name)}. ${accessibleState}" tabindex="${active ? "0" : "-1"}">
+      <span class="orbital-deck-box" data-family="${escapeHtml(family.id)}" aria-hidden="true">
+        <span class="deck-box-side"></span>
+        <span class="deck-box-top"></span>
+        <span class="deck-box-rear"><span>${deckFamilyMark(family)}</span><b>Cardcade</b></span>
+        <span class="deck-box-front">
+          <small>Cardcade deck</small>
+          <span class="deck-box-symbols">${deckFamilySymbols(family).map((symbol) => `<i>${escapeHtml(symbol)}</i>`).join("")}</span>
+          <strong>${escapeHtml(family.name)}</strong>
+          <em>${escapeHtml(family.shortName)}</em>
+          <b>${gameCount} game${gameCount === 1 ? "" : "s"}</b>
+        </span>
+      </span>
     </button>`;
 }
 
-function catalogMarkup(mode, { compact = false, selectedGameId = null } = {}) {
-  const selectedGameFamilyId = selectedGameId
-    ? compatibleDeckFamilies(mode).find((candidate) => candidate.games.some((game) => game.id === selectedGameId))?.id
-    : null;
-  const family = selectedDeckFamily(mode, state.selectedDeckFamilyId || selectedGameFamilyId);
-  if (!family) return `<div class="empty-state">No games support this mode yet.</div>`;
+function renderSpatialGameOptions(family) {
+  if (!family?.games?.length) return `<p class="spatial-mode-empty">No games support this table mode.</p>`;
+  const focusedIndex = Math.max(0, Math.min(state.libraryGameIndex, family.games.length - 1));
+  state.libraryGameIndex = focusedIndex;
+  return family.games.map((game, index) => {
+    const focused = index === focusedIndex;
+    const planned = game.status === "planned";
+    return `
+      <button class="spatial-game-option ${focused ? "active" : ""}" type="button" role="option" aria-selected="${focused}" data-action="select-library-game" data-game-id="${escapeHtml(game.id)}" data-game-index="${index}" tabindex="${focused ? "0" : "-1"}" ${planned ? "disabled" : ""}>
+        <span aria-hidden="true">›</span><strong>${escapeHtml(game.name)}</strong>
+      </button>`;
+  }).join("");
+}
 
-  const matchingGames = family.games.filter((game) => game.modes.includes(mode));
+function renderLibrary() {
+  const families = compatibleDeckFamilies(state.mode);
+  const activeFamily = selectedDeckFamily(state.mode);
+  if (!activeFamily) return `<div class="empty-state">No games support this mode yet.</div>`;
+  state.selectedDeckFamilyId = activeFamily.id;
+  const activeIndex = families.findIndex((family) => family.id === activeFamily.id);
+  const showingGames = state.libraryStage === "games";
+  const focusedGame = activeFamily.games[Math.max(0, Math.min(state.libraryGameIndex, activeFamily.games.length - 1))] || null;
+  const backLabel = showingGames ? "Return to deck selection" : state.mode === "multiplayer" ? "Return to room lobby" : "Return to Cardcade home";
   return `
-    <section class="game-library ${compact ? "compact-game-library" : ""}">
-      ${deckFamilyPicker(mode, { compact, selectedGameId })}
-      <div class="library-family-heading">
-        <div>
-          <span class="library-step">${compact ? "Choose a game" : "Step 2 · Choose a game"}</span>
-          <span class="family-kicker">${escapeHtml(family.shortName)}</span>
-          <h3>${escapeHtml(family.name)}</h3>
+    <section class="arcade-library-scene ${showingGames ? "show-games" : "show-decks"} ${libraryReducedMotion() ? "reduced-motion" : ""}" data-library-stage="${showingGames ? "games" : "decks"}" data-active-family="${escapeHtml(activeFamily.id)}" aria-label="Cardcade deck and game selection">
+      <h1 class="sr-only">Choose a Cardcade deck and game</h1>
+      <div class="arcade-library-atmosphere" aria-hidden="true"></div>
+      <div class="arcade-library-hud">
+        <button class="arcade-library-back" type="button" data-action="library-back" aria-label="${backLabel}">←</button>
+        <span>${libraryModeLabel()} · <b>${showingGames ? "GAME SELECT" : "DECK SELECT"}</b></span>
+      </div>
+      <section class="orbital-deck-stage" aria-label="Deck families" ${showingGames ? "inert" : ""} aria-hidden="${showingGames}">
+        <div class="deck-orbit-viewport">
+          ${families.map((family, index) => renderOrbitalDeck(family, libraryOrbitSlot(index, activeIndex, families.length), family.id === activeFamily.id)).join("")}
         </div>
-        <p>${escapeHtml(family.description)}</p>
-      </div>
-      <div class="${compact ? "compact-games" : "game-grid library-game-grid"}">
-        ${matchingGames.map((game) => compact
-          ? compactGameCard(game, selectedGameId)
-          : gameCard(game, mode === "multiplayer" ? "multiplayer" : "local")
-        ).join("")}
-      </div>
+        <button class="orbit-step orbit-step-left" type="button" data-action="rotate-library-deck" data-direction="-1" aria-label="Previous deck">‹</button>
+        <button class="orbit-step orbit-step-right" type="button" data-action="rotate-library-deck" data-direction="1" aria-label="Next deck">›</button>
+        <div class="orbit-readout" aria-live="polite">
+          <strong>${escapeHtml(activeFamily.name)}</strong>
+          <small>${escapeHtml(activeFamily.shortName)} · ${activeFamily.games.length} game${activeFamily.games.length === 1 ? "" : "s"}</small>
+        </div>
+      </section>
+      <section class="spatial-game-stage" aria-label="Games for ${escapeHtml(activeFamily.name)}" ${showingGames ? "" : "inert"} aria-hidden="${!showingGames}">
+        <p class="spatial-game-family">${escapeHtml(activeFamily.shortName)}</p>
+        <div class="spatial-mode-list" role="listbox" aria-label="${escapeHtml(activeFamily.name)} games">
+          ${renderSpatialGameOptions(activeFamily)}
+        </div>
+        <p class="spatial-game-context" aria-live="polite">${focusedGame ? `${escapeHtml(focusedGame.eyebrow)} · ${focusedGame.players.min}–${focusedGame.players.max} players` : ""}</p>
+      </section>
+      <p class="arcade-library-help">${showingGames ? "UP / DOWN TO CHOOSE · CONFIRM TO ENTER · BACK FOR DECKS" : "LEFT / RIGHT TO ORBIT · CONFIRM THE FRONT DECK"}</p>
     </section>`;
+}
+
+function syncLibraryGameFocus({ focus = false, controller = false, scroll = true } = {}) {
+  const scene = app.querySelector(".arcade-library-scene");
+  if (!scene) return;
+  const family = selectedDeckFamily(state.mode);
+  const options = [...scene.querySelectorAll(".spatial-game-option")];
+  if (!family || !options.length) return;
+  state.libraryGameIndex = Math.max(0, Math.min(state.libraryGameIndex, options.length - 1));
+  options.forEach((option, index) => {
+    const active = index === state.libraryGameIndex;
+    option.classList.toggle("active", active);
+    option.setAttribute("aria-selected", String(active));
+    option.tabIndex = active ? 0 : -1;
+  });
+  const game = family.games[state.libraryGameIndex];
+  const context = scene.querySelector(".spatial-game-context");
+  if (context && game) context.textContent = `${game.eyebrow} · ${game.players.min}–${game.players.max} players`;
+  const target = options[state.libraryGameIndex];
+  if (scroll) target?.scrollIntoView?.({ block: "nearest", inline: "nearest", behavior: libraryReducedMotion() ? "auto" : "smooth" });
+  if (controller && target) focusControllerTarget(target);
+  else if (focus) target?.focus?.({ preventScroll: true });
+}
+
+function syncLibraryStage({ focus = false, controller = false } = {}) {
+  const scene = app.querySelector(".arcade-library-scene");
+  if (!scene) return;
+  const showingGames = state.libraryStage === "games";
+  scene.dataset.libraryStage = showingGames ? "games" : "decks";
+  scene.classList.toggle("show-games", showingGames);
+  scene.classList.toggle("show-decks", !showingGames);
+  const deckStage = scene.querySelector(".orbital-deck-stage");
+  const gameStage = scene.querySelector(".spatial-game-stage");
+  deckStage?.toggleAttribute("inert", showingGames);
+  deckStage?.setAttribute("aria-hidden", String(showingGames));
+  gameStage?.toggleAttribute("inert", !showingGames);
+  gameStage?.setAttribute("aria-hidden", String(!showingGames));
+  const mode = scene.querySelector(".arcade-library-hud span");
+  if (mode) mode.innerHTML = `${libraryModeLabel()} · <b>${showingGames ? "GAME SELECT" : "DECK SELECT"}</b>`;
+  const help = scene.querySelector(".arcade-library-help");
+  if (help) help.textContent = showingGames ? "UP / DOWN TO CHOOSE · CONFIRM TO ENTER · BACK FOR DECKS" : "LEFT / RIGHT TO ORBIT · CONFIRM THE FRONT DECK";
+  const back = scene.querySelector(".arcade-library-back");
+  if (back) back.setAttribute("aria-label", showingGames ? "Return to deck selection" : state.mode === "multiplayer" ? "Return to room lobby" : "Return to Cardcade home");
+  if (showingGames) syncLibraryGameFocus({ focus, controller });
+  else if (focus || controller) {
+    const activeDeck = scene.querySelector(".orbital-deck.active");
+    if (controller && activeDeck) focusControllerTarget(activeDeck);
+    else activeDeck?.focus?.({ preventScroll: true });
+  }
+}
+
+function syncLibraryCarousel({ focus = false, controller = false } = {}) {
+  const scene = app.querySelector(".arcade-library-scene");
+  const families = compatibleDeckFamilies(state.mode);
+  const family = selectedDeckFamily(state.mode);
+  if (!scene || !family || !families.length) return;
+  const activeIndex = families.findIndex((candidate) => candidate.id === family.id);
+  scene.dataset.activeFamily = family.id;
+  for (const deck of scene.querySelectorAll(".orbital-deck")) {
+    const index = families.findIndex((candidate) => candidate.id === deck.dataset.familyId);
+    const active = index === activeIndex;
+    deck.dataset.orbitSlot = String(libraryOrbitSlot(index, activeIndex, families.length));
+    deck.classList.toggle("active", active);
+    deck.setAttribute("aria-pressed", String(active));
+    deck.setAttribute("aria-label", `${families[index].name}. ${active ? "Selected. Open games." : "Rotate this deck toward the front."}`);
+    deck.tabIndex = active ? 0 : -1;
+  }
+  const readout = scene.querySelector(".orbit-readout");
+  if (readout) readout.innerHTML = `<strong>${escapeHtml(family.name)}</strong><small>${escapeHtml(family.shortName)} · ${family.games.length} game${family.games.length === 1 ? "" : "s"}</small>`;
+  const gameStage = scene.querySelector(".spatial-game-stage");
+  if (gameStage) {
+    gameStage.setAttribute("aria-label", `Games for ${family.name}`);
+    const label = gameStage.querySelector(".spatial-game-family");
+    if (label) label.textContent = family.shortName;
+    const list = gameStage.querySelector(".spatial-mode-list");
+    if (list) {
+      list.setAttribute("aria-label", `${family.name} games`);
+      list.innerHTML = renderSpatialGameOptions(family);
+    }
+  }
+  syncLibraryGameFocus({ scroll: false });
+  if (focus || controller) {
+    const activeDeck = scene.querySelector(".orbital-deck.active");
+    if (controller && activeDeck) focusControllerTarget(activeDeck);
+    else activeDeck?.focus?.({ preventScroll: true });
+  }
+}
+
+function rotateLibraryDeck(direction, { focus = true, controller = false } = {}) {
+  if (state.screen !== "library" || state.libraryStage !== "decks") return;
+  const families = compatibleDeckFamilies(state.mode);
+  const activeFamily = selectedDeckFamily(state.mode);
+  const activeIndex = families.findIndex((family) => family.id === activeFamily?.id);
+  if (activeIndex < 0 || families.length < 2) return;
+  const nextIndex = (activeIndex + (direction < 0 ? -1 : 1) + families.length) % families.length;
+  state.selectedDeckFamilyId = families[nextIndex].id;
+  state.libraryGameIndex = 0;
+  syncLibraryCarousel({ focus, controller });
+}
+
+function openLibraryGames({ controller = false } = {}) {
+  if (state.screen !== "library") return;
+  const family = selectedDeckFamily(state.mode);
+  if (!family?.games?.length) return;
+  state.libraryStage = "games";
+  state.libraryGameIndex = Math.max(0, Math.min(state.libraryGameIndex, family.games.length - 1));
+  syncLibraryStage({ focus: !controller, controller });
+}
+
+function libraryBack({ controller = false } = {}) {
+  if (state.screen !== "library") return false;
+  if (state.libraryStage === "games") {
+    state.libraryStage = "decks";
+    syncLibraryStage({ focus: !controller, controller });
+  } else {
+    navigate(state.mode === "multiplayer" && state.room ? "room" : "home");
+  }
+  return true;
+}
+
+function moveLibraryGameFocus(direction, { controller = false } = {}) {
+  if (state.screen !== "library" || state.libraryStage !== "games") return;
+  const games = selectedDeckFamily(state.mode)?.games || [];
+  if (!games.length) return;
+  state.libraryGameIndex = Math.max(0, Math.min(state.libraryGameIndex + (direction < 0 ? -1 : 1), games.length - 1));
+  syncLibraryGameFocus({ focus: !controller, controller });
 }
 
 function renderHome() {
@@ -556,13 +708,6 @@ function renderHome() {
         <div class="hero-card three"><span>K</span><span class="suit">♠</span></div>
       </div>
     </section>`;
-}
-
-function renderLibrary() {
-  const modeName = state.mode === "hot-seat" ? "Hot Seat" : "Solo";
-  return `
-    ${screenHeader(`${modeName} library`, "Choose a deck family first, then pick the game for this table.", "home")}
-    ${catalogMarkup(state.mode)}`;
 }
 
 function selectedGame() {
@@ -678,13 +823,19 @@ function renderMultiplayer() {
     </div>`;
 }
 
-function compactGamePicker(room, isHost) {
+function roomGamePicker(room, isHost) {
   if (!isHost) {
     return room.game
       ? `<div class="callout">The host selected <strong>${escapeHtml(room.game.name)}</strong>.</div>`
       : `<div class="empty-state">Waiting for the host to choose a game.</div>`;
   }
-  return catalogMarkup("multiplayer", { compact: true, selectedGameId: room.gameId });
+  return `
+    <div class="room-game-choice">
+      <span class="family-kicker">${room.game ? escapeHtml(room.game.eyebrow) : "Orbital game cabinet"}</span>
+      <strong>${room.game ? escapeHtml(room.game.name) : "No game selected"}</strong>
+      <p>${room.game ? escapeHtml(room.game.description) : "Enter the cabinet to choose a deck and game."}</p>
+      <button class="action-button" type="button" data-action="open-room-library">${room.game ? "Change game" : "Choose a game"}</button>
+    </div>`;
 }
 
 function initials(name) {
@@ -733,7 +884,7 @@ function renderRoom() {
       </section>
       <section class="room-panel">
         <div class="family-header"><div><span class="family-kicker">Game cabinet</span><h3>${room.game ? escapeHtml(room.game.name) : "Choose a game"}</h3></div>${room.game ? `<span class="badge">${escapeHtml(statusLabel(room.game.status))}</span>` : ""}</div>
-        ${compactGamePicker(room, isHost)}
+        ${roomGamePicker(room, isHost)}
       </section>
       <section class="room-panel full-width">
         <div class="callout coral">${escapeHtml(room.startBlocker || "The table is ready.")}</div>
@@ -2705,6 +2856,7 @@ function render() {
   };
   document.body.classList.toggle("playing-game", ["game", "hot-seat-handoff"].includes(state.screen));
   document.body.classList.toggle("home-screen", state.screen === "home");
+  document.body.classList.toggle("library-screen", state.screen === "library");
   document.body.classList.toggle("legacy-standard-mode", state.screen === "game" && standardLegacyModeEnabled());
   const screen = (screens[state.screen] || renderHome)();
   app.innerHTML = screen;
@@ -3447,6 +3599,10 @@ async function resumeRoom() {
 document.addEventListener("click", async (event) => {
   const button = event.target.closest("[data-action]");
   if (!button) return;
+  if (performance.now() < librarySuppressDeckClickUntil && button.closest(".orbital-deck-stage")) {
+    event.preventDefault();
+    return;
+  }
   const action = button.dataset.action;
 
   if (action.startsWith("controller-key")) {
@@ -3481,6 +3637,8 @@ document.addEventListener("click", async (event) => {
   if (action === "open-solo") {
     state.mode = "solo";
     state.selectedGameId = null;
+    state.libraryStage = "decks";
+    state.libraryGameIndex = 0;
     setDeckFamilyForMode("solo");
     navigate("library");
   }
@@ -3490,22 +3648,50 @@ document.addEventListener("click", async (event) => {
     state.hotSeatPlayerCount = 1;
     state.hotSeatBots = 2;
     state.hotSeatNames = [];
+    state.libraryStage = "decks";
+    state.libraryGameIndex = 0;
     setDeckFamilyForMode("hot-seat");
     navigate("library");
   }
   if (action === "open-multiplayer") navigate("multiplayer");
+  if (action === "open-room-library" && state.room) {
+    state.mode = "multiplayer";
+    state.selectedGameId = state.room.gameId || null;
+    const currentFamily = compatibleDeckFamilies("multiplayer")
+      .find((family) => family.games.some((game) => game.id === state.room.gameId));
+    setDeckFamilyForMode("multiplayer", currentFamily?.id);
+    state.libraryStage = "decks";
+    state.libraryGameIndex = Math.max(0, selectedDeckFamily("multiplayer")?.games?.findIndex((game) => game.id === state.room.gameId) ?? 0);
+    navigate("library");
+  }
   if (action === "open-settings") navigate("settings");
   if (action === "open-appearance-settings") navigate("appearance-settings");
-  if (action === "back-to-library") navigate("library");
+  if (action === "back-to-library") {
+    state.libraryStage = "games";
+    const family = selectedDeckFamily(state.mode);
+    state.libraryGameIndex = Math.max(0, family?.games?.findIndex((game) => game.id === state.selectedGameId) ?? 0);
+    navigate("library");
+  }
   if (action === "multiplayer-tab") { state.multiplayerTab = button.dataset.tab; render(); }
-  if (action === "select-deck-family") {
-    const mode = state.screen === "room" ? "multiplayer" : state.mode;
-    if (mode && compatibleDeckFamilies(mode).some((family) => family.id === button.dataset.familyId)) {
-      state.selectedDeckFamilyId = button.dataset.familyId;
-      render();
+  if (action === "library-back") libraryBack();
+  if (action === "rotate-library-deck") rotateLibraryDeck(Number(button.dataset.direction));
+  if (action === "select-orbital-deck") {
+    if (button.classList.contains("active")) openLibraryGames({ controller: controllerState.active });
+    else rotateLibraryDeck(Number(button.dataset.orbitSlot) < 0 ? -1 : 1);
+  }
+  if (action === "select-library-game") {
+    const family = selectedDeckFamily(state.mode);
+    const game = family?.games?.find((candidate) => candidate.id === button.dataset.gameId);
+    if (!game || game.status === "planned") return;
+    state.libraryGameIndex = family.games.indexOf(game);
+    state.selectedGameId = game.id;
+    if (state.mode === "multiplayer" && state.room) {
+      sendRoom({ type: "select_game", gameId: game.id });
+      navigate("room");
+    } else {
+      navigate("local-lobby");
     }
   }
-  if (action === "select-local-game") { state.selectedGameId = button.dataset.gameId; navigate("local-lobby"); }
   if (action === "local-bot-down") { state.localBots = Math.max(0, state.localBots - 1); render(); }
   if (action === "local-bot-up") { state.localBots += 1; render(); }
   if (action === "hot-seat-player-down") {
@@ -3596,12 +3782,6 @@ document.addEventListener("click", async (event) => {
       showToast(error.message);
       button.disabled = false;
     }
-  }
-  if (action === "select-room-game") {
-    const family = compatibleDeckFamilies("multiplayer")
-      .find((candidate) => candidate.games.some((game) => game.id === button.dataset.gameId));
-    if (family) state.selectedDeckFamilyId = family.id;
-    sendRoom({ type: "select_game", gameId: button.dataset.gameId });
   }
   if (action === "room-bot-down" && state.room?.game?.supportsBots) sendRoom({ type: "set_bot_count", botCount: Math.max(0, state.room.gameSettings.botCount - 1) });
   if (action === "room-bot-up" && state.room?.game?.supportsBots) sendRoom({ type: "set_bot_count", botCount: state.room.gameSettings.botCount + 1 });
@@ -4107,7 +4287,55 @@ document.addEventListener("click", async (event) => {
   }
 });
 
+function handleLibraryKeydown(event) {
+  if (state.screen !== "library") return false;
+  const tagName = event.target?.tagName?.toLowerCase();
+  if (["input", "select", "textarea"].includes(tagName)) return false;
+  if (["Escape", "Backspace"].includes(event.key)) {
+    event.preventDefault();
+    libraryBack();
+    return true;
+  }
+  if (state.libraryStage === "decks") {
+    if (["ArrowLeft", "ArrowRight"].includes(event.key)) {
+      event.preventDefault();
+      rotateLibraryDeck(event.key === "ArrowLeft" ? -1 : 1);
+      return true;
+    }
+    if (["Enter", " "].includes(event.key)) {
+      event.preventDefault();
+      const target = event.target.closest?.(".orbital-deck, .orbit-step, .arcade-library-back");
+      if (target) target.click();
+      else openLibraryGames();
+      return true;
+    }
+    return false;
+  }
+  if (["Enter", " "].includes(event.key)) {
+    const target = event.target.closest?.(".spatial-game-option") || app.querySelector(".spatial-game-option.active");
+    if (!target) return false;
+    event.preventDefault();
+    target.click();
+    return true;
+  }
+  if (["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End"].includes(event.key)) {
+    event.preventDefault();
+    const games = selectedDeckFamily(state.mode)?.games || [];
+    if (!games.length) return true;
+    if (event.key === "Home") state.libraryGameIndex = 0;
+    else if (event.key === "End") state.libraryGameIndex = games.length - 1;
+    else {
+      const step = event.key === "PageUp" ? -3 : event.key === "PageDown" ? 3 : event.key === "ArrowUp" ? -1 : 1;
+      state.libraryGameIndex = Math.max(0, Math.min(state.libraryGameIndex + step, games.length - 1));
+    }
+    syncLibraryGameFocus({ focus: true });
+    return true;
+  }
+  return false;
+}
+
 document.addEventListener("keydown", (event) => {
+  if (handleLibraryKeydown(event)) return;
   const findersSearchDialog = app.querySelector(".finders-search-confirmation");
   if (event.key === "Tab" && findersSearchDialog) {
     const controls = [...findersSearchDialog.querySelectorAll("button:not([disabled])")];
@@ -4143,6 +4371,44 @@ document.addEventListener("keydown", (event) => {
   event.preventDefault();
   toggleStandardCard(card.dataset.gameCard);
 });
+
+document.addEventListener("focusin", (event) => {
+  const option = event.target.closest?.(".spatial-game-option");
+  if (!option || state.screen !== "library" || state.libraryStage !== "games") return;
+  const index = Number(option.dataset.gameIndex);
+  if (!Number.isInteger(index) || index === state.libraryGameIndex) return;
+  state.libraryGameIndex = index;
+  syncLibraryGameFocus({ scroll: false });
+});
+
+document.addEventListener("pointerdown", (event) => {
+  if (state.screen !== "library" || state.libraryStage !== "decks") return;
+  if (!event.target.closest?.(".deck-orbit-viewport")) return;
+  librarySwipeGesture = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, time: performance.now() };
+}, { passive: true });
+
+document.addEventListener("pointerup", (event) => {
+  const gesture = librarySwipeGesture;
+  librarySwipeGesture = null;
+  if (!gesture || gesture.pointerId !== event.pointerId || state.screen !== "library" || state.libraryStage !== "decks") return;
+  const deltaX = event.clientX - gesture.x;
+  const deltaY = event.clientY - gesture.y;
+  if (performance.now() - gesture.time > 900 || Math.abs(deltaX) < 42 || Math.abs(deltaX) < Math.abs(deltaY) * 1.2) return;
+  librarySuppressDeckClickUntil = performance.now() + 450;
+  rotateLibraryDeck(deltaX < 0 ? 1 : -1, { focus: false });
+});
+
+document.addEventListener("pointercancel", () => {
+  librarySwipeGesture = null;
+});
+
+document.addEventListener("wheel", (event) => {
+  if (state.screen !== "library" || state.libraryStage !== "games" || !event.target.closest?.(".arcade-library-scene")) return;
+  const list = app.querySelector(".spatial-mode-list");
+  if (!list || list.scrollHeight <= list.clientHeight) return;
+  event.preventDefault();
+  list.scrollBy({ top: event.deltaY, behavior: "auto" });
+}, { passive: false });
 
 let gameTableLayoutFrame = null;
 function scheduleGameTableLayout() {
@@ -4270,6 +4536,10 @@ function scrollControllerPage(deltaX, deltaY) {
   const left = Number(deltaX) || 0;
   const top = Number(deltaY) || 0;
   if (!left && !top) return;
+  if (state.screen === "library" && state.libraryStage === "games") {
+    app.querySelector(".spatial-mode-list")?.scrollBy({ left, top, behavior: "auto" });
+    return;
+  }
   // Gamepad axes and scroll offsets share their direction signs, so up/left
   // remain negative and down/right remain positive.
   window.scrollBy({ left, top, behavior: "auto" });
@@ -4297,6 +4567,41 @@ function hideControllerCursor() {
 }
 
 function handleControllerButton(action) {
+  if (state.screen === "library") {
+    if (action === "back") {
+      libraryBack({ controller: true });
+      return;
+    }
+    if (state.libraryStage === "decks") {
+      if (["left", "right"].includes(action)) {
+        rotateLibraryDeck(action === "left" ? -1 : 1, { controller: true });
+        return;
+      }
+      if (["up", "down"].includes(action)) return;
+      if (action === "activate") {
+        const target = controllerState.hoveredTarget || controllerTargetAtPoint();
+        if (target && controllerTargets().includes(target)) activateControllerTarget();
+        else openLibraryGames({ controller: true });
+        return;
+      }
+    } else {
+      if (["up", "down"].includes(action)) {
+        moveLibraryGameFocus(action === "up" ? -1 : 1, { controller: true });
+        return;
+      }
+      if (["left", "right"].includes(action)) return;
+      if (action === "activate") {
+        const availableTargets = controllerTargets();
+        const hovered = controllerState.hoveredTarget;
+        const target = hovered && availableTargets.includes(hovered) ? hovered : app.querySelector(".spatial-game-option.active");
+        if (target && availableTargets.includes(target)) {
+          setControllerHoverTarget(target);
+          activateControllerTarget();
+        }
+        return;
+      }
+    }
+  }
   if (action === "activate") {
     activateControllerTarget();
     return;
