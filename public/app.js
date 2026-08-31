@@ -488,8 +488,10 @@ function renderOrbitalDeck(family, slot, active) {
   return `
     <button class="orbital-deck ${active ? "active" : ""}" type="button" data-action="select-orbital-deck" data-family-id="${escapeHtml(family.id)}" data-orbit-slot="${slot}" aria-pressed="${active}" aria-label="${escapeHtml(family.name)}. ${accessibleState}" tabindex="${active ? "0" : "-1"}">
       <span class="orbital-deck-box" data-family="${escapeHtml(family.id)}" aria-hidden="true">
-        <span class="deck-box-side"></span>
+        <span class="deck-box-side deck-box-side-right"></span>
+        <span class="deck-box-side deck-box-side-left"></span>
         <span class="deck-box-top"></span>
+        <span class="deck-box-bottom"></span>
         <span class="deck-box-rear"><span>${deckFamilyMark(family)}</span><b>Cardcade</b></span>
         <span class="deck-box-front">
           <small>Cardcade deck</small>

@@ -15,6 +15,8 @@ test("the launcher keeps catalog and launch behavior behind one spatial deck-to-
   assert.match(app, /function compatibleDeckFamilies/);
   assert.match(app, /function selectedDeckFamily/);
   assert.match(app, /function renderOrbitalDeck/);
+  assert.match(app, /deck-box-side deck-box-side-left/);
+  assert.match(app, /deck-box-bottom/);
   assert.match(app, /function rotateLibraryDeck/);
   assert.match(app, /function openLibraryGames/);
   assert.match(app, /data-action="select-orbital-deck"/);
@@ -42,6 +44,12 @@ test("the orbital launcher uses CSS depth, fixed-scene mode scrolling, and respo
   assert.match(css, /\.orbital-deck\[data-orbit-slot="0"\]/);
   assert.match(css, /translate3d\([\s\S]*?rotateY/);
   assert.match(css, /\.orbital-deck-box/);
+  assert.match(css, /--deck-box-depth: clamp/);
+  assert.match(css, /\.deck-box-side-left/);
+  assert.match(css, /\.deck-box-side-right/);
+  assert.match(css, /\.deck-box-bottom/);
+  assert.match(css, /translateZ\(var\(--deck-box-half-depth\)\)/);
+  assert.match(css, /--deck-box-face: #334f8d/);
   assert.match(css, /\.show-games \.orbital-deck-stage/);
   assert.match(css, /\.spatial-game-option/);
   assert.match(css, /\.spatial-mode-list \{[\s\S]*?overflow-y: auto/);
