@@ -28,8 +28,8 @@ test("appearance settings are versioned, family-scoped, and local-only", () => {
   assert.match(app, /Object\.keys\(cardSkins\.DEFAULT_SKIN_IDS\)\.map\(renderSkinSetting\)/);
   assert.match(app, /data-skin-family=/);
   assert.match(app, /data-table-skin/);
-  assert.match(app, /Choose the surface and deck artwork used at your tables/);
-  assert.match(app, /Saved on this device only · never changes room rules/);
+  assert.match(app, /Table loadout/);
+  assert.match(app, /Saved on this device only/);
   assert.match(app, /tableSkin: String\(data\.get\("tableSkin"\) \|\| ""\)/);
   assert.doesNotMatch(app.match(/function saveAppearancePreferences[\s\S]*?\n}/)?.[0] || "", /sendRoom|socket|api\(/);
   assert.match(css, /\.appearance-family-grid/);
@@ -42,15 +42,16 @@ test("Options moves table and card appearance into a dedicated submenu", () => {
   const mainSettings = app.match(/function renderSettings\(\)[\s\S]*?(?=function renderAppearanceSettings)/)?.[0] || "";
 
   assert.match(app, /function renderAppearanceSettings/);
-  assert.match(mainSettings, /data-action="open-appearance-settings"/);
+  assert.match(app, /function renderOptionsCommands[\s\S]*?data-action="\$\{action\}"/);
+  assert.match(app, /renderOptionsMenuBackground\(\{ staticOnly: true \}\)/);
   assert.doesNotMatch(mainSettings, /data-(?:skin-family|table-skin)|name="legacyMode"/);
-  assert.match(app, /gameShellNav\("Options · Appearance", "open-settings", "Return to Options"\)/);
-  assert.match(app, /class="game-shell-screen options-screen appearance-options-screen"/);
+  assert.match(app, /class="game-shell-screen layered-menu-screen options-menu-screen appearance-options-screen panel-open"/);
+  assert.match(app, /class="menu-layer appearance-menu-layer" role="dialog"/);
   assert.match(app, /"appearance-settings": renderAppearanceSettings/);
-  assert.match(app, /if \(action === "open-appearance-settings"\) navigate\("appearance-settings"\);/);
+  assert.match(app, /if \(action === "open-appearance-settings"\) \{[\s\S]*?navigate\("appearance-settings"\);/);
   assert.match(app, /if \(formType === "appearance-settings"\) \{[\s\S]*?saveAppearancePreferences/);
-  assert.match(css, /\.settings-submenu-button \{/);
-  assert.match(css, /\.appearance-options-screen \.appearance-settings/);
+  assert.match(css, /\.game-command-option \{/);
+  assert.match(css, /\.appearance-menu-layer \.appearance-settings/);
 });
 
 test("faces and all hidden-card contexts use the shared skin boundary", () => {

@@ -32,6 +32,8 @@ const state = {
   catalog: { families: [] },
   mode: null,
   multiplayerTab: "host",
+  multiplayerPanel: null,
+  optionsPanel: null,
   selectedGameId: null,
   selectedDeckFamilyId: null,
   libraryStage: "decks",
@@ -822,32 +824,43 @@ function renderLocalLobby() {
 
 function renderMultiplayer() {
   const savedSession = JSON.parse(localStorage.getItem(storageKeys.room) || "null");
+  const panel = state.multiplayerPanel;
   return `
-    <section class="game-shell-screen multiplayer-entry-screen" aria-labelledby="multiplayer-title">
-      ${gameShellNav("Network tables")}
-      <header class="shell-title-block">
-        <p class="shell-kicker">Choose a seat</p>
-        <h1 id="multiplayer-title">Multiplayer</h1>
-      </header>
-      ${savedSession ? `<div class="resume-table-strip"><span>Saved table</span><strong>${escapeHtml(savedSession.code)}</strong><button type="button" data-action="resume-room">Resume</button></div>` : ""}
-      <div class="multiplayer-mode-choices" role="tablist" aria-label="Host or join a room">
-        <button type="button" role="tab" aria-controls="multiplayer-entry-panel" aria-selected="${state.multiplayerTab === "host"}" data-action="multiplayer-tab" data-tab="host" class="multiplayer-mode-choice ${state.multiplayerTab === "host" ? "active" : ""}"><span aria-hidden="true">◆</span><strong>Host</strong><small>Open a new table</small></button>
-        <button type="button" role="tab" aria-controls="multiplayer-entry-panel" aria-selected="${state.multiplayerTab === "join"}" data-action="multiplayer-tab" data-tab="join" class="multiplayer-mode-choice ${state.multiplayerTab === "join" ? "active" : ""}"><span aria-hidden="true">→</span><strong>Join</strong><small>Enter a room code</small></button>
+    <section class="game-shell-screen layered-menu-screen multiplayer-menu-screen ${panel ? "panel-open" : ""}" aria-labelledby="multiplayer-title">
+      <div class="menu-depth-background" ${panel ? "aria-hidden=\"true\" inert" : ""}>
+        ${gameShellNav("Main menu · Network tables")}
+        <header class="shell-title-block game-menu-title-block">
+          <p class="shell-kicker">Select command</p>
+          <h1 id="multiplayer-title">Multiplayer</h1>
+        </header>
+        <nav class="game-command-menu" aria-label="Multiplayer commands">
+          <button class="game-command-option" type="button" data-action="multiplayer-tab" data-tab="host"><span aria-hidden="true">›</span><strong>Host room</strong><small>New table</small></button>
+          <button class="game-command-option" type="button" data-action="multiplayer-tab" data-tab="join"><span aria-hidden="true">›</span><strong>Join room</strong><small>Use a code</small></button>
+          ${savedSession ? `<button class="game-command-option" type="button" data-action="resume-room"><span aria-hidden="true">›</span><strong>Resume table</strong><small class="room-code-menu-value">${escapeHtml(savedSession.code)}</small></button>` : ""}
+          <button class="game-command-option" type="button" data-action="open-hot-seat"><span aria-hidden="true">›</span><strong>Hot Seat</strong><small>One device</small></button>
+        </nav>
       </div>
-      <div class="multiplayer-entry-console" id="multiplayer-entry-panel" role="tabpanel">
-        ${state.multiplayerTab === "host" ? `
-          <form data-form="host-room" aria-label="Host a Cardcade room">
-            <div class="configuration-selector player-identity-selector"><label for="host-name">Player name</label><input id="host-name" name="name" maxlength="24" value="${escapeHtml(playerName())}" autocomplete="nickname" required></div>
-            <button class="game-primary-action" type="submit">Create room</button>
-          </form>` : `
-          <form data-form="join-room" aria-label="Join a Cardcade room">
-            <div class="configuration-selector room-code-entry"><label for="join-code">Room code</label><input class="room-code-input" id="join-code" name="code" maxlength="6" inputmode="text" autocapitalize="characters" autocomplete="off" placeholder="ABC234" required></div>
-            <div class="configuration-selector player-identity-selector"><label for="join-name">Player name</label><input id="join-name" name="name" maxlength="24" value="${escapeHtml(playerName())}" autocomplete="nickname" required></div>
-            <button class="game-primary-action" type="submit">Enter room</button>
-          </form>`}
-      </div>
-      <button class="game-secondary-action multiplayer-hot-seat-link" type="button" data-action="open-hot-seat">Hot Seat · share this device</button>
-      <p class="controller-hint">CHOOSE HOST OR JOIN · CONFIRM TO CONTINUE</p>
+      ${panel ? `
+        <section class="menu-layer multiplayer-command-layer" role="dialog" aria-modal="true" aria-labelledby="multiplayer-command-title">
+          <div class="screen-head layer-screen-head">
+            <button class="back-button" type="button" data-action="close-multiplayer-panel" aria-label="Return to multiplayer commands">←</button>
+            <span>Multiplayer · ${panel === "host" ? "Host room" : "Join room"}</span>
+          </div>
+          <header class="layer-title-block">
+            <p class="shell-kicker">${panel === "host" ? "Open a table" : "Find your table"}</p>
+            <h2 id="multiplayer-command-title">${panel === "host" ? "Host room" : "Join room"}</h2>
+          </header>
+          ${panel === "host" ? `
+            <form class="menu-entry-form" data-form="host-room" aria-label="Host a Cardcade room">
+              <div class="menu-entry-row"><label for="host-name">Player name</label><input id="host-name" name="name" maxlength="24" value="${escapeHtml(playerName())}" autocomplete="nickname" required></div>
+              <button class="game-primary-action" type="submit">Create room</button>
+            </form>` : `
+            <form class="menu-entry-form" data-form="join-room" aria-label="Join a Cardcade room">
+              <div class="menu-entry-row room-code-entry"><label for="join-code">Room code</label><input class="room-code-input" id="join-code" name="code" maxlength="6" inputmode="text" autocapitalize="characters" autocomplete="off" placeholder="ABC234" required></div>
+              <div class="menu-entry-row"><label for="join-name">Player name</label><input id="join-name" name="name" maxlength="24" value="${escapeHtml(playerName())}" autocomplete="nickname" required></div>
+              <button class="game-primary-action" type="submit">Enter room</button>
+            </form>`}
+        </section>` : ""}
     </section>`;
 }
 
@@ -2787,7 +2800,7 @@ function renderSkinSetting(deckFamilyId) {
   const inputId = `settings-skin-${deckFamilyId}`;
   return `
     <article class="skin-setting" data-skin-setting="${escapeHtml(deckFamilyId)}">
-      <div class="skin-setting-heading"><span><strong>${escapeHtml(family.name)}</strong><small>${escapeHtml(family.shortName)}</small></span><span class="badge">${skins.length} skin${skins.length === 1 ? "" : "s"}</span></div>
+      <div class="skin-setting-heading"><span><strong>${escapeHtml(family.name)}</strong><small>${escapeHtml(family.shortName)}</small></span></div>
       <div class="field">
         <label for="${escapeHtml(inputId)}">Card skin</label>
         <select id="${escapeHtml(inputId)}" name="skin-${escapeHtml(deckFamilyId)}" data-skin-family="${escapeHtml(deckFamilyId)}">
@@ -2812,7 +2825,7 @@ function renderTableSkinSetting() {
   if (!selected || !skins.length) return "";
   return `
     <article class="skin-setting table-skin-setting" data-table-skin-setting>
-      <div class="skin-setting-heading"><span><strong>Card table</strong><small>All game modes</small></span><span class="badge">${skins.length} skin${skins.length === 1 ? "" : "s"}</span></div>
+      <div class="skin-setting-heading"><span><strong>Card table</strong><small>All game modes</small></span></div>
       <div class="field">
         <label for="settings-table-skin">Table skin</label>
         <select id="settings-table-skin" name="tableSkin" data-table-skin>
@@ -2835,65 +2848,74 @@ function renderLegacyModePreview() {
     </span>`;
 }
 
-function renderSettings() {
+function renderOptionsCommands({ staticOnly = false } = {}) {
   const reducedMotion = localStorage.getItem(storageKeys.reducedMotion) === "true";
+  const tag = staticOnly ? "div" : "button";
+  const attrs = (action) => staticOnly ? "" : `type="button" data-action="${action}"`;
   return `
-    <section class="game-shell-screen options-screen" aria-labelledby="options-title">
-      ${gameShellNav("System")}
-      <header class="shell-title-block options-title-block">
-        <p class="shell-kicker">Player system</p>
-        <h1 id="options-title">Options</h1>
+    <nav class="game-command-menu options-command-menu" ${staticOnly ? "aria-hidden=\"true\"" : "aria-label=\"Options commands\""}>
+      <${tag} class="game-command-option" ${attrs("open-player-name-option")}><span aria-hidden="true">›</span><strong>Player name</strong><small>${escapeHtml(playerName())}</small></${tag}>
+      <${tag} class="game-command-option" ${attrs("open-appearance-settings")}><span aria-hidden="true">›</span><strong>Appearance &amp; skins</strong><small>Customize</small></${tag}>
+      <${tag} class="game-command-option" ${attrs("toggle-reduced-motion-setting")} ${staticOnly ? "" : `aria-pressed="${reducedMotion}"`}><span aria-hidden="true">›</span><strong>Reduce motion</strong><small>${reducedMotion ? "On" : "Off"}</small></${tag}>
+      <div class="game-command-option unavailable" aria-disabled="true"><span aria-hidden="true">·</span><strong>Sound</strong><small>Coming later</small></div>
+    </nav>`;
+}
+
+function renderOptionsMenuBackground({ staticOnly = false } = {}) {
+  return `
+    <div class="menu-depth-background" ${staticOnly ? "aria-hidden=\"true\"" : ""}>
+      ${staticOnly ? `<div class="game-shell-nav ghost-shell-nav"><span aria-hidden="true">←</span><span>Main menu · System</span></div>` : gameShellNav("Main menu · System")}
+      <header class="shell-title-block game-menu-title-block">
+        <p class="shell-kicker">Select command</p>
+        <h1 ${staticOnly ? "" : `id="options-title"`}>Options</h1>
       </header>
-      <form class="options-console" data-form="settings">
-        <section class="options-section" aria-labelledby="player-profile-label">
-          <h2 class="options-section-label" id="player-profile-label">Player profile</h2>
-          <div class="configuration-selector player-identity-selector options-player-name">
-            <label for="settings-name">Default player name</label>
-            <input id="settings-name" name="name" maxlength="24" value="${escapeHtml(playerName())}" autocomplete="nickname">
+      ${renderOptionsCommands({ staticOnly })}
+    </div>`;
+}
+
+function renderSettings() {
+  const panel = state.optionsPanel;
+  return `
+    <section class="game-shell-screen layered-menu-screen options-menu-screen ${panel ? "panel-open" : ""}" aria-label="Options">
+      ${renderOptionsMenuBackground({ staticOnly: Boolean(panel) })}
+      ${panel === "player-name" ? `
+        <section class="menu-layer player-name-layer" role="dialog" aria-modal="true" aria-labelledby="player-name-option-title">
+          <div class="screen-head layer-screen-head">
+            <button class="back-button" type="button" data-action="close-options-panel" aria-label="Return to Options">←</button>
+            <span>Options · Player name</span>
           </div>
-        </section>
-        <section class="options-section" aria-labelledby="preferences-label">
-          <h2 class="options-section-label" id="preferences-label">Preferences</h2>
-          <div class="option-command-list">
-            <button class="option-command settings-submenu-button" type="button" data-action="open-appearance-settings">
-              <span class="option-command-mark" aria-hidden="true">◆</span>
-              <span><strong>Appearance &amp; skins</strong><small>Table felt, card decks, and Legacy Mode</small></span>
-              <span class="settings-submenu-arrow" aria-hidden="true">›</span>
-            </button>
-            <label class="option-command option-toggle-command">
-              <span class="option-command-mark" aria-hidden="true">↟</span>
-              <span><strong>Reduce card motion</strong><small>Use quieter transitions throughout Cardcade</small></span>
-              <span class="arcade-switch"><input type="checkbox" name="reducedMotion" ${reducedMotion ? "checked" : ""}><i aria-hidden="true"></i></span>
-            </label>
-            <div class="option-command unavailable" aria-disabled="true">
-              <span class="option-command-mark" aria-hidden="true">♪</span>
-              <span><strong>Sound</strong><small>Audio controls will arrive with the shared runtime</small></span>
-              <span class="option-command-status">Coming later</span>
-            </div>
-          </div>
-        </section>
-        <div class="game-shell-action-dock options-actions">
-          <button class="game-primary-action" type="submit">Save options</button>
-        </div>
-      </form>
+          <header class="layer-title-block">
+            <p class="shell-kicker">Player profile</p>
+            <h2 id="player-name-option-title">Player name</h2>
+          </header>
+          <form class="menu-entry-form" data-form="player-name-setting">
+            <div class="menu-entry-row"><label for="settings-name">Default name</label><input id="settings-name" name="name" maxlength="24" value="${escapeHtml(playerName())}" autocomplete="nickname" required></div>
+            <button class="game-primary-action" type="submit">Save name</button>
+          </form>
+        </section>` : ""}
     </section>`;
 }
 
 function renderAppearanceSettings() {
   const legacyMode = appearancePreferences.legacyMode === true;
   return `
-    <section class="game-shell-screen options-screen appearance-options-screen" aria-labelledby="appearance-screen-title">
-      ${gameShellNav("Options · Appearance", "open-settings", "Return to Options")}
-      <header class="shell-title-block options-title-block">
-        <p class="shell-kicker">Table workshop</p>
-        <h1 id="appearance-screen-title">Appearance</h1>
-      </header>
-      <form class="options-console appearance-console" data-form="appearance-settings">
-        <p class="options-local-note"><span aria-hidden="true"></span>Saved on this device only · never changes room rules</p>
+    <section class="game-shell-screen layered-menu-screen options-menu-screen appearance-options-screen panel-open" aria-labelledby="appearance-screen-title">
+      ${renderOptionsMenuBackground({ staticOnly: true })}
+      <section class="menu-layer appearance-menu-layer" role="dialog" aria-modal="true" aria-labelledby="appearance-screen-title">
+        <div class="screen-head layer-screen-head">
+          <button class="back-button" type="button" data-action="open-settings" aria-label="Return to Options">←</button>
+          <span>Options · Appearance &amp; skins</span>
+        </div>
+        <header class="layer-title-block appearance-layer-title">
+          <p class="shell-kicker">Table loadout</p>
+          <h2 id="appearance-screen-title">Appearance</h2>
+          <small><span aria-hidden="true"></span>Saved on this device only</small>
+        </header>
+        <form class="appearance-console" data-form="appearance-settings">
         <section class="appearance-settings appearance-settings-screen" aria-labelledby="appearance-settings-title">
-          <div class="appearance-settings-heading"><span><strong id="appearance-settings-title">Table and card appearance</strong><p>Choose the surface and deck artwork used at your tables.</p></span></div>
+          <h3 class="sr-only" id="appearance-settings-title">Table and card appearance</h3>
           <div class="table-skin-grid">${renderTableSkinSetting()}</div>
-          <p class="appearance-section-label">Card decks</p>
+          <p class="appearance-section-label"><span>Card decks</span></p>
           <div class="appearance-family-grid">
             ${Object.keys(cardSkins.DEFAULT_SKIN_IDS).map(renderSkinSetting).join("")}
           </div>
@@ -2907,7 +2929,8 @@ function renderAppearanceSettings() {
         <div class="game-shell-action-dock options-actions">
           <button class="game-primary-action" type="submit">Save appearance</button>
         </div>
-      </form>
+        </form>
+      </section>
     </section>`;
 }
 
@@ -3286,6 +3309,10 @@ function navigate(screen, { direction = null } = {}) {
   render();
   window.scrollTo({ top: 0, behavior: libraryReducedMotion() ? "auto" : "smooth" });
   app.focus({ preventScroll: true });
+}
+
+function focusMenuLayer() {
+  requestAnimationFrame(() => app.querySelector(".menu-layer .back-button")?.focus({ preventScroll: true }));
 }
 
 function hotSeatSessionForSeat(seatNumber) {
@@ -3781,7 +3808,10 @@ document.addEventListener("click", async (event) => {
     setDeckFamilyForMode("hot-seat");
     navigate("library");
   }
-  if (action === "open-multiplayer") navigate("multiplayer");
+  if (action === "open-multiplayer") {
+    state.multiplayerPanel = null;
+    navigate("multiplayer");
+  }
   if (action === "open-room-library" && state.room) {
     state.mode = "multiplayer";
     state.selectedGameId = state.room.gameId || null;
@@ -3792,15 +3822,48 @@ document.addEventListener("click", async (event) => {
     state.libraryGameIndex = Math.max(0, selectedDeckFamily("multiplayer")?.games?.findIndex((game) => game.id === state.room.gameId) ?? 0);
     navigate("library");
   }
-  if (action === "open-settings") navigate("settings");
-  if (action === "open-appearance-settings") navigate("appearance-settings");
+  if (action === "open-settings") {
+    state.optionsPanel = null;
+    navigate("settings");
+  }
+  if (action === "open-appearance-settings") {
+    state.optionsPanel = null;
+    navigate("appearance-settings");
+    focusMenuLayer();
+  }
   if (action === "back-to-library") {
     state.libraryStage = "games";
     const family = selectedDeckFamily(state.mode);
     state.libraryGameIndex = Math.max(0, family?.games?.findIndex((game) => game.id === state.selectedGameId) ?? 0);
     navigate("library");
   }
-  if (action === "multiplayer-tab") { state.multiplayerTab = button.dataset.tab; render(); }
+  if (action === "multiplayer-tab") {
+    state.multiplayerTab = button.dataset.tab;
+    state.multiplayerPanel = button.dataset.tab;
+    render();
+    focusMenuLayer();
+  }
+  if (action === "close-multiplayer-panel") {
+    state.multiplayerPanel = null;
+    render();
+    requestAnimationFrame(() => app.querySelector(`[data-action="multiplayer-tab"][data-tab="${state.multiplayerTab}"]`)?.focus({ preventScroll: true }));
+  }
+  if (action === "open-player-name-option") {
+    state.optionsPanel = "player-name";
+    render();
+    focusMenuLayer();
+  }
+  if (action === "close-options-panel") {
+    state.optionsPanel = null;
+    render();
+    requestAnimationFrame(() => app.querySelector('[data-action="open-player-name-option"]')?.focus({ preventScroll: true }));
+  }
+  if (action === "toggle-reduced-motion-setting") {
+    const reducedMotion = localStorage.getItem(storageKeys.reducedMotion) === "true";
+    localStorage.setItem(storageKeys.reducedMotion, reducedMotion ? "false" : "true");
+    render();
+    requestAnimationFrame(() => app.querySelector('[data-action="toggle-reduced-motion-setting"]')?.focus({ preventScroll: true }));
+  }
   if (action === "library-back") libraryBack();
   if (action === "rotate-library-deck") rotateLibraryDeck(Number(button.dataset.direction));
   if (action === "select-orbital-deck") {
@@ -4461,9 +4524,16 @@ function handleLibraryKeydown(event) {
   return false;
 }
 
+function activeGameMenuOptions() {
+  if (state.screen === "home") return [...app.querySelectorAll(".main-menu-option:not([disabled])")];
+  if (state.screen === "multiplayer" && !state.multiplayerPanel) return [...app.querySelectorAll("button.game-command-option:not([disabled])")];
+  if (state.screen === "settings" && !state.optionsPanel) return [...app.querySelectorAll("button.game-command-option:not([disabled])")];
+  return [];
+}
+
 function handleMainMenuKeydown(event) {
-  if (state.screen !== "home" || !["ArrowUp", "ArrowDown", "Home", "End"].includes(event.key)) return false;
-  const options = [...app.querySelectorAll(".main-menu-option:not([disabled])")];
+  if (!["ArrowUp", "ArrowDown", "Home", "End"].includes(event.key)) return false;
+  const options = activeGameMenuOptions();
   if (!options.length) return false;
   event.preventDefault();
   const nextIndex = event.key === "Home" ? 0
@@ -4471,6 +4541,29 @@ function handleMainMenuKeydown(event) {
       : mainMenuTargetIndex(event.key === "ArrowUp" ? -1 : 1, options);
   options[nextIndex].focus({ preventScroll: true });
   return true;
+}
+
+function handleMenuLayerKeydown(event) {
+  const layer = app.querySelector('.menu-layer[role="dialog"]');
+  if (!layer) return false;
+  if (event.key === "Escape") {
+    event.preventDefault();
+    layer.querySelector(".back-button:not([disabled])")?.click();
+    return true;
+  }
+  if (event.key !== "Tab") return false;
+  const controls = controllerTargets(layer);
+  const first = controls[0];
+  const last = controls.at(-1);
+  if (!first || !last) return false;
+  if (event.shiftKey && (document.activeElement === first || !layer.contains(document.activeElement))) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
+  return false;
 }
 
 function mainMenuTargetIndex(direction, options = [...app.querySelectorAll(".main-menu-option:not([disabled])")]) {
@@ -4485,6 +4578,7 @@ function mainMenuTargetIndex(direction, options = [...app.querySelectorAll(".mai
 }
 
 document.addEventListener("keydown", (event) => {
+  if (handleMenuLayerKeydown(event)) return;
   if (handleMainMenuKeydown(event)) return;
   if (handleLibraryKeydown(event)) return;
   const findersSearchDialog = app.querySelector(".finders-search-confirmation");
@@ -4621,11 +4715,11 @@ document.addEventListener("submit", async (event) => {
       const code = String(data.get("code") || "").trim().toUpperCase();
       enterRoom(await api(`/api/rooms/${encodeURIComponent(code)}/join`, { method: "POST", body: JSON.stringify({ name }) }));
     }
-    if (formType === "settings") {
+    if (formType === "player-name-setting") {
       savePlayerName(data.get("name"));
-      localStorage.setItem(storageKeys.reducedMotion, data.get("reducedMotion") === "on" ? "true" : "false");
-      showToast("Options saved.");
-      navigate("home");
+      state.optionsPanel = null;
+      showToast("Player name saved.");
+      render();
     }
     if (formType === "appearance-settings") {
       saveAppearancePreferences({
@@ -4718,8 +4812,9 @@ function hideControllerCursor() {
 }
 
 function handleControllerButton(action) {
-  if (state.screen === "home") {
-    const options = [...app.querySelectorAll(".main-menu-option:not([disabled])")];
+  const gameMenuOptions = activeGameMenuOptions();
+  if (gameMenuOptions.length) {
+    const options = gameMenuOptions;
     if (["up", "down"].includes(action) && options.length) {
       const target = options[mainMenuTargetIndex(action === "up" ? -1 : 1, options)];
       if (target) focusControllerTarget(target);
@@ -4788,6 +4883,7 @@ function handleControllerButton(action) {
 function controllerTargetScope() {
   return controllerKeyboardRoot?.querySelector(".controller-keyboard-dialog")
     || document.querySelector("dialog[open]")
+    || app.querySelector('.menu-layer[role="dialog"]')
     || findersMakersPresentationRoot?.querySelector(".finders-build-reveal")
     || app.querySelector(".finders-search-confirmation")
     || app.querySelector(".juan-prism-dialog")
@@ -4917,6 +5013,11 @@ function controllerBack() {
   const findersSearchCancel = app.querySelector('[data-action="finders-cancel-search"]');
   if (findersSearchCancel) {
     findersSearchCancel.click();
+    return;
+  }
+  const menuLayerBack = app.querySelector('.menu-layer[role="dialog"] .back-button:not([disabled])');
+  if (menuLayerBack) {
+    menuLayerBack.click();
     return;
   }
   if (document.activeElement?.matches?.("input, select, textarea")) {

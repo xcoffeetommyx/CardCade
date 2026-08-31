@@ -33,16 +33,18 @@ test("Options uses the shared shell while preserving readable utility controls",
   const settings = app.slice(app.indexOf("function renderSettings"), app.indexOf("function renderAppearanceSettings"));
   const appearance = app.slice(app.indexOf("function renderAppearanceSettings"), app.indexOf("let gameScrollRestoreFrame"));
 
-  assert.match(settings, /class="game-shell-screen options-screen"/);
-  assert.match(settings, /class="options-console" data-form="settings"/);
-  assert.match(settings, /class="configuration-selector player-identity-selector options-player-name"/);
-  assert.match(settings, /class="arcade-switch"><input type="checkbox" name="reducedMotion"/);
-  assert.match(settings, /class="game-primary-action" type="submit">Save options/);
-  assert.match(appearance, /class="game-shell-screen options-screen appearance-options-screen"/);
-  assert.match(appearance, /class="options-console appearance-console" data-form="appearance-settings"/);
-  assert.match(css, /\.option-command \{/);
-  assert.match(css, /\.arcade-switch input/);
-  assert.match(css, /\.appearance-options-screen \.skin-setting/);
+  assert.match(app, /function renderOptionsCommands/);
+  assert.match(app, /class="game-command-menu options-command-menu"/);
+  assert.match(settings, /class="game-shell-screen layered-menu-screen options-menu-screen/);
+  assert.match(settings, /class="menu-layer player-name-layer" role="dialog" aria-modal="true"/);
+  assert.match(settings, /data-form="player-name-setting"/);
+  assert.match(app, /data-action="toggle-reduced-motion-setting"/);
+  assert.match(appearance, /class="game-shell-screen layered-menu-screen options-menu-screen appearance-options-screen panel-open"/);
+  assert.match(appearance, /renderOptionsMenuBackground\(\{ staticOnly: true \}\)/);
+  assert.match(appearance, /class="menu-layer appearance-menu-layer" role="dialog"/);
+  assert.match(css, /\.game-command-option \{/);
+  assert.match(css, /\.panel-open \.menu-depth-background/);
+  assert.match(css, /\.appearance-menu-layer \.skin-setting/);
 });
 
 test("local and multiplayer setup use shared game-shell configuration controls", () => {
@@ -54,8 +56,9 @@ test("local and multiplayer setup use shared game-shell configuration controls",
   assert.match(app, /class="configuration-selector player-identity-selector"/);
   assert.match(app, /class="stepper game-stepper"/);
   assert.match(app, /class="game-primary-action"[^>]*>Start/);
-  assert.match(app, /class="game-shell-screen multiplayer-entry-screen"/);
-  assert.match(app, /role="tablist" aria-label="Host or join a room"/);
+  assert.match(app, /class="game-shell-screen layered-menu-screen multiplayer-menu-screen/);
+  assert.match(app, /class="game-command-option" type="button" data-action="multiplayer-tab" data-tab="host"/);
+  assert.match(app, /class="menu-layer multiplayer-command-layer" role="dialog" aria-modal="true"/);
   assert.match(app, /class="room-code-input"/);
   assert.match(css, /\.room-code,[\s\S]*?\.room-code-input[\s\S]*?font-family: var\(--font-ui\) !important/);
 });
