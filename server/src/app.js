@@ -133,7 +133,7 @@ export function createCardcadeServer({
   snapshotStore = null,
   publicRoot = defaultPublicRoot,
   sharedRoot = defaultSharedRoot,
-  basePath = process.env.BASE_PATH || "",
+  basePath = process.env.BASE_PATH || "/cardcade",
   botTurnDelayMs = 1_100
 } = {}) {
   const mountPath = normalizeBasePath(basePath);

@@ -14,7 +14,7 @@ npm test
 npm start
 ```
 
-Open `http://localhost:4380`.
+Open `http://localhost:4380/cardcade/`.
 
 For Docker:
 

@@ -89,6 +89,7 @@ test("health, catalog, and launcher are served from one process", async (t) => {
   assert.equal(launcher.status, 200);
   const launcherBody = await launcher.text();
   assert.match(launcherBody, /<title>Cardcade<\/title>/);
+  assert.match(launcherBody, /<base href="\/cardcade\/">/);
   assert.match(launcherBody, /shared\/thirteen-rules\.js/);
   assert.match(launcherBody, /shared\/blackjack-rules\.js/);
   assert.match(launcherBody, /shared\/holdem-rules\.js/);
@@ -102,6 +103,11 @@ test("health, catalog, and launcher are served from one process", async (t) => {
   assert.match(launcherBody, /shared\/rotating-rummy-rules\.js/);
   assert.match(launcherBody, /shared\/finders-makers-content\.js/);
   assert.match(launcherBody, /shared\/controller-input\.js/);
+
+  const localStyles = await fetch(`${origin}/cardcade/app.css?v=129`);
+  assert.match(localStyles.headers.get("content-type"), /text\/css/);
+  const localApp = await fetch(`${origin}/cardcade/app.js?v=95`);
+  assert.match(localApp.headers.get("content-type"), /text\/javascript/);
 
   const thirteenRules = await fetch(`${origin}/shared/thirteen-rules.js`);
   assert.equal(thirteenRules.status, 200);
