@@ -85,9 +85,12 @@ test("shared table action bars follow the cards instead of covering them", () =>
 });
 
 test("Five Card Draw centers a single laid-down stock beside its discard", () => {
+  const app = read("public/app.js");
   const css = read("public/app.css");
 
+  assert.doesNotMatch(app, /five-card-draw-copy|Every player is building one private five-card hand/);
   assert.match(css, /\.juan-table-scene \.center-play-area,[\s\S]*?\.five-card-draw-table-scene \.center-play-area \{ top: 21%; height: 37%; \}/);
+  assert.match(css, /\.five-card-draw-table-scene \.five-card-draw-piles \{ transform: translateY\(12px\); \}/);
   assert.match(css, /\.five-card-draw-table-scene \.draw-stack::before,[\s\S]*?\.five-card-draw-table-scene \.draw-stack::after \{[\s\S]*?display: none;/);
 });
 

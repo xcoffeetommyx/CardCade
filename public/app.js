@@ -511,6 +511,7 @@ function renderOrbitalDeck(family, slot, active) {
   const accessibleState = active ? "Selected. Open games." : "Rotate this deck toward the front.";
   return `
     <button class="orbital-deck ${active ? "active" : ""}" type="button" data-action="select-orbital-deck" data-family-id="${escapeHtml(family.id)}" data-orbit-slot="${slot}" aria-pressed="${active}" aria-label="${escapeHtml(family.name)}. ${accessibleState}" tabindex="${active ? "0" : "-1"}">
+      <span class="orbital-deck-hit-target" aria-hidden="true"></span>
       <span class="orbital-deck-box" data-family="${escapeHtml(family.id)}" aria-hidden="true">
         <span class="deck-box-side deck-box-side-right"><i>${mark}</i></span>
         <span class="deck-box-side deck-box-side-left"><i>${mark}</i></span>
@@ -674,6 +675,20 @@ function rotateLibraryDeck(direction, { focus = true, controller = false } = {})
   if (activeIndex < 0 || families.length < 2) return;
   const nextIndex = (activeIndex + (direction < 0 ? -1 : 1) + families.length) % families.length;
   state.selectedDeckFamilyId = families[nextIndex].id;
+  state.libraryGameIndex = 0;
+  syncLibraryCarousel({ focus, controller });
+}
+
+function selectLibraryDeck(familyId, { focus = true, controller = false } = {}) {
+  if (state.screen !== "library" || state.libraryStage !== "decks") return;
+  const families = compatibleDeckFamilies(state.mode);
+  const family = families.find((candidate) => candidate.id === familyId);
+  if (!family) return;
+  if (family.id === selectedDeckFamily(state.mode)?.id) {
+    openLibraryGames({ controller });
+    return;
+  }
+  state.selectedDeckFamilyId = family.id;
   state.libraryGameIndex = 0;
   syncLibraryCarousel({ focus, controller });
 }
@@ -1802,16 +1817,6 @@ function renderFiveCardDrawGame() {
       ? `Raise to ${formatPoints((match.currentBet || 0) + (match.betSize || 0))}`
       : "Bet / Raise";
   const drawLabel = selectedCount ? `Replace ${selectedCount}` : "Stand pat";
-  const showdownDetail = match.showdown?.revealed
-    ? match.showdown.evaluations.map((entry) => {
-      const player = match.players.find((candidate) => candidate.seat === entry.seat);
-      return `${player?.name || "Player"} · ${entry.label}`;
-    }).join(" · ")
-    : match.phase === "draw"
-      ? "Choose zero to five cards. Replacements stay private."
-      : "Every player is building one private five-card hand.";
-  const tableLabel = match.showdown?.revealed ? "Showdown" : "Private draw";
-
   return `
     <section class="standard-card-game ${activeTableAppearanceClass()} five-card-draw-game" data-game-id="five-card-draw">
       <header class="game-topbar">
@@ -1837,7 +1842,6 @@ function renderFiveCardDrawGame() {
         centerMarkup: `
           <section class="game-table status-separated-table five-card-draw-table">
             <div class="five-card-draw-table-zone">
-              <div class="five-card-draw-copy"><span>${tableLabel}</span><strong>${escapeHtml(showdownDetail)}</strong></div>
               <div class="five-card-draw-piles" aria-label="Draw and discard piles">
                 <div class="draw-stack ${activeCardAppearanceClass("standard-52")}" aria-label="${match.stockCount} cards in draw pile">${renderCardBack({ deckFamilyId: "standard-52", context: "draw-stock", className: "draw-card-back", ariaHidden: true, parts: [{ tag: "i", text: "CC" }] })}<strong>Draw</strong><small>${match.stockCount} cards</small></div>
                 <div class="active-pile draw-discard-pile ${activeCardAppearanceClass("standard-52")}" aria-label="${match.discardCount} private discards">${renderCardBack({ deckFamilyId: "standard-52", context: "discard", className: "draw-card-back discard", ariaHidden: true, parts: [{ tag: "i", text: "↻" }] })}<strong>Discard</strong><small>${match.discardCount} card${match.discardCount === 1 ? "" : "s"}</small></div>
@@ -4190,8 +4194,7 @@ document.addEventListener("click", async (event) => {
   if (action === "library-back") libraryBack();
   if (action === "rotate-library-deck") rotateLibraryDeck(Number(button.dataset.direction));
   if (action === "select-orbital-deck") {
-    if (button.classList.contains("active")) openLibraryGames({ controller: controllerState.active });
-    else rotateLibraryDeck(Number(button.dataset.orbitSlot) < 0 ? -1 : 1);
+    selectLibraryDeck(button.dataset.familyId, { controller: controllerState.active });
   }
   if (action === "select-library-game") {
     const family = selectedDeckFamily(state.mode);
@@ -4961,7 +4964,13 @@ document.addEventListener("focusin", (event) => {
 document.addEventListener("pointerdown", (event) => {
   if (state.screen !== "library" || state.libraryStage !== "decks") return;
   if (!event.target.closest?.(".deck-orbit-viewport")) return;
-  librarySwipeGesture = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, time: performance.now() };
+  librarySwipeGesture = {
+    pointerId: event.pointerId,
+    x: event.clientX,
+    y: event.clientY,
+    time: performance.now(),
+    familyId: event.target.closest?.(".orbital-deck")?.dataset.familyId || null
+  };
 }, { passive: true });
 
 document.addEventListener("pointerup", (event) => {
@@ -4970,9 +4979,20 @@ document.addEventListener("pointerup", (event) => {
   if (!gesture || gesture.pointerId !== event.pointerId || state.screen !== "library" || state.libraryStage !== "decks") return;
   const deltaX = event.clientX - gesture.x;
   const deltaY = event.clientY - gesture.y;
-  if (performance.now() - gesture.time > 900 || Math.abs(deltaX) < 42 || Math.abs(deltaX) < Math.abs(deltaY) * 1.2) return;
-  librarySuppressDeckClickUntil = performance.now() + 120;
-  rotateLibraryDeck(deltaX < 0 ? 1 : -1, { focus: false });
+  const elapsed = performance.now() - gesture.time;
+  if (elapsed > 900) return;
+  if (Math.abs(deltaX) >= 42 && Math.abs(deltaX) >= Math.abs(deltaY) * 1.2) {
+    librarySuppressDeckClickUntil = performance.now() + 160;
+    rotateLibraryDeck(deltaX < 0 ? 1 : -1, { focus: false });
+    return;
+  }
+  if (gesture.familyId && Math.hypot(deltaX, deltaY) <= 12) {
+    // Resolve taps from the stable pointer-down deck. Mobile :hover and the 3D
+    // transform can otherwise move a child face between down and up, causing
+    // the browser to omit the synthetic click entirely.
+    librarySuppressDeckClickUntil = performance.now() + 160;
+    selectLibraryDeck(gesture.familyId, { focus: false });
+  }
 });
 
 document.addEventListener("pointercancel", () => {
@@ -5072,7 +5092,17 @@ function setupControllerCursor() {
     onActivity: showControllerCursor,
     onDisconnect: hideControllerCursor
   });
-  controllerState.input.start();
+  const hasConnectedGamepad = () => Boolean(controllerInput.selectGamepad(navigator.getGamepads?.() || []));
+  const startControllerPolling = () => controllerState.input?.start();
+  const stopControllerPollingIfIdle = () => {
+    controllerState.input?.poll(performance.now());
+    if (hasConnectedGamepad()) return;
+    controllerState.input?.stop();
+    hideControllerCursor();
+  };
+  window.addEventListener("gamepadconnected", startControllerPolling);
+  window.addEventListener("gamepaddisconnected", stopControllerPollingIfIdle);
+  if (hasConnectedGamepad()) startControllerPolling();
 }
 
 function clampControllerCursor() {

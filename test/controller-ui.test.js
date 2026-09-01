@@ -33,6 +33,9 @@ test("controller inputs use a virtual cursor, d-pad navigation, and safe A/B act
   assert.match(app, /controllerInput\.directionalTarget/);
   assert.match(app, /function activateControllerTarget/);
   assert.match(app, /function controllerBack/);
+  assert.match(app, /window\.addEventListener\("gamepadconnected", startControllerPolling\)/);
+  assert.match(app, /window\.addEventListener\("gamepaddisconnected", stopControllerPollingIfIdle\)/);
+  assert.match(app, /if \(hasConnectedGamepad\(\)\) startControllerPolling\(\)/);
   assert.match(app, /prismCancel\.click\(\)/);
   assert.match(app, /screen-head \.back-button/);
   assert.match(css, /\.controller-hover:not\(\.playing-card\)/);

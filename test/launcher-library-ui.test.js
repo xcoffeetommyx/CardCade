@@ -19,8 +19,10 @@ test("the launcher keeps catalog and launch behavior behind one spatial deck-to-
   assert.match(app, /deck-box-bottom/);
   assert.match(app, /deck-box-emblem/);
   assert.match(app, /function rotateLibraryDeck/);
+  assert.match(app, /function selectLibraryDeck/);
   assert.match(app, /function openLibraryGames/);
   assert.match(app, /data-action="select-orbital-deck"/);
+  assert.match(app, /class="orbital-deck-hit-target"/);
   assert.match(app, /data-action="select-library-game"/);
   assert.match(app, /data-action="open-room-library"/);
   assert.match(app, /if \(sendRoom\(\{ type: "select_game", gameId: game\.id \}\)\) navigate\("room"\)/);
@@ -30,7 +32,9 @@ test("the launcher keeps catalog and launch behavior behind one spatial deck-to-
   assert.match(app, /app\.querySelector\("\.spatial-mode-list"\)\?\.scrollBy/);
   assert.match(app, /const availableTargets = controllerTargets\(\)/);
   assert.match(app, /librarySwipeGesture/);
-  assert.match(app, /librarySuppressDeckClickUntil = performance\.now\(\) \+ 120/);
+  assert.match(app, /familyId: event\.target\.closest\?\.\("\.orbital-deck"\)\?\.dataset\.familyId \|\| null/);
+  assert.match(app, /selectLibraryDeck\(gesture\.familyId, \{ focus: false \}\)/);
+  assert.match(app, /librarySuppressDeckClickUntil = performance\.now\(\) \+ 160/);
   assert.match(app, /document\.addEventListener\("wheel"/);
 });
 
@@ -47,6 +51,10 @@ test("the orbital launcher uses CSS depth, fixed-scene mode scrolling, and respo
   assert.match(css, /\.orbital-deck-box/);
   assert.match(css, /--deck-box-depth: clamp/);
   assert.match(css, /\.orbital-deck \{[\s\S]*?filter: none;[\s\S]*?transform-style: preserve-3d/);
+  assert.match(css, /\.orbital-deck \{[^}]*touch-action: manipulation;/);
+  assert.match(css, /\.orbital-deck-hit-target \{[^}]*translateZ\(100px\)/);
+  assert.doesNotMatch(css, /\.orbital-deck \{[^}]*will-change:/);
+  assert.doesNotMatch(css, /orbitalDeckIdle/);
   assert.match(css, /\.deck-box-front,[\s\S]*?brightness\(var\(--orbit-face-brightness\)\)/);
   assert.match(css, /\.orbital-deck:focus-visible \{ outline: 0 !important; \}/);
   assert.match(css, /\.controller-hover\.orbital-deck,[\s\S]*?outline: 0 !important;[\s\S]*?filter: none !important;/);
@@ -56,6 +64,8 @@ test("the orbital launcher uses CSS depth, fixed-scene mode scrolling, and respo
   assert.match(css, /translateZ\(var\(--deck-box-half-depth\)\)/);
   assert.match(css, /rotateX\(-12deg\) rotateY\(-20deg\)/);
   assert.match(css, /data-orbit-slot="2"[^}]*rotateY\(-164deg\)/);
+  assert.doesNotMatch(css, /\.orbital-deck\[data-orbit-slot="(?:-?1|-?2)"\]\s*\{[^}]*rotateY/);
+  assert.match(css, /\.orbital-deck\[data-orbit-slot="1"\] \.orbital-deck-box \{ transform: rotateY\(-58deg\)/);
   assert.match(css, /--deck-box-face: #234d8b/);
   assert.match(css, /\.show-games \.orbital-deck-stage/);
   assert.match(css, /\.spatial-game-option/);

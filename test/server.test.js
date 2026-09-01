@@ -104,9 +104,9 @@ test("health, catalog, and launcher are served from one process", async (t) => {
   assert.match(launcherBody, /shared\/finders-makers-content\.js/);
   assert.match(launcherBody, /shared\/controller-input\.js/);
 
-  const localStyles = await fetch(`${origin}/cardcade/app.css?v=131`);
+  const localStyles = await fetch(`${origin}/cardcade/app.css?v=135`);
   assert.match(localStyles.headers.get("content-type"), /text\/css/);
-  const localApp = await fetch(`${origin}/cardcade/app.js?v=97`);
+  const localApp = await fetch(`${origin}/cardcade/app.js?v=99`);
   assert.match(localApp.headers.get("content-type"), /text\/javascript/);
 
   const thirteenRules = await fetch(`${origin}/shared/thirteen-rules.js`);
