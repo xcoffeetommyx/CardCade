@@ -1189,6 +1189,7 @@ function renderTableOpponent({
   modifiers = "",
   gameId = null,
   showLastPlay = false,
+  showHand = true,
   revealedCards = []
 }) {
   const assignment = tableSeatAssignments(match, viewerSeat).get(player.seat);
@@ -1208,10 +1209,10 @@ function renderTableOpponent({
         <span class="game-seat-copy" title="${escapeHtml(player.name)}"><strong>${escapeHtml(player.name)}</strong><small>${escapeHtml(detail)}</small></span>
         ${active ? '<span class="turn-indicator">Turn</span>' : ""}
       </div>
-      <div class="opponent-hand-wrap">${renderOpponentFan(deckFamilyId, count, {
+      ${showHand ? `<div class="opponent-hand-wrap">${renderOpponentFan(deckFamilyId, count, {
         ariaLabel: handLabel,
         revealedCards
-      })}</div>
+      })}</div>` : ""}
     </article>`;
 }
 
@@ -1402,7 +1403,10 @@ function renderSnapGame() {
           deckFamilyId: "standard-52",
           cardCount: player.drawCount,
           detail: `${snapPlayerStatus(player, match.phase)} · ${player.drawCount} draw · ${player.capturedCount} captured`,
-          modifiers: `${player.ready ? "ready" : ""} ${player.skipNextReveal ? "penalized" : ""}`
+          modifiers: `${player.ready ? "ready" : ""} ${player.skipNextReveal ? "penalized" : ""}`,
+          // Snap has no hands. Nobody picks their draw pile up, so no seat holds
+          // cards; the counts a player needs are already on the seat's HUD.
+          showHand: false
         })).join(""),
         centerMarkup: `
           <div class="snap-center-board">
@@ -1414,10 +1418,6 @@ function renderSnapGame() {
               <small>${escapeHtml(revealPlayer?.name || "Next reveal")}</small>
             </div>
           </div>`,
-        handMarkup: `
-          <section class="physical-hand snap-local-pile" aria-label="Your draw pile">
-            <div class="snap-local-pile-fan">${renderOpponentFan("standard-52", viewer?.drawCount || 0, { ariaLabel: `Your draw pile has ${viewer?.drawCount || 0} hidden cards` })}</div>
-          </section>`,
         localDetail: `${snapPlayerStatus(viewer || {}, match.phase)} · ${viewer?.drawCount || 0} draw · ${viewer?.capturedCount || 0} captured`,
         localActive: match.upcomingRevealSeat === viewerSeat || match.revealSourceSeat === viewerSeat,
         playOriginSeat: match.revealSourceSeat,
@@ -3297,9 +3297,9 @@ function layoutActivePiles() {
 // as a physical fan without opening a visible gap between neighbours.
 const CARD_STACK_THICKNESS = 0.55;
 
-// Seats yawed far enough to be seen edge-on need the radial fan; the head-on
-// calculator flattens into a slab at that angle.
-const GRAZING_SEAT_SLOTS = new Set(["west", "east", "west-near", "east-near"]);
+// Past this the hand is turned far enough that the head-on fan calculator
+// collapses into a slab and the radial one takes over.
+const GRAZING_SEAT_YAW = 45;
 // Seats to the viewer's left lead with their first card, because their yaw
 // swings the start of the fan toward the camera.
 const LEFT_HAND_SEAT_SLOTS = new Set(["west", "west-near", "north-west"]);
@@ -3311,12 +3311,18 @@ function layoutOpponentHands() {
     if (!cards.length) return;
     const seatSlot = hand.closest("[data-table-seat]")?.dataset.tableSeat || "";
     const leadsWithFirstCard = LEFT_HAND_SEAT_SLOTS.has(seatSlot);
+    // Which fan a seat needs follows how far it is actually turned, not which
+    // slot it sits in. A scene that lays its hands flat on the felt rather than
+    // holding them up -- Snap's face-down draw piles -- keeps the ordinary fan.
+    const seatYaw = Math.abs(
+      Number.parseFloat(getComputedStyle(hand).getPropertyValue("--seat-hand-yaw")) || 0
+    );
     const containerWidth = hand.clientWidth;
     const cardWidth = cards[0].offsetWidth;
     const cardHeight = cards[0].offsetHeight || cardWidth * 1.42;
     if (!containerWidth || !cardWidth) return;
 
-    if (GRAZING_SEAT_SLOTS.has(seatSlot)) {
+    if (seatYaw >= GRAZING_SEAT_YAW) {
       const sideLayout = cardPresentation.calculateSideFanLayout({
         count: cards.length,
         cardWidth,

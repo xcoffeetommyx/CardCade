@@ -5054,6 +5054,23 @@ body.reduced-motion #app.shell-transition-back { animation: none !important; }
   transform-style: preserve-3d;
 }
 .card-table-scene .active-pile.cards-pile {
+  /* Tilting pushes the cards outside the pile's own box, and the box clips its
+     overflow, which sliced the laid-down cards off along a hard edge. The scene
+     already clips at its own boundary, so let the pile spill. */
+  overflow: visible;
+  transform: rotateX(var(--table-card-lay, 40deg));
+  transform-origin: 50% 64%;
+}
+
+/* Five Card Draw's stock and discard, and Snap's revealed board, are cards on
+   the same felt, so they lie in the same plane as every other pile. Only the
+   card objects tilt -- their labels stay screen-facing and readable. */
+.casino-table-scene .five-card-draw-piles,
+.snap-table-scene .snap-center-board {
+  transform-style: preserve-3d;
+}
+.casino-table-scene :is(.draw-stack, .draw-discard-pile) .draw-card-back,
+.snap-table-scene .snap-center-board :is(.playing-card, .snap-empty-card) {
   transform: rotateX(var(--table-card-lay, 40deg));
   transform-origin: 50% 64%;
 }
@@ -5223,6 +5240,30 @@ body.reduced-motion .card-table-scene .table-seat.active { translate: 0; }
 .casino-table-scene .blackjack-dealer-zone,
 .casino-table-scene .holdem-board-zone,
 .casino-table-scene .five-card-draw-table-zone { height: 100%; min-height: 0; }
+
+/* Dealt cards belong on the table's centre line. These zones split the centre
+   into a copy column and a card column, which pushes the cards off that axis --
+   holdem's board sat about a hundred pixels right of centre while every other
+   game's pile was dead centre. Stack the copy above the cards instead so the
+   pile lands on the same axis as the felt, the seats, and the player's hand. */
+.casino-table-scene :is(.blackjack-dealer-zone, .holdem-board-zone, .five-card-draw-table-zone) {
+  grid-template-columns: minmax(0, 1fr);
+  grid-auto-rows: min-content;
+  align-content: center;
+  justify-items: center;
+  gap: clamp(3px, .9vw, 9px);
+}
+.casino-table-scene :is(.blackjack-dealer-copy, .holdem-board-copy, .five-card-draw-copy) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  align-items: baseline;
+  justify-content: center;
+}
+.casino-table-scene :is(.blackjack-dealer-copy, .holdem-board-copy, .five-card-draw-copy) strong {
+  max-width: none;
+  margin-top: 0;
+}
 .casino-table-scene .blackjack-dealer-pile,
 .casino-table-scene .holdem-board { min-height: 126px !important; }
 .casino-table-scene .physical-hand { min-height: 262px; }
@@ -5272,10 +5313,15 @@ body.reduced-motion .card-table-scene .table-seat.active { translate: 0; }
 
 .snap-game { padding-bottom: max(9rem, env(safe-area-inset-bottom)); }
 .snap-table-scene {
+  /* Every child of a table scene is absolutely positioned, so auto inline
+     margins made this one shrink-to-fit down to zero width and the whole table
+     -- felt, seats, centre board, draw pile -- rendered invisible. The cap needs
+     an explicit width to centre against. */
+  width: min(1120px, 100%);
   min-height: clamp(520px, 68vh, 660px);
   margin-inline: auto;
 }
-.snap-table-scene .center-play-area { left: 5%; top: 18%; width: 90%; height: 55%; }
+.snap-table-scene .center-play-area { left: 9%; top: 33%; width: 82%; height: 42%; }
 .snap-table-scene .snap-center-board {
   width: 100%;
   height: 100%;
@@ -5284,26 +5330,30 @@ body.reduced-motion .card-table-scene .table-seat.active { translate: 0; }
   border: 0;
   background: radial-gradient(circle at 50% 45%, rgba(255, 255, 255, .08), transparent 64%);
 }
+/* .snap-game's own breakpoint rules are more specific than a plain scene
+   selector, so match their depth or the board sizes itself for the old
+   standalone layout and overruns the felt. */
+.snap-table-scene .snap-center-board :is(.snap-compare-card, .snap-hidden-source) .playing-card,
 .snap-table-scene .snap-center-board .playing-card,
-.snap-table-scene .snap-empty-card { width: clamp(78px, 11vw, 128px); height: auto; aspect-ratio: 5 / 7; }
-.snap-table-scene .physical-hand.snap-local-pile {
-  --seat-hand-depth: 0px;
-  --seat-hand-yaw: 0deg;
-  --seat-hand-pitch: 0deg;
-  --seat-hand-roll: 0deg;
-  --seat-hand-scale: 1;
-  left: 18%;
-  right: 18%;
-  min-height: 132px;
-  padding: 0;
-  display: grid;
-  place-items: start center;
-  border: 0;
-  background: transparent;
+.snap-table-scene .snap-center-board .snap-empty-card {
+  width: clamp(78px, 14vw, 124px) !important;
+  height: auto !important;
+  aspect-ratio: 5 / 7;
 }
-.snap-local-pile-fan { width: min(100%, 480px); height: 115px; }
-.snap-local-pile-fan .opponent-hand { height: 108px; }
-.snap-table-scene .local-player-hud { bottom: 116px; }
+/* The current card lifts toward the viewer rather than out of the felt, so the
+   board keeps one silhouette while still calling out the card in play. */
+.snap-table-scene .snap-compare-card.current .playing-card {
+  box-shadow: 0 0 0 4px rgba(99, 229, 255, .22), 0 14px 26px rgba(0, 0, 0, .34);
+}
+/* Snap is not a game of held hands: nobody picks their draw pile up, so its
+   seats render no cards at all and carry only a HUD. The seat still marks where
+   each player sits, and their draw and capture counts live on that HUD. */
+.snap-table-scene .table-seat { grid-template-rows: auto; }
+.snap-table-scene .table-seat-west { left: 11%; top: 22%; }
+.snap-table-scene .table-seat-east { left: 89%; top: 22%; }
+.snap-table-scene .table-seat-north { top: 2%; }
+.snap-table-scene .local-player-hud { bottom: 4%; }
+
 .snap-table-scene .table-seat.ready .player-hud { border-color: rgba(114, 238, 168, .58); }
 .snap-table-scene .table-seat.penalized .player-hud { border-color: var(--snap-coral); }
 
@@ -5373,9 +5423,7 @@ body.reduced-motion .card-table-scene .table-seat.active { translate: 0; }
   .rummy-table-scene .center-play-area { top: 20%; height: 36%; }
   .rummy-table-scene .rummy-link-board { max-height: 90px; }
   .snap-table-scene { min-height: 530px; }
-  .snap-table-scene .center-play-area { left: 2%; top: 18%; width: 96%; height: 52%; }
-  .snap-table-scene .physical-hand.snap-local-pile { left: 8%; right: 8%; min-height: 118px; }
-  .snap-table-scene .local-player-hud { bottom: 104px; }
+  .snap-table-scene .center-play-area { left: 5%; top: 24%; width: 90%; height: 44%; }
   .finders-table-scene { min-height: 590px; }
   .finders-table-scene .finders-build-card { left: 2%; top: 14%; width: 29%; }
   .finders-table-scene .finders-board-zone { left: 12%; top: 23%; width: 76%; height: 62%; }
@@ -5413,8 +5461,6 @@ body.reduced-motion .card-table-scene .table-seat.active { translate: 0; }
   .casino-table-scene .local-player-hud { bottom: 146px; }
   .snap-table-scene { min-height: 390px; }
   .snap-table-scene .center-play-area { left: 16%; top: 15%; width: 68%; height: 55%; }
-  .snap-table-scene .physical-hand.snap-local-pile { min-height: 88px; }
-  .snap-table-scene .local-player-hud { bottom: 76px; }
   .finders-table-scene { min-height: 420px; }
   .finders-table-scene .finders-build-card { top: 17%; width: 23%; }
   .finders-table-scene .finders-board-zone { left: 20%; top: 12%; width: 60%; height: 74%; }

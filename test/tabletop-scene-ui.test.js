@@ -127,8 +127,18 @@ test("side seats sit edge-on and split into back-showing and leaf-showing cards"
   // A grazing seat cannot reuse the head-on fan: translating along a line and
   // leaning slightly collapses into a slab once the seat yaws.
   assert.match(presentation, /function calculateSideFanLayout/);
-  assert.match(app, /GRAZING_SEAT_SLOTS = new Set\(\["west", "east", "west-near", "east-near"\]\)/);
+  // Which fan a seat needs follows how far it is actually turned, not which slot
+  // it sits in, so a scene that lays its hands flat on the felt -- Snap's
+  // face-down draw piles -- keeps the ordinary fan.
+  assert.match(app, /const GRAZING_SEAT_YAW = 45;/);
+  assert.match(app, /if \(seatYaw >= GRAZING_SEAT_YAW\)/);
   assert.match(app, /cardPresentation\.calculateSideFanLayout\(\{/);
+  // Snap has no hands at all: nobody picks their draw pile up, so its seats
+  // render a HUD and nothing else, and there is no local hand section either.
+  assert.match(app, /showHand: false/);
+  assert.match(app, /\$\{showHand \? `<div class="opponent-hand-wrap">/);
+  assert.doesNotMatch(app, /snap-local-pile/);
+  assert.doesNotMatch(css, /snap-local-pile/);
   assert.match(css, /rotateY\(var\(--opponent-bow\)\)/);
 
   const seatYaw = (slot) => {
@@ -226,6 +236,25 @@ test("the side fan keeps its middle edge-on and cannot slice through itself", as
   const turned = hand.cards.map((card) => Math.abs(90 + card.bow));
   assert.ok(Math.max(...turned.map((a) => Math.abs(a - 90))) < 20, "the fan stays near edge-on");
   assert.ok(turned.some((angle) => Math.abs(angle - 90) > 5), "the ends still rock off edge-on");
+});
+
+test("every table scene has a width to lay itself out in", () => {
+  const css = read("public/app.css");
+
+  // A table scene positions all of its children absolutely, so it has no
+  // in-flow content to size against. Any scene that also takes auto inline
+  // margins shrink-to-fits to zero width and renders nothing at all.
+  const sceneBlock = (selector) => {
+    const at = css.indexOf(selector);
+    assert.notEqual(at, -1, `${selector} exists`);
+    return css.slice(at, css.indexOf("}", at));
+  };
+  for (const selector of [".snap-table-scene {", ".finders-table-scene {", ".card-table-scene {"]) {
+    const block = sceneBlock(selector);
+    if (/margin-inline:\s*auto/.test(block)) {
+      assert.match(block, /width:/, `${selector} centres on an explicit width`);
+    }
+  }
 });
 
 test("Finders Makers keeps its board top-down inside the shared table shell", () => {
