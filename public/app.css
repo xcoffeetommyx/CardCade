@@ -5053,6 +5053,9 @@ body.reduced-motion #app.shell-transition-back { animation: none !important; }
   background: transparent;
   box-shadow: none;
 }
+.card-table-scene .shedding-game-table {
+  grid-template-rows: 1fr;
+}
 /* Played cards belong to the felt, so they lie in the table's plane instead of
    standing up square to the camera. The tilt matches the felt's own rotateX, so
    the pile reads as resting on the surface rather than hovering in front of it.

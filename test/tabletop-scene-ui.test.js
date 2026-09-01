@@ -69,7 +69,9 @@ test("the shedding-game turn banner occupies the sky above lowered opponents", (
   assert.match(app, /tableStatusMarkup = ""/);
   assert.match(app, /class="tabletop-status-area"/);
   assert.match(app, /tableStatusMarkup: `<div class="game-status">/);
+  assert.match(app, /class="game-table shedding-game-table"/);
   assert.match(css, /\.tabletop-status-area \{[\s\S]*?position: absolute;[\s\S]*?top: 2%;/);
+  assert.match(css, /\.card-table-scene \.shedding-game-table \{[\s\S]*?grid-template-rows: 1fr;/);
   assert.match(css, /@media \(max-width: 520px\)[\s\S]*?\.table-seat-north \{ top: 13%; \}[\s\S]*?\.table-seat-west \{ left: 14%; top: 48%; \}/);
 });
 
