@@ -67,11 +67,15 @@ test("opponent seats preserve one fan and orient its wrapper toward the table", 
   const css = read("public/app.css");
 
   assert.match(css, /\.card-table-scene \.table-seat \{[\s\S]*?grid-template-columns: minmax\(0, 1fr\)/);
+  assert.match(css, /\.card-table-scene \.table-seat \{[\s\S]*?--seat-hand-depth: 26px[\s\S]*?--seat-hand-rotate-z: 0deg[\s\S]*?--seat-hand-rotate-x: -6deg/);
   assert.match(css, /\.opponent-hand \{[\s\S]*?rotateZ\(var\(--seat-hand-rotate-z\)\)[\s\S]*?rotateY\(var\(--seat-hand-rotate-y\)\)/);
   assert.match(css, /\.table-seat-north \{[\s\S]*?width: clamp\(280px, 36%, 460px\)/);
-  assert.match(css, /\.table-seat-west \{[\s\S]*?--seat-hand-rotate-z: 32deg[\s\S]*?--seat-hand-rotate-y: -42deg/);
-  assert.match(css, /\.table-seat-east \{[\s\S]*?--seat-hand-rotate-z: -32deg[\s\S]*?--seat-hand-rotate-y: 42deg/);
+  assert.match(css, /\.table-seat-north \{[\s\S]*?--seat-hand-depth: 38px[\s\S]*?--seat-hand-rotate-x: -8deg/);
+  assert.match(css, /\.table-seat-west \{[\s\S]*?--seat-hand-rotate-z: 6deg[\s\S]*?--seat-hand-rotate-y: -34deg[\s\S]*?--seat-hand-scale-x: \.74/);
+  assert.match(css, /\.table-seat-east \{[\s\S]*?--seat-hand-rotate-z: -6deg[\s\S]*?--seat-hand-rotate-y: 34deg[\s\S]*?--seat-hand-scale-x: \.74/);
   assert.doesNotMatch(css, /--seat-hand-angle:\s*-?92deg/);
+  assert.doesNotMatch(css, /--seat-hand-rotate-z:\s*-?(?:3[2-9]|[4-9]\d)deg/);
+  assert.match(css, /filter: drop-shadow\(var\(--seat-hand-shadow-x\) var\(--seat-hand-shadow-y\) 7px/);
   assert.match(css, /data-play-origin="west"[\s\S]*?--play-origin-x: -340px/);
   assert.match(css, /data-play-origin="east"[\s\S]*?--play-origin-x: 340px/);
   assert.equal((app.match(/cardPresentation\.calculateFanLayout\(\{/g) || []).length, 3);
