@@ -90,19 +90,17 @@ test("opponent seats share one camera instead of a flattened fake perspective", 
   assert.doesNotMatch(ruleBody(".opponent-hand {"), /filter:/);
   assert.match(css, /\.opponent-card \{[\s\S]*?box-shadow:[\s\S]*?var\(--seat-hand-shadow-x/);
 
-  // Yaw turns a hand to face across the table, so west and east must be exact
-  // mirrors. Matching signs is the bug that made both side seats look wrong.
+  // Yaw turns a hand to face across the table, so mirrored seats must carry
+  // exact opposite signs. Matching signs is the bug that made side seats wrong.
   assert.match(css, /\.card-table-scene \.table-seat \{[\s\S]*?--seat-hand-yaw: 0deg[\s\S]*?--seat-hand-pitch: -8deg[\s\S]*?--seat-hand-roll: 0deg/);
   assert.match(css, /\.opponent-hand \{[\s\S]*?rotateY\(var\(--seat-hand-yaw\)\)[\s\S]*?rotateX\(var\(--seat-hand-pitch\)\)[\s\S]*?rotateZ\(var\(--seat-hand-roll\)\)/);
-  for (const [west, east] of [["west", "east"], ["west-near", "east-near"], ["north-west", "north-east"]]) {
-    const yawOf = (slot) => {
-      const match = ruleBody(`.card-table-scene .table-seat-${slot} {`).match(/--seat-hand-yaw: (-?[\d.]+)deg/);
-      assert.ok(match, `${slot} declares a yaw`);
-      return Number(match[1]);
-    };
-    assert.ok(yawOf(west) > 0, `${west} yaws toward the table`);
-    assert.equal(yawOf(east), -yawOf(west), `${east} mirrors ${west}`);
-  }
+  const yawOf = (slot) => {
+    const match = ruleBody(`.card-table-scene .table-seat-${slot} {`).match(/--seat-hand-yaw: (-?[\d.]+)deg/);
+    assert.ok(match, `${slot} declares a yaw`);
+    return Number(match[1]);
+  };
+  assert.ok(yawOf("north-west") > 0, "north-west yaws toward the table");
+  assert.equal(yawOf("north-east"), -yawOf("north-west"), "north-east mirrors north-west");
   assert.match(css, /\.table-seat-north \{[\s\S]*?width: clamp\(280px, 36%, 460px\)/);
 
   // The hand-tuned per-card fake perspective is gone; the camera does that work
@@ -119,54 +117,33 @@ test("opponent seats share one camera instead of a flattened fake perspective", 
   assert.equal((app.match(/cardPresentation\.calculateFanLayout\(\{/g) || []).length, 3);
 });
 
-test("side seats sit edge-on and split into back-showing and leaf-showing cards", () => {
+test("seats the viewer sits beside show a name instead of a hand", () => {
   const app = read("public/app.js");
   const css = read("public/app.css");
-  const presentation = read("shared/card-presentation.js");
 
-  // A grazing seat cannot reuse the head-on fan: translating along a line and
-  // leaning slightly collapses into a slab once the seat yaws.
-  assert.match(presentation, /function calculateSideFanLayout/);
-  // Which fan a seat needs follows how far it is actually turned, not which slot
-  // it sits in, so a scene that lays its hands flat on the felt -- Snap's
-  // face-down draw piles -- keeps the ordinary fan.
-  assert.match(app, /const GRAZING_SEAT_YAW = 45;/);
-  assert.match(app, /if \(seatYaw >= GRAZING_SEAT_YAW\)/);
+  // A hand at a seat beside the viewer points its backs at the player opposite
+  // it, so from here it is edge-on and there is nothing readable to draw. It
+  // only ever fought the table for space. Those seats collapse to a name chip.
+  assert.match(app, /SIDELINE_SEAT_SLOTS = new Set\(\["west", "east", "west-near", "east-near"\]\)/);
+  assert.match(app, /const showsHand = showHand && !SIDELINE_SEAT_SLOTS\.has\(slot\)/);
+  assert.match(app, /\$\{showsHand \? `<div class="opponent-hand-wrap">/);
+
+  const sideBlock = css.slice(css.indexOf(".card-table-scene :is(.table-seat-west, .table-seat-east, .table-seat-west-near, .table-seat-east-near) {"));
+  assert.match(sideBlock.slice(0, sideBlock.indexOf("}")), /grid-template-rows: auto;/, "the hand row is gone");
+
+  // The name belongs off the playing surface, which means the felt has to leave
+  // a gutter for it rather than running edge to edge.
+  const felt = css.slice(css.indexOf(".card-table-surface {"));
+  const inset = felt.slice(0, felt.indexOf("}")).match(/inset: [\d.]+% ([\d.]+)%/);
+  assert.ok(inset, "the felt declares an inline inset");
+  assert.ok(Number(inset[1]) >= 8, `the felt leaves a gutter for the names (was ${inset[1]}%)`);
+
+  // Seats across the table still hold cards; only the ones beside you do not.
+  assert.match(css, /\.card-table-scene \.table-seat-north \{/);
   assert.match(app, /cardPresentation\.calculateSideFanLayout\(\{/);
-  // Snap has no hands at all: nobody picks their draw pile up, so its seats
-  // render a HUD and nothing else, and there is no local hand section either.
-  assert.match(app, /showHand: false/);
-  assert.match(app, /\$\{showHand \? `<div class="opponent-hand-wrap">/);
-  assert.doesNotMatch(app, /snap-local-pile/);
-  assert.doesNotMatch(css, /snap-local-pile/);
-  assert.match(css, /rotateY\(var\(--opponent-bow\)\)/);
-
-  const seatYaw = (slot) => {
-    const at = css.indexOf(`.card-table-scene .table-seat-${slot} {`);
-    assert.notEqual(at, -1, `${slot} exists`);
-    return Number(css.slice(at, css.indexOf("}", at)).match(/--seat-hand-yaw: (-?[\d.]+)deg/)[1]);
-  };
-
-  // Backs belong to the player sitting opposite. West's opposite is east, so its
-  // fan turns a right angle and sits edge-on to the viewer; only north, whose
-  // opposite IS the viewer, shows its backs square to the camera.
-  for (const slot of ["west", "west-near"]) {
-    assert.ok(seatYaw(slot) >= 85, `${slot} points its backs across the table, not at the viewer`);
-  }
-  for (const [west, east] of [["west", "east"], ["west-near", "east-near"], ["north-west", "north-east"]]) {
-    assert.equal(seatYaw(east), -seatYaw(west), `${east} mirrors ${west}`);
-  }
-  const northBlock = css.slice(css.indexOf(".card-table-scene .table-seat-north {"));
-  assert.doesNotMatch(northBlock.slice(0, northBlock.indexOf("}")), /--seat-hand-yaw/, "north keeps the default 0deg yaw");
-
-  // Side hands show nothing but printed backs. At these angles a card is read by
-  // its edge, so there is no second surface to render and nothing of an opponent
-  // hand is ever shown to anyone but its owner.
-  assert.doesNotMatch(app, /showing-leaf/);
-  assert.doesNotMatch(css, /showing-leaf/);
 });
 
-test("the side fan keeps its middle edge-on and cannot slice through itself", async () => {
+test("the angled fan keeps its middle flat and cannot slice through itself", async () => {
   const { createRequire } = await import("node:module");
   const cardPresentation = createRequire(import.meta.url)("../shared/card-presentation.js");
   const cardWidth = 47;
@@ -176,15 +153,17 @@ test("the side fan keeps its middle edge-on and cannot slice through itself", as
       const layout = cardPresentation.calculateSideFanLayout({
         count, cardWidth, cardHeight: 82, leadsWithFirstCard
       });
-      const yaw = leadsWithFirstCard ? 90 : -90;
-      const turned = layout.cards.map((card) => Math.abs(yaw + card.bow));
+      const turned = layout.cards.map((card) => Math.abs(card.bow));
 
       // The middle of the fan stays square to its owner. If easing ever flattens
       // out, every card picks up the same lean and the hand turns to face the
       // viewer -- which is the bug this whole seat model exists to avoid.
       if (count >= 5) {
+        // The middle of the fan stays square to its owner and the ends carry the
+        // curl. If the easing ever flattens out, every card picks up the same
+        // lean and the hand reads as one bent sheet instead of separate cards.
         const middle = turned[Math.floor((count - 1) / 2)];
-        assert.ok(Math.abs(middle - 90) < 12, `count ${count}: middle stays edge-on (was ${middle.toFixed(1)})`);
+        assert.ok(middle < Math.max(...turned) / 3, `count ${count}: middle stays flat (was ${middle.toFixed(1)}deg)`);
       }
 
       // Neighbouring cards differ in bow, so their planes pinch toward the card
@@ -233,9 +212,9 @@ test("the side fan keeps its middle edge-on and cannot slice through itself", as
   const hand = cardPresentation.calculateSideFanLayout({
     count: 13, cardWidth, cardHeight: 82, leadsWithFirstCard: true
   });
-  const turned = hand.cards.map((card) => Math.abs(90 + card.bow));
-  assert.ok(Math.max(...turned.map((a) => Math.abs(a - 90))) < 20, "the fan stays near edge-on");
-  assert.ok(turned.some((angle) => Math.abs(angle - 90) > 5), "the ends still rock off edge-on");
+  const turned = hand.cards.map((card) => Math.abs(card.bow));
+  assert.ok(Math.max(...turned) < 20, "the curl stays gentle");
+  assert.ok(turned.some((angle) => angle > 5), "the ends still curl");
 });
 
 test("every table scene has a width to lay itself out in", () => {

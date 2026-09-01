@@ -4735,7 +4735,10 @@ body.reduced-motion #app.shell-transition-back { animation: none !important; }
 
 .card-table-surface {
   position: absolute;
-  inset: 2% 2.5% .5%;
+  /* The inline inset leaves a gutter outside the rail. Seats beside the viewer
+     show no cards, so their name has to land somewhere, and it belongs off the
+     playing surface rather than on top of it. */
+  inset: 2% 9% .5%;
   overflow: hidden;
   border: clamp(10px, 1.5vw, 18px) solid var(--table-border);
   border-radius: 45% 45% 25% 25% / 34% 34% 18% 18%;
@@ -4880,61 +4883,27 @@ body.reduced-motion #app.shell-transition-back { animation: none !important; }
   --seat-hand-scale: .84;
   --seat-hand-shadow-x: -6px;
 }
+/* A seat the viewer sits beside shows no cards: edge-on there is nothing
+   readable to draw, and the fan only ever fought the table for space. What
+   matters is who is sitting there, so the seat collapses to its name chip and
+   moves out into the gutter at the table's widest point -- roughly where that
+   player's hands would be, but clear of the felt. */
 .card-table-scene :is(.table-seat-west, .table-seat-east, .table-seat-west-near, .table-seat-east-near) {
-  width: clamp(150px, 17%, 220px);
-  row-gap: 14px;
+  width: clamp(72px, 8.4%, 116px);
+  grid-template-rows: auto;
+  row-gap: 0;
 }
-.card-table-scene .table-seat-west {
-  left: 15%;
-  top: 35%;
-  --seat-hand-shift-x: 10px;
-  --seat-hand-shift-y: -10px;
-  --seat-hand-depth: 96px;
-  --seat-hand-yaw: 90deg;
-  --seat-hand-pitch: -13deg;
-  --seat-hand-roll: -16deg;
-  --seat-hand-scale: .8;
-  --seat-hand-origin-x: 42%;
-  --seat-hand-shadow-x: 7px;
+.card-table-scene .table-seat-west { left: 4.6%; top: 38%; }
+.card-table-scene .table-seat-east { left: 95.4%; top: 38%; }
+.card-table-scene .table-seat-west-near { left: 4.6%; top: 60%; }
+.card-table-scene .table-seat-east-near { left: 95.4%; top: 60%; }
+.card-table-scene :is(.table-seat-west, .table-seat-east, .table-seat-west-near, .table-seat-east-near) .player-hud {
+  width: 100%;
+  padding-inline: 4px;
+  border-radius: 12px;
 }
-.card-table-scene .table-seat-east {
-  left: 85%;
-  top: 35%;
-  --seat-hand-shift-x: -10px;
-  --seat-hand-shift-y: -10px;
-  --seat-hand-depth: 96px;
-  --seat-hand-yaw: -90deg;
-  --seat-hand-pitch: -13deg;
-  --seat-hand-roll: 16deg;
-  --seat-hand-scale: .8;
-  --seat-hand-origin-x: 58%;
-  --seat-hand-shadow-x: -7px;
-}
-.card-table-scene .table-seat-west-near {
-  left: 12%;
-  top: 46%;
-  --seat-hand-shift-x: 16px;
-  --seat-hand-shift-y: -10px;
-  --seat-hand-depth: 120px;
-  --seat-hand-yaw: 90deg;
-  --seat-hand-pitch: -15deg;
-  --seat-hand-roll: -18deg;
-  --seat-hand-scale: .8;
-  --seat-hand-origin-x: 38%;
-  --seat-hand-shadow-x: 8px;
-}
-.card-table-scene .table-seat-east-near {
-  left: 88%;
-  top: 46%;
-  --seat-hand-shift-x: -16px;
-  --seat-hand-shift-y: -10px;
-  --seat-hand-depth: 120px;
-  --seat-hand-yaw: -90deg;
-  --seat-hand-pitch: -15deg;
-  --seat-hand-roll: 18deg;
-  --seat-hand-scale: .8;
-  --seat-hand-origin-x: 62%;
-  --seat-hand-shadow-x: -8px;
+.card-table-scene :is(.table-seat-west, .table-seat-east, .table-seat-west-near, .table-seat-east-near) .game-seat-copy > small {
+  white-space: normal;
 }
 
 .card-table-scene .player-hud {
@@ -5198,15 +5167,15 @@ body.reduced-motion #app.shell-transition-back { animation: none !important; }
   .card-table-scene .table-seat-north { top: 3%; width: min(62%, 340px) !important; }
   .card-table-scene .table-seat-north-west { left: 28%; top: 6%; }
   .card-table-scene .table-seat-north-east { left: 72%; top: 6%; }
-  .card-table-scene :is(.table-seat-west, .table-seat-east, .table-seat-west-near, .table-seat-east-near) { width: clamp(132px, 29%, 200px); row-gap: 12px; }
-  .card-table-scene .table-seat-west { left: 16%; top: 35%; --seat-hand-shift-y: -10px; --seat-hand-depth: 96px; --seat-hand-yaw: 90deg; --seat-hand-roll: -16deg; --seat-hand-scale: .85; }
-  .card-table-scene .table-seat-east { left: 84%; top: 35%; --seat-hand-shift-y: -10px; --seat-hand-depth: 96px; --seat-hand-yaw: -90deg; --seat-hand-roll: 16deg; --seat-hand-scale: .85; }
+  /* A narrower scene cannot spare a full gutter, so the name tucks in far enough
+     to clear the scene's own edge rather than being sliced by it. */
+  .card-table-scene :is(.table-seat-west, .table-seat-east, .table-seat-west-near, .table-seat-east-near) { width: clamp(70px, 12%, 104px); row-gap: 0; }
+  .card-table-scene .table-seat-west { left: 7%; top: 40%; }
+  .card-table-scene .table-seat-east { left: 93%; top: 40%; }
   .card-table-scene .table-seat-north-west { --seat-hand-depth: 34px; --seat-hand-yaw: 45deg; --seat-hand-scale: .72; }
   .card-table-scene .table-seat-north-east { --seat-hand-depth: 34px; --seat-hand-yaw: -45deg; --seat-hand-scale: .72; }
-  .card-table-scene .table-seat-west-near { --seat-hand-depth: 72px; --seat-hand-yaw: 90deg; --seat-hand-scale: .64; }
-  .card-table-scene .table-seat-east-near { --seat-hand-depth: 72px; --seat-hand-yaw: -90deg; --seat-hand-scale: .64; }
-  .card-table-scene .table-seat-west-near { left: 5%; top: 47%; }
-  .card-table-scene .table-seat-east-near { left: 95%; top: 47%; }
+  .card-table-scene .table-seat-west-near { left: 7%; top: 62%; }
+  .card-table-scene .table-seat-east-near { left: 93%; top: 62%; }
   .card-table-scene .player-hud { min-height: 24px; padding: 3px 5px; gap: 3px; }
   .card-table-scene .player-hud .game-seat-copy > strong { font-size: .53rem; }
   .card-table-scene .player-hud .game-seat-copy > small { font-size: .43rem; }
@@ -5235,11 +5204,13 @@ body.reduced-motion #app.shell-transition-back { animation: none !important; }
   .card-table-depth { inset-inline: -8%; }
   .card-table-surface { transform: rotateX(44deg) translateZ(-10px); }
   .card-table-scene .table-seat-north { top: 7%; }
-  .card-table-scene :is(.table-seat-west, .table-seat-east, .table-seat-west-near, .table-seat-east-near) { width: clamp(120px, 36%, 165px); }
-  .card-table-scene .table-seat-west { left: 16%; top: 32%; --seat-hand-shift-x: 4px; --seat-hand-shift-y: -8px; --seat-hand-depth: 66px; --seat-hand-yaw: 90deg; --seat-hand-roll: -14deg; --seat-hand-scale: .8; }
-  .card-table-scene .table-seat-east { left: 84%; top: 32%; --seat-hand-shift-x: -4px; --seat-hand-shift-y: -8px; --seat-hand-depth: 66px; --seat-hand-yaw: -90deg; --seat-hand-roll: 14deg; --seat-hand-scale: .8; }
-  .card-table-scene .table-seat-west-near { left: 1%; --seat-hand-shift-x: 24px; }
-  .card-table-scene .table-seat-east-near { left: 99%; --seat-hand-shift-x: -24px; }
+  /* At phone width the felt runs edge to edge and there is no gutter left, so
+     the name sits at the table's shoulder, clear of the status bar and the pile. */
+  .card-table-scene :is(.table-seat-west, .table-seat-east, .table-seat-west-near, .table-seat-east-near) { width: clamp(66px, 24%, 92px); }
+  .card-table-scene .table-seat-west { left: 14%; top: 42%; }
+  .card-table-scene .table-seat-east { left: 86%; top: 42%; }
+  .card-table-scene .table-seat-west-near { left: 14%; top: 52%; }
+  .card-table-scene .table-seat-east-near { left: 86%; top: 52%; }
   .center-play-area { top: 25%; height: 28%; }
   .card-table-scene .active-pile .empty-pile span { display: none; }
   .card-table-scene .local-player-hud { bottom: 205px; }
@@ -5276,7 +5247,7 @@ body.reduced-motion .card-table-scene .table-seat.active { translate: 0; }
 
 /* Game-specific center objects remain screen-facing while the felt supplies
    the shared depth cue. This keeps dense rules text and reaction cards clear. */
-.casino-table-scene .center-play-area { top: 20%; height: 39%; }
+.casino-table-scene .center-play-area { top: 15%; height: 36%; }
 .casino-table-scene .blackjack-dealer-zone,
 .casino-table-scene .holdem-board-zone,
 .casino-table-scene .five-card-draw-table-zone { height: 100%; min-height: 0; }
@@ -5467,7 +5438,7 @@ body.reduced-motion .card-table-scene .table-seat.active { translate: 0; }
 }
 
 @media (max-width: 820px) {
-  .casino-table-scene .center-play-area { top: 21%; height: 35%; }
+  .casino-table-scene .center-play-area { top: 16%; height: 33%; }
   .casino-table-scene .physical-hand { min-height: 222px; }
   .casino-table-scene .local-player-hud { bottom: 224px; }
   .rummy-table-scene .center-play-area { top: 20%; height: 36%; }
@@ -5506,7 +5477,7 @@ body.reduced-motion .card-table-scene .table-seat.active { translate: 0; }
 }
 
 @media (orientation: landscape) and (max-height: 640px) {
-  .casino-table-scene .center-play-area { top: 17%; height: 43%; }
+  .casino-table-scene .center-play-area { top: 13%; height: 40%; }
   .casino-table-scene .physical-hand { min-height: 150px; }
   .casino-table-scene .local-player-hud { bottom: 146px; }
   .snap-table-scene { min-height: 390px; }

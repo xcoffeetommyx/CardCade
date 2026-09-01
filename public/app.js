@@ -1194,6 +1194,7 @@ function renderTableOpponent({
 }) {
   const assignment = tableSeatAssignments(match, viewerSeat).get(player.seat);
   const slot = assignment?.slot || "north";
+  const showsHand = showHand && !SIDELINE_SEAT_SLOTS.has(slot);
   const count = Math.max(0, Math.floor(Number(cardCount) || 0));
   const active = match.activeSeat === player.seat && !match.roundOver;
   const revealedLabel = deckFamilyId === "standard-52"
@@ -1209,7 +1210,7 @@ function renderTableOpponent({
         <span class="game-seat-copy" title="${escapeHtml(player.name)}"><strong>${escapeHtml(player.name)}</strong><small>${escapeHtml(detail)}</small></span>
         ${active ? '<span class="turn-indicator">Turn</span>' : ""}
       </div>
-      ${showHand ? `<div class="opponent-hand-wrap">${renderOpponentFan(deckFamilyId, count, {
+      ${showsHand ? `<div class="opponent-hand-wrap">${renderOpponentFan(deckFamilyId, count, {
         ariaLabel: handLabel,
         revealedCards
       })}</div>` : ""}
@@ -3300,6 +3301,10 @@ const CARD_STACK_THICKNESS = 0.55;
 // Past this the hand is turned far enough that the head-on fan calculator
 // collapses into a slab and the radial one takes over.
 const GRAZING_SEAT_YAW = 45;
+// Seats the viewer sits beside, rather than across from. Their cards point at
+// the player opposite them, so from here they are edge-on and there is nothing
+// readable to draw. They show a name out past the rail instead of a hand.
+const SIDELINE_SEAT_SLOTS = new Set(["west", "east", "west-near", "east-near"]);
 // Seats to the viewer's left lead with their first card, because their yaw
 // swings the start of the fan toward the camera.
 const LEFT_HAND_SEAT_SLOTS = new Set(["west", "west-near", "north-west"]);
