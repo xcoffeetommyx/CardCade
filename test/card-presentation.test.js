@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import presentation from '../shared/card-presentation.js';
 
-const { calculateFanLayout, fanDensity, fanIndexAtX, fanIndexAtPoint } = presentation;
+const { calculateFanLayout, fanDensity, fanIndexAtX, fanIndexAtPoint, resolveTableSeats, tableSeatSlots } = presentation;
 const STRESS_COUNTS = [5, 7, 10, 13, 15, 20];
 
 test('maps hand sizes onto the intended adaptive density bands', () => {
@@ -45,6 +45,36 @@ test('produces a shallow symmetric curve and outward rotations', () => {
   assert.ok(Math.abs(first.y - last.y) < 0.0001);
   assert.ok(first.y > center.y);
   assert.ok(Math.abs(first.rotation) <= 11);
+});
+
+test('resolves two, three, and four-player tables around a consistent south viewer seat', () => {
+  assert.deepEqual(tableSeatSlots(1), ['north']);
+  assert.deepEqual(tableSeatSlots(2), ['north-west', 'north-east']);
+  assert.deepEqual(tableSeatSlots(3), ['west', 'north', 'east']);
+
+  assert.deepEqual(resolveTableSeats([0, 1], 0), [
+    { seat: 1, slot: 'north', order: 0 }
+  ]);
+  assert.deepEqual(resolveTableSeats([0, 1, 2], 0), [
+    { seat: 1, slot: 'north-west', order: 0 },
+    { seat: 2, slot: 'north-east', order: 1 }
+  ]);
+  assert.deepEqual(resolveTableSeats([0, 1, 2, 3], 0), [
+    { seat: 1, slot: 'west', order: 0 },
+    { seat: 2, slot: 'north', order: 1 },
+    { seat: 3, slot: 'east', order: 2 }
+  ]);
+});
+
+test('rotates seat order around the viewer and supports a full eight-player JUAN table', () => {
+  assert.deepEqual(resolveTableSeats([0, 1, 2, 3], 2), [
+    { seat: 3, slot: 'west', order: 0 },
+    { seat: 0, slot: 'north', order: 1 },
+    { seat: 1, slot: 'east', order: 2 }
+  ]);
+  assert.deepEqual(resolveTableSeats([0, 1, 2, 3, 4, 5, 6, 7], 0).map(({ slot }) => slot), [
+    'west-near', 'west', 'north-west', 'north', 'north-east', 'east', 'east-near'
+  ]);
 });
 
 test('fits a 13-card table combination inside a narrow pile while preserving a shallow fan', () => {

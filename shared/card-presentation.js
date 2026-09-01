@@ -13,9 +13,44 @@
     Object.freeze({ maximum: Infinity, name: 'very-dense', visibleRatio: 0.24 })
   ]);
 
+  const TABLE_SEAT_SLOTS = Object.freeze({
+    0: Object.freeze([]),
+    1: Object.freeze(['north']),
+    2: Object.freeze(['north-west', 'north-east']),
+    3: Object.freeze(['west', 'north', 'east']),
+    4: Object.freeze(['west', 'north-west', 'north-east', 'east']),
+    5: Object.freeze(['west', 'north-west', 'north', 'north-east', 'east']),
+    6: Object.freeze(['west-near', 'west', 'north-west', 'north-east', 'east', 'east-near']),
+    7: Object.freeze(['west-near', 'west', 'north-west', 'north', 'north-east', 'east', 'east-near'])
+  });
+
   function fanDensity(count) {
     const safeCount = Math.max(0, Math.floor(Number(count) || 0));
     return DENSITY_RANGES.find(range => safeCount <= range.maximum) || DENSITY_RANGES.at(-1);
+  }
+
+  function tableSeatSlots(opponentCount) {
+    const safeCount = clamp(Math.floor(Number(opponentCount) || 0), 0, 7);
+    return TABLE_SEAT_SLOTS[safeCount] || TABLE_SEAT_SLOTS[7];
+  }
+
+  function resolveTableSeats(playerSeats, viewerSeat) {
+    const seats = Array.isArray(playerSeats)
+      ? playerSeats.filter((seat, index, values) => values.indexOf(seat) === index)
+      : [];
+    if (!seats.length) return Object.freeze([]);
+
+    const viewerIndex = seats.findIndex(seat => seat === viewerSeat);
+    const pivot = viewerIndex >= 0 ? viewerIndex : 0;
+    const clockwise = seats.slice(pivot + 1).concat(seats.slice(0, pivot));
+    const opponents = clockwise.filter(seat => seat !== viewerSeat).slice(0, 7);
+    const slots = tableSeatSlots(opponents.length);
+
+    return Object.freeze(opponents.map((seat, index) => Object.freeze({
+      seat,
+      slot: slots[index],
+      order: index
+    })));
   }
 
   function calculateFanLayout({
@@ -208,5 +243,14 @@
     return Math.min(maximum, Math.max(minimum, Number(value) || 0));
   }
 
-  return Object.freeze({ DENSITY_RANGES, fanDensity, calculateFanLayout, fanIndexAtX, fanIndexAtPoint });
+  return Object.freeze({
+    DENSITY_RANGES,
+    TABLE_SEAT_SLOTS,
+    fanDensity,
+    tableSeatSlots,
+    resolveTableSeats,
+    calculateFanLayout,
+    fanIndexAtX,
+    fanIndexAtPoint
+  });
 });

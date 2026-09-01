@@ -1146,15 +1146,107 @@ function renderCardBack({
   return `<span class="${classes}" ${attributes} ${accessibility}>${content}</span>`;
 }
 
-function renderMiniCardBack(deckFamilyId, count, { ariaLabel = "", ariaHidden = false } = {}) {
-  return renderCardBack({
-    deckFamilyId,
-    context: "opponent-mini",
-    className: "mini-deck",
-    ariaLabel,
-    ariaHidden,
-    parts: [{ text: count }]
-  });
+function tableSeatAssignments(match, viewerSeat) {
+  const seats = (match?.players || []).map((player) => player.seat);
+  const assignments = cardPresentation?.resolveTableSeats?.(seats, viewerSeat) || [];
+  return new Map(assignments.map((assignment) => [assignment.seat, assignment]));
+}
+
+function tableSeatSlotFor(match, viewerSeat, playerSeat) {
+  if (playerSeat === viewerSeat) return "south";
+  return tableSeatAssignments(match, viewerSeat).get(playerSeat)?.slot || "north";
+}
+
+function renderOpponentFan(deckFamilyId, count, { ariaLabel = "", revealedCards = [] } = {}) {
+  const safeCount = Math.min(108, Math.max(0, Math.floor(Number(count) || 0)));
+  const cards = Array.from({ length: safeCount }, (_, index) => {
+    const revealedCard = revealedCards[index];
+    if (deckFamilyId === "standard-52" && revealedCard) {
+      return renderPlayingCard(revealedCard, index, {
+        played: true,
+        inert: true,
+        className: "opponent-card opponent-card-face"
+      });
+    }
+    return renderCardBack({
+      deckFamilyId,
+      context: "opponent-hand",
+      className: "opponent-card",
+      ariaHidden: true,
+      attributes: `data-opponent-card-index="${index}"`
+    });
+  }).join("");
+  return `<div class="opponent-hand" data-opponent-hand data-card-count="${safeCount}" role="img" aria-label="${escapeHtml(ariaLabel || `${safeCount} hidden cards`)}">${cards}</div>`;
+}
+
+function renderTableOpponent({
+  match,
+  viewerSeat,
+  player,
+  deckFamilyId,
+  cardCount = player?.cardCount,
+  detail = "",
+  modifiers = "",
+  gameId = null,
+  showLastPlay = false,
+  revealedCards = []
+}) {
+  const assignment = tableSeatAssignments(match, viewerSeat).get(player.seat);
+  const slot = assignment?.slot || "north";
+  const count = Math.max(0, Math.floor(Number(cardCount) || 0));
+  const active = match.activeSeat === player.seat && !match.roundOver;
+  const revealedLabel = deckFamilyId === "standard-52"
+    ? revealedCards.filter(Boolean).map((card) => standard52.cardLong(card)).join(", ")
+    : "";
+  const handLabel = revealedLabel
+    ? `${player.name} has ${count} cards, showing ${revealedLabel}`
+    : `${player.name} has ${count} hidden cards`;
+  return `
+    <article class="game-seat table-seat table-seat-${slot} ${active ? "active" : ""} ${modifiers}" data-table-seat="${slot}" data-player-seat="${player.seat}">
+      <div class="player-hud">
+        ${showLastPlay ? `<span class="seat-played-card">${renderSeatLastCard(player, gameId)}</span>` : ""}
+        <span class="game-seat-copy" title="${escapeHtml(player.name)}"><strong>${escapeHtml(player.name)}</strong><small>${escapeHtml(detail)}</small></span>
+        ${active ? '<span class="turn-indicator">Turn</span>' : ""}
+      </div>
+      <div class="opponent-hand-wrap">${renderOpponentFan(deckFamilyId, count, {
+        ariaLabel: handLabel,
+        revealedCards
+      })}</div>
+    </article>`;
+}
+
+function renderLocalPlayerHud(player, { detail = "", active = false } = {}) {
+  if (!player) return "";
+  return `
+    <div class="local-player-hud player-hud ${active ? "active" : ""}" data-table-seat="south">
+      <span class="game-seat-copy" title="${escapeHtml(player.name)}"><strong>${escapeHtml(player.name)} · You</strong><small>${escapeHtml(detail)}</small></span>
+      ${active ? '<span class="turn-indicator">Turn</span>' : ""}
+    </div>`;
+}
+
+function renderTableScene({
+  match,
+  viewerSeat,
+  opponentsMarkup,
+  centerMarkup,
+  handMarkup = "",
+  localDetail = "",
+  localActive = false,
+  playOriginSeat = null,
+  className = ""
+}) {
+  const localPlayer = match.players.find((player) => player.seat === viewerSeat);
+  const playOrigin = playOriginSeat === "dealer"
+    ? "north"
+    : tableSeatSlotFor(match, viewerSeat, playOriginSeat);
+  return `
+    <div class="card-table-scene ${className}" data-seat-count="${match.players.length}" data-opponent-count="${Math.max(0, match.players.length - 1)}" data-play-origin="${escapeHtml(playOrigin)}">
+      <div class="card-table-depth" aria-hidden="true"><div class="card-table-surface"><i></i></div></div>
+      <div class="game-opponents table-seats-layer" aria-label="Opponents around the table">${opponentsMarkup}</div>
+      <div class="center-play-area">${centerMarkup}</div>
+      ${renderLocalPlayerHud(localPlayer, { detail: localDetail, active: localActive })}
+      ${handMarkup}
+    </div>`;
 }
 
 function juanCornerFace(card) {
@@ -1196,7 +1288,7 @@ function renderLegacyStandardCenter(suit, faceId = null) {
   return `<span class="legacy-card-center legacy-emblem">${suit}</span>`;
 }
 
-function renderPlayingCard(card, index, { played = false, enter = false, selectable = false, dealt = false, inert = false } = {}) {
+function renderPlayingCard(card, index, { played = false, enter = false, selectable = false, dealt = false, inert = false, className = "" } = {}) {
   const suit = standard52.SUIT_SYMBOL[card.suit];
   const red = card.suit === "H" || card.suit === "D";
   const selected = !played && state.selectedCards.has(card.id);
@@ -1217,7 +1309,8 @@ function renderPlayingCard(card, index, { played = false, enter = false, selecta
     played && enter ? "enter" : "",
     selectable && !played ? "selectable" : "",
     inert && !played ? "inert" : "",
-    dealt && !played ? "dealt" : ""
+    dealt && !played ? "dealt" : "",
+    className
   ].filter(Boolean).join(" ");
   const style = playedCardStyle(index, { animate: played && enter, dealt });
   return `
@@ -1262,6 +1355,7 @@ function renderSnapGame() {
   const match = view.state;
   const viewerSeat = state.room?.players.find((player) => player.isYou)?.seat;
   const viewer = match.players.find((player) => player.seat === viewerSeat);
+  const opponents = match.players.filter((player) => player.seat !== viewerSeat);
   const revealPlayer = match.players.find((player) => player.seat === (match.phase === snapRules.PHASES.WAITING_FOR_READY ? match.upcomingRevealSeat : match.revealSourceSeat));
   const resolution = match.phase === snapRules.PHASES.REACTION
     && match.lastResolution?.reactionId !== match.reactionId
@@ -1298,25 +1392,37 @@ function renderSnapGame() {
         <strong>${escapeHtml(phaseCopy.title)}</strong>
         <small>${escapeHtml(phaseCopy.detail)}</small>
       </div>
-      <div class="snap-table-grid">
-        <div class="snap-player-grid">
-          ${match.players.map((player) => `
-            <article class="snap-player ${player.seat === viewerSeat ? "you" : ""} ${player.ready ? "ready" : ""} ${player.skipNextReveal ? "penalized" : ""}">
-              <div class="player-avatar">${escapeHtml(player.avatar)}</div>
-              <div><strong>${escapeHtml(player.name)}${player.seat === viewerSeat ? " · You" : ""}</strong><small>${escapeHtml(snapPlayerStatus(player, match.phase))}</small></div>
-              <dl><div><dt>Draw</dt><dd>${player.drawCount}</dd></div><div><dt>Captured</dt><dd>${player.capturedCount}</dd></div></dl>
-            </article>`).join("")}
-        </div>
-        <div class="snap-center-board">
-          <div class="snap-compare-card"><span>Two back</span>${match.twoBackCard ? renderPlayingCard(match.twoBackCard, 0, { played: true }) : `<div class="snap-empty-card">—</div>`}</div>
-          <div class="snap-compare-card"><span>Previous</span>${match.previousCard ? renderPlayingCard(match.previousCard, 1, { played: true }) : `<div class="snap-empty-card">—</div>`}</div>
-          <div class="snap-compare-card current"><span>Current</span>${match.currentCard ? renderPlayingCard(match.currentCard, 2, { played: true, enter: match.phase === snapRules.PHASES.REACTION }) : `<div class="snap-empty-card">?</div>`}</div>
-          <div class="snap-hidden-source" aria-label="Upcoming card remains hidden">
-            ${renderCardBack({ deckFamilyId: "standard-52", context: "snap-source", className: "playing-card played", ariaLabel: "Hidden upcoming card", parts: [{ tag: "i", text: "CC", ariaHidden: true }] })}
-            <small>${escapeHtml(revealPlayer?.name || "Next reveal")}</small>
-          </div>
-        </div>
-      </div>
+      ${renderTableScene({
+        match,
+        viewerSeat,
+        opponentsMarkup: opponents.map((player) => renderTableOpponent({
+          match,
+          viewerSeat,
+          player,
+          deckFamilyId: "standard-52",
+          cardCount: player.drawCount,
+          detail: `${snapPlayerStatus(player, match.phase)} · ${player.drawCount} draw · ${player.capturedCount} captured`,
+          modifiers: `${player.ready ? "ready" : ""} ${player.skipNextReveal ? "penalized" : ""}`
+        })).join(""),
+        centerMarkup: `
+          <div class="snap-center-board">
+            <div class="snap-compare-card"><span>Two back</span>${match.twoBackCard ? renderPlayingCard(match.twoBackCard, 0, { played: true }) : `<div class="snap-empty-card">—</div>`}</div>
+            <div class="snap-compare-card"><span>Previous</span>${match.previousCard ? renderPlayingCard(match.previousCard, 1, { played: true }) : `<div class="snap-empty-card">—</div>`}</div>
+            <div class="snap-compare-card current"><span>Current</span>${match.currentCard ? renderPlayingCard(match.currentCard, 2, { played: true, enter: match.phase === snapRules.PHASES.REACTION }) : `<div class="snap-empty-card">?</div>`}</div>
+            <div class="snap-hidden-source" aria-label="Upcoming card remains hidden">
+              ${renderCardBack({ deckFamilyId: "standard-52", context: "snap-source", className: "playing-card played", ariaLabel: "Hidden upcoming card", parts: [{ tag: "i", text: "CC", ariaHidden: true }] })}
+              <small>${escapeHtml(revealPlayer?.name || "Next reveal")}</small>
+            </div>
+          </div>`,
+        handMarkup: `
+          <section class="physical-hand snap-local-pile" aria-label="Your draw pile">
+            <div class="snap-local-pile-fan">${renderOpponentFan("standard-52", viewer?.drawCount || 0, { ariaLabel: `Your draw pile has ${viewer?.drawCount || 0} hidden cards` })}</div>
+          </section>`,
+        localDetail: `${snapPlayerStatus(viewer || {}, match.phase)} · ${viewer?.drawCount || 0} draw · ${viewer?.capturedCount || 0} captured`,
+        localActive: match.upcomingRevealSeat === viewerSeat || match.revealSourceSeat === viewerSeat,
+        playOriginSeat: match.revealSourceSeat,
+        className: "snap-table-scene"
+      })}
       ${resolution ? `<div class="snap-result ${resultClass}" role="status"><strong>${resolution.type === "snap" ? "SNAP!" : resolution.type === "failed-snap" ? "FAILED SNAP" : "NO SNAP"}</strong><span>${escapeHtml(resolution.text)}</span></div>` : ""}
       <div class="snap-action-dock">
         <button class="snap-primary-action ${match.phase === snapRules.PHASES.REACTION ? "react" : "ready"}" type="button" data-action="${match.phase === snapRules.PHASES.REACTION ? "snap-react" : "snap-ready"}" ${(readyAction || snapAction) && !state.gameActionLock ? "" : "disabled"}>${escapeHtml(snapLabel)}</button>
@@ -1426,27 +1532,37 @@ function renderBlackjackGame() {
         <button class="game-score" type="button" disabled><span>Points</span><strong>${formatPoints(yourPlayer?.score)}</strong></button>
       </header>
       <div class="blackjack-rule-bar"><span>Dealer stands on soft 17</span><i>•</i><span>Split, double, surrender, insurance</span><i>•</i><strong>${match.stockCount} in shoe</strong></div>
-      <div class="game-opponents blackjack-opponents ${opponents.length <= 3 ? "fit-opponents" : ""}">
-        ${opponents.map((player) => `
-          <article class="game-seat ${match.activeSeat === player.seat ? "active" : ""}">
-            ${renderSeatLastCard(player, "blackjack")}
-            <span class="game-seat-copy" title="${escapeHtml(player.name)}"><strong>${escapeHtml(player.name)}</strong><small>${formatPoints(player.score)} pts · ${player.cardCount} card${player.cardCount === 1 ? "" : "s"}${player.lastAction ? ` · ${escapeHtml(player.lastAction.label)}` : ""}</small></span>
-            ${renderMiniCardBack("standard-52", player.cardCount, { ariaLabel: `${player.cardCount} cards` })}
-          </article>`).join("")}
-      </div>
-      <section class="game-table blackjack-table ${isInsuranceTurn ? "insurance-pending" : ""}">
-        <div class="game-status"><span><strong>${escapeHtml(playerStatus)}</strong><small>${escapeHtml(match.lastMoveText)}</small></span><span class="badge">${match.dealer?.revealed ? escapeHtml(match.dealer.label || "Dealer") : "Dealer upcard"}</span></div>
-        ${isInsuranceTurn ? renderBlackjackInsurancePrompt(state.gameActionLock) : ""}
-        <div class="blackjack-dealer-zone">
-          <div class="blackjack-dealer-copy"><span>Dealer</span><strong>${escapeHtml(dealerLabel)}</strong></div>
-          <div class="active-pile cards-pile blackjack-dealer-pile" aria-label="Dealer cards">${dealerCards.map((card, index) => renderPlayingCard(card, index, { played: true, enter: dealerIsNew })).join("")}${Array.from({ length: dealerHiddenCount }, (_, index) => renderBlackjackCardBack(dealerCards.length + index, { enter: dealerIsNew })).join("")}</div>
-        </div>
-      </section>
-      <section class="physical-hand blackjack-hand ${isYourTurn || isInsuranceTurn ? "your-turn" : ""}">
-        <div class="hand-heading"><span><strong>Your hand</strong><small>${view.hands?.length || 0} hand${view.hands?.length === 1 ? "" : "s"} · table points</small></span><span class="selection-status ${isYourTurn ? "valid" : ""}">${isInsuranceTurn ? "Choose insurance" : escapeHtml(activeHand?.label || "Waiting for dealer")}</span></div>
-        <div class="blackjack-hand-summaries">${(view.hands || []).map((hand, index) => renderBlackjackHandSummary(hand, index, isYourTurn && index === activeHandIndex)).join("")}</div>
-        <div class="game-hand" data-hand-owner="${escapeHtml(handOwner)}" aria-label="${standardHandAriaLabel("Your current fanned Blackjack hand", "Your current flat legacy Blackjack hand")}">${currentHandCards.map((card, index) => renderPlayingCard(card, index, { dealt: isDealing })).join("")}</div>
-      </section>
+      ${renderTableScene({
+        match,
+        viewerSeat,
+        opponentsMarkup: opponents.map((player) => renderTableOpponent({
+          match,
+          viewerSeat,
+          player,
+          deckFamilyId: "standard-52",
+          cardCount: player.cardCount,
+          detail: `${formatPoints(player.score)} pts · ${player.cardCount} card${player.cardCount === 1 ? "" : "s"}${player.lastAction ? ` · ${player.lastAction.label}` : ""}`
+        })).join(""),
+        centerMarkup: `
+          <section class="game-table blackjack-table ${isInsuranceTurn ? "insurance-pending" : ""}">
+            <div class="game-status"><span><strong>${escapeHtml(playerStatus)}</strong><small>${escapeHtml(match.lastMoveText)}</small></span><span class="badge">${match.dealer?.revealed ? escapeHtml(match.dealer.label || "Dealer") : "Dealer upcard"}</span></div>
+            ${isInsuranceTurn ? renderBlackjackInsurancePrompt(state.gameActionLock) : ""}
+            <div class="blackjack-dealer-zone">
+              <div class="blackjack-dealer-copy"><span>Dealer</span><strong>${escapeHtml(dealerLabel)}</strong></div>
+              <div class="active-pile cards-pile blackjack-dealer-pile" aria-label="Dealer cards">${dealerCards.map((card, index) => renderPlayingCard(card, index, { played: true, enter: dealerIsNew })).join("")}${Array.from({ length: dealerHiddenCount }, (_, index) => renderBlackjackCardBack(dealerCards.length + index, { enter: dealerIsNew })).join("")}</div>
+            </div>
+          </section>`,
+        handMarkup: `
+          <section class="physical-hand blackjack-hand ${isYourTurn || isInsuranceTurn ? "your-turn" : ""}">
+            <div class="hand-heading"><span><strong>Your hand</strong><small>${view.hands?.length || 0} hand${view.hands?.length === 1 ? "" : "s"} · table points</small></span><span class="selection-status ${isYourTurn ? "valid" : ""}">${isInsuranceTurn ? "Choose insurance" : escapeHtml(activeHand?.label || "Waiting for dealer")}</span></div>
+            <div class="blackjack-hand-summaries">${(view.hands || []).map((hand, index) => renderBlackjackHandSummary(hand, index, isYourTurn && index === activeHandIndex)).join("")}</div>
+            <div class="game-hand" data-hand-owner="${escapeHtml(handOwner)}" aria-label="${standardHandAriaLabel("Your current fanned Blackjack hand", "Your current flat legacy Blackjack hand")}">${currentHandCards.map((card, index) => renderPlayingCard(card, index, { dealt: isDealing })).join("")}</div>
+          </section>`,
+        localDetail: `${formatPoints(yourPlayer?.score)} pts · ${currentHandCards.length} cards`,
+        localActive: isYourTurn || isInsuranceTurn,
+        playOriginSeat: "dealer",
+        className: "casino-table-scene blackjack-table-scene"
+      })}
       <nav class="game-actions blackjack-actions">
         <button type="button" data-action="blackjack-hint" ${isYourTurn || isInsuranceTurn ? "" : "disabled"}>Hint</button>
         <button type="button" data-action="blackjack-action" data-blackjack-action="blackjack_hit" ${isYourTurn && actions.hit && !state.gameActionLock ? "" : "disabled"}>Hit</button>
@@ -1483,22 +1599,6 @@ function holdemPrivateHandLabel(hand, board) {
   } catch {
     return "Your best hand";
   }
-}
-
-function renderHoldemSeatCard(player) {
-  const card = player.revealedCards?.[0];
-  if (!card) {
-    return renderCardBack({
-      deckFamilyId: "standard-52",
-      context: "private-seat",
-      className: "seat-last-card poker-hole-back",
-      ariaLabel: `${player.holeCardCount || 0} private hole cards`,
-      parts: [{ tag: "i", text: player.holeCardCount || 0, ariaHidden: true }]
-    });
-  }
-  const suit = standard52.SUIT_SYMBOL[card.suit];
-  const red = card.suit === "H" || card.suit === "D";
-  return `<span class="seat-last-card standard-seat-card card-skin-face ${activeCardAppearanceClass("standard-52")} ${red ? "red" : "black"}" aria-label="Revealed ${escapeHtml(standard52.cardLong(card))}"><strong>${escapeHtml(card.rank)}</strong><i>${suit}</i></span>`;
 }
 
 function holdemPlayerStatus(player) {
@@ -1556,25 +1656,37 @@ function renderHoldemGame() {
         <button class="game-score" type="button" disabled><span>Stack</span><strong>${formatPoints(yourPlayer?.stack)}</strong></button>
       </header>
       <div class="holdem-rule-bar"><span>Fixed limit</span><i>•</i><span>100 table points</span><i>•</i><span>1 / 2 blinds</span><i>•</i><strong>2 / 4 bets · four-bet cap</strong></div>
-      <div class="game-opponents holdem-opponents ${opponents.length <= 3 ? "fit-opponents" : ""}">
-        ${opponents.map((player) => `
-          <article class="game-seat ${match.activeSeat === player.seat ? "active" : ""} ${player.folded ? "folded" : ""} ${player.allIn ? "all-in" : ""} ${player.eliminated ? "eliminated" : ""}">
-            ${renderHoldemSeatCard(player)}
-            <span class="game-seat-copy" title="${escapeHtml(player.name)}"><strong>${escapeHtml(player.name)}${player.seat === match.dealerSeat ? " · D" : ""}</strong><small>${formatPoints(player.stack)} pts · ${escapeHtml(holdemPlayerStatus(player))}${player.lastAction ? ` · ${escapeHtml(player.lastAction.label)}` : ""}</small></span>
-            ${renderMiniCardBack("standard-52", player.holeCardCount, { ariaLabel: `${player.holeCardCount} private cards` })}
-          </article>`).join("")}
-      </div>
-      <section class="game-table holdem-table">
-        <div class="game-status"><span><strong>${escapeHtml(playerStatus)}</strong><small>${holdemStreetLabel(match.phase)} · ${match.currentBet ? `${formatPoints(match.currentBet)} to match` : "table is checked"}</small></span><span class="badge">Pot ${formatPoints(match.pot)}</span></div>
-        <div class="holdem-board-zone">
-          <div class="holdem-board-copy"><span>Community board</span><strong>${escapeHtml(showdownDetail)}</strong></div>
-          <div class="active-pile cards-pile holdem-board" aria-label="Community cards">${board.length ? board.map((card, index) => renderPlayingCard(card, index, { played: true, enter: boardIsNew })).join("") : `<div class="empty-pile"><strong>Face-down board</strong><span>Cards arrive after the first betting round.</span></div>`}</div>
-        </div>
-      </section>
-      <section class="physical-hand holdem-hand ${isYourTurn ? "your-turn" : ""}">
-        <div class="hand-heading"><span><strong>Your hole cards</strong><small>${view.hand?.length || 0} cards · ${formatPoints(yourPlayer?.stack)} table points</small></span><span class="selection-status ${isYourTurn ? "valid" : ""}">${escapeHtml(holdemPrivateHandLabel(view.hand, board))}</span></div>
-        <div class="game-hand" data-hand-owner="${escapeHtml(handOwner)}" aria-label="${standardHandAriaLabel("Your fanned Poker hole cards", "Your flat legacy Poker hole cards")}">${(view.hand || []).map((card, index) => renderPlayingCard(card, index, { dealt: isDealing, inert: true })).join("")}</div>
-      </section>
+      ${renderTableScene({
+        match,
+        viewerSeat,
+        opponentsMarkup: opponents.map((player) => renderTableOpponent({
+          match,
+          viewerSeat,
+          player,
+          deckFamilyId: "standard-52",
+          cardCount: player.holeCardCount,
+          detail: `${formatPoints(player.stack)} pts · ${holdemPlayerStatus(player)}${player.lastAction ? ` · ${player.lastAction.label}` : ""}${player.seat === match.dealerSeat ? " · dealer" : ""}`,
+          modifiers: `${player.folded ? "folded" : ""} ${player.allIn ? "all-in" : ""} ${player.eliminated ? "eliminated" : ""}`,
+          revealedCards: player.revealedCards || []
+        })).join(""),
+        centerMarkup: `
+          <section class="game-table holdem-table">
+            <div class="game-status"><span><strong>${escapeHtml(playerStatus)}</strong><small>${holdemStreetLabel(match.phase)} · ${match.currentBet ? `${formatPoints(match.currentBet)} to match` : "table is checked"}</small></span><span class="badge">Pot ${formatPoints(match.pot)}</span></div>
+            <div class="holdem-board-zone">
+              <div class="holdem-board-copy"><span>Community board</span><strong>${escapeHtml(showdownDetail)}</strong></div>
+              <div class="active-pile cards-pile holdem-board" aria-label="Community cards">${board.length ? board.map((card, index) => renderPlayingCard(card, index, { played: true, enter: boardIsNew })).join("") : `<div class="empty-pile"><strong>Face-down board</strong><span>Cards arrive after the first betting round.</span></div>`}</div>
+            </div>
+          </section>`,
+        handMarkup: `
+          <section class="physical-hand holdem-hand ${isYourTurn ? "your-turn" : ""}">
+            <div class="hand-heading"><span><strong>Your hole cards</strong><small>${view.hand?.length || 0} cards · ${formatPoints(yourPlayer?.stack)} table points</small></span><span class="selection-status ${isYourTurn ? "valid" : ""}">${escapeHtml(holdemPrivateHandLabel(view.hand, board))}</span></div>
+            <div class="game-hand" data-hand-owner="${escapeHtml(handOwner)}" aria-label="${standardHandAriaLabel("Your fanned Poker hole cards", "Your flat legacy Poker hole cards")}">${(view.hand || []).map((card, index) => renderPlayingCard(card, index, { dealt: isDealing, inert: true })).join("")}</div>
+          </section>`,
+        localDetail: `${formatPoints(yourPlayer?.stack)} pts · ${(view.hand || []).length} hole cards${yourPlayer?.seat === match.dealerSeat ? " · dealer" : ""}`,
+        localActive: isYourTurn,
+        playOriginSeat: "dealer",
+        className: "casino-table-scene holdem-table-scene"
+      })}
       <nav class="game-actions holdem-actions">
         <button type="button" data-action="holdem-hint" ${canAct ? "" : "disabled"}>Hint</button>
         <button class="danger" type="button" data-action="holdem-action" data-holdem-action="holdem_fold" ${canAct && actions.fold ? "" : "disabled"}>Fold</button>
@@ -1612,22 +1724,6 @@ function fiveCardDrawPrivateHandLabel(hand, match) {
   } catch {
     return "Your five-card hand";
   }
-}
-
-function renderFiveCardDrawSeatCard(player) {
-  const card = player.revealedCards?.[0];
-  if (!card) {
-    return renderCardBack({
-      deckFamilyId: "standard-52",
-      context: "private-seat",
-      className: "seat-last-card poker-hole-back draw-hole-back",
-      ariaLabel: `${player.cardCount || 0} private cards`,
-      parts: [{ tag: "i", text: player.cardCount || 0, ariaHidden: true }]
-    });
-  }
-  const suit = standard52.SUIT_SYMBOL[card.suit];
-  const red = card.suit === "H" || card.suit === "D";
-  return `<span class="seat-last-card standard-seat-card card-skin-face ${activeCardAppearanceClass("standard-52")} ${red ? "red" : "black"}" aria-label="Revealed ${escapeHtml(standard52.cardLong(card))}"><strong>${escapeHtml(card.rank)}</strong><i>${suit}</i></span>`;
 }
 
 function renderFiveCardDrawShowdownCard(card) {
@@ -1721,28 +1817,40 @@ function renderFiveCardDrawGame() {
         <button class="game-score" type="button" disabled><span>Stack</span><strong>${formatPoints(yourPlayer?.stack)}</strong></button>
       </header>
       <div class="five-card-draw-rule-bar"><span>Fixed limit</span><i>•</i><span>100 table points</span><i>•</i><span>1 / 2 blinds</span><i>•</i><strong>2 / 4 bets · one draw · four-bet cap</strong></div>
-      <div class="game-opponents five-card-draw-opponents ${opponents.length <= 3 ? "fit-opponents" : ""}">
-        ${opponents.map((player) => `
-          <article class="game-seat ${match.activeSeat === player.seat ? "active" : ""} ${player.folded ? "folded" : ""} ${player.allIn ? "all-in" : ""} ${player.eliminated ? "eliminated" : ""}">
-            ${renderFiveCardDrawSeatCard(player)}
-            <span class="game-seat-copy" title="${escapeHtml(player.name)}"><strong>${escapeHtml(player.name)}${player.seat === match.dealerSeat ? " · D" : ""}</strong><small>${formatPoints(player.stack)} pts · ${escapeHtml(fiveCardDrawPlayerStatus(player))}${player.lastAction ? ` · ${escapeHtml(player.lastAction.label)}` : ""}</small></span>
-            ${renderMiniCardBack("standard-52", player.cardCount, { ariaLabel: `${player.cardCount} private cards` })}
-          </article>`).join("")}
-      </div>
-      <section class="game-table five-card-draw-table">
-        <div class="game-status"><span><strong>${escapeHtml(playerStatus)}</strong><small>${fiveCardDrawPhaseLabel(match.phase)} · ${match.currentBet ? `${formatPoints(match.currentBet)} to match` : match.phase === "draw" ? "replacements are private" : "table is checked"}</small></span><span class="badge">Pot ${formatPoints(match.pot)}</span></div>
-        <div class="five-card-draw-table-zone">
-          <div class="five-card-draw-copy"><span>${tableLabel}</span><strong>${escapeHtml(showdownDetail)}</strong></div>
-          <div class="five-card-draw-piles" aria-label="Draw and discard piles">
-            <div class="draw-stack ${activeCardAppearanceClass("standard-52")}" aria-label="${match.stockCount} cards in draw pile">${renderCardBack({ deckFamilyId: "standard-52", context: "draw-stock", className: "draw-card-back", ariaHidden: true, parts: [{ tag: "i", text: "CC" }] })}<strong>Draw</strong><small>${match.stockCount} cards</small></div>
-            <div class="active-pile draw-discard-pile ${activeCardAppearanceClass("standard-52")}" aria-label="${match.discardCount} private discards">${renderCardBack({ deckFamilyId: "standard-52", context: "discard", className: "draw-card-back discard", ariaHidden: true, parts: [{ tag: "i", text: "↻" }] })}<strong>Discard</strong><small>${match.discardCount} card${match.discardCount === 1 ? "" : "s"}</small></div>
-          </div>
-        </div>
-      </section>
-      <section class="physical-hand five-card-draw-hand ${isYourTurn ? "your-turn" : ""}">
-        <div class="hand-heading"><span><strong>Your five cards</strong><small>${view.hand?.length || 0} cards · ${formatPoints(yourPlayer?.stack)} table points</small></span><span class="selection-status ${isDrawTurn ? "valid" : ""}">${escapeHtml(fiveCardDrawPrivateHandLabel(view.hand, match))}</span></div>
-        <div class="game-hand" data-hand-owner="${escapeHtml(handOwner)}" aria-label="${standardHandAriaLabel("Your fanned Five Card Draw hand", "Your flat legacy Five Card Draw hand")}">${(view.hand || []).map((card, index) => renderPlayingCard(card, index, { selectable: canDraw, inert: !isDrawTurn, dealt: isDealing })).join("")}</div>
-      </section>
+      ${renderTableScene({
+        match,
+        viewerSeat,
+        opponentsMarkup: opponents.map((player) => renderTableOpponent({
+          match,
+          viewerSeat,
+          player,
+          deckFamilyId: "standard-52",
+          cardCount: player.cardCount,
+          detail: `${formatPoints(player.stack)} pts · ${fiveCardDrawPlayerStatus(player)}${player.lastAction ? ` · ${player.lastAction.label}` : ""}${player.seat === match.dealerSeat ? " · dealer" : ""}`,
+          modifiers: `${player.folded ? "folded" : ""} ${player.allIn ? "all-in" : ""} ${player.eliminated ? "eliminated" : ""}`,
+          revealedCards: player.revealedCards || []
+        })).join(""),
+        centerMarkup: `
+          <section class="game-table five-card-draw-table">
+            <div class="game-status"><span><strong>${escapeHtml(playerStatus)}</strong><small>${fiveCardDrawPhaseLabel(match.phase)} · ${match.currentBet ? `${formatPoints(match.currentBet)} to match` : match.phase === "draw" ? "replacements are private" : "table is checked"}</small></span><span class="badge">Pot ${formatPoints(match.pot)}</span></div>
+            <div class="five-card-draw-table-zone">
+              <div class="five-card-draw-copy"><span>${tableLabel}</span><strong>${escapeHtml(showdownDetail)}</strong></div>
+              <div class="five-card-draw-piles" aria-label="Draw and discard piles">
+                <div class="draw-stack ${activeCardAppearanceClass("standard-52")}" aria-label="${match.stockCount} cards in draw pile">${renderCardBack({ deckFamilyId: "standard-52", context: "draw-stock", className: "draw-card-back", ariaHidden: true, parts: [{ tag: "i", text: "CC" }] })}<strong>Draw</strong><small>${match.stockCount} cards</small></div>
+                <div class="active-pile draw-discard-pile ${activeCardAppearanceClass("standard-52")}" aria-label="${match.discardCount} private discards">${renderCardBack({ deckFamilyId: "standard-52", context: "discard", className: "draw-card-back discard", ariaHidden: true, parts: [{ tag: "i", text: "↻" }] })}<strong>Discard</strong><small>${match.discardCount} card${match.discardCount === 1 ? "" : "s"}</small></div>
+              </div>
+            </div>
+          </section>`,
+        handMarkup: `
+          <section class="physical-hand five-card-draw-hand ${isYourTurn ? "your-turn" : ""}">
+            <div class="hand-heading"><span><strong>Your five cards</strong><small>${view.hand?.length || 0} cards · ${formatPoints(yourPlayer?.stack)} table points</small></span><span class="selection-status ${isDrawTurn ? "valid" : ""}">${escapeHtml(fiveCardDrawPrivateHandLabel(view.hand, match))}</span></div>
+            <div class="game-hand" data-hand-owner="${escapeHtml(handOwner)}" aria-label="${standardHandAriaLabel("Your fanned Five Card Draw hand", "Your flat legacy Five Card Draw hand")}">${(view.hand || []).map((card, index) => renderPlayingCard(card, index, { selectable: canDraw, inert: !isDrawTurn, dealt: isDealing })).join("")}</div>
+          </section>`,
+        localDetail: `${formatPoints(yourPlayer?.stack)} pts · ${(view.hand || []).length} cards${yourPlayer?.seat === match.dealerSeat ? " · dealer" : ""}`,
+        localActive: isYourTurn,
+        playOriginSeat: "dealer",
+        className: "casino-table-scene five-card-draw-table-scene"
+      })}
       ${match.phase === "draw" ? `
         <nav class="game-actions five-card-draw-actions draw-actions">
           <button type="button" data-action="five-card-draw-hint" ${canDraw ? "" : "disabled"}>Hint</button>
@@ -1798,25 +1906,37 @@ function renderStandardGame() {
         <button class="game-score ${placementClassFor(yourPlace)}" type="button" disabled><span>${yourPlace ? `${placeLabel(yourPlace)} place` : "Score"}</span><strong>${yourPlayer?.score ?? 0}</strong></button>
       </header>
       ${gameLadder(game.gameId, match)}
-      <div class="game-opponents">
-        ${opponents.map((player) => {
+      ${renderTableScene({
+        match,
+        viewerSeat,
+        opponentsMarkup: opponents.map((player) => {
           const playerPlace = placementForPlayer(match, player);
-          return `
-          <article class="game-seat ${match.activeSeat === player.seat ? "active" : ""} ${placementClassFor(playerPlace)}">
-            ${renderSeatLastCard(player, game.gameId)}
-            <span class="game-seat-copy" title="${escapeHtml(player.name)}"><strong>${escapeHtml(player.name)}</strong><small>${playerPlace ? `${placeLabel(playerPlace)} place` : `${player.cardCount} cards${player.passed ? " · passed" : ""}`}</small></span>
-            ${renderMiniCardBack("standard-52", Math.min(player.cardCount, 7), { ariaHidden: true })}
-          </article>`;
-        }).join("")}
-      </div>
-      <section class="game-table">
-        <div class="game-status"><span><strong>${match.roundOver ? match.matchOver ? "Match complete" : "Round complete" : isYourTurn ? `${escapeHtml(yourPlayer?.name || "You")}, your turn` : `${escapeHtml(activePlayer?.name || "Player")} is thinking`}</strong><small>${tableCount} · ${lead ? `${escapeHtml(lead.playerName)} controls the pile` : "open lead"}</small></span><span class="badge">${lead ? escapeHtml(lead.label) : "Open lead"}</span></div>
-        <div class="active-pile ${lead ? "cards-pile" : ""}">${lead ? lead.cards.map((card, index) => renderPlayingCard(card, index, { played: true, enter: pileIsNew })).join("") : `<div class="empty-pile"><strong>No active pile</strong><span>${match.openingRequired ? `Lead must include ${standardCardLabel(match.openingCardId)}.` : "Lead with any legal combination."}</span></div>`}</div>
-      </section>
-      <section class="physical-hand ${isYourTurn ? "your-turn" : ""}">
-        <div class="hand-heading"><span><strong>Your hand</strong><small>${view.hand.length} cards · ${escapeHtml(state.gameSort)} sort</small></span><span class="selection-status ${evaluation.ok ? "valid" : state.selectedCards.size ? "invalid" : ""}">${escapeHtml(evaluation.reason)}</span></div>
-        <div class="game-hand" data-hand-owner="${escapeHtml(handOwner)}" aria-label="${standardHandAriaLabel("Your fanned hand", "Your flat legacy hand")}">${sortedHand.map((card, index) => renderPlayingCard(card, index, { selectable: isYourTurn && !state.gameActionLock, dealt: isDealing })).join("")}</div>
-      </section>
+          return renderTableOpponent({
+            match,
+            viewerSeat,
+            player,
+            deckFamilyId: "standard-52",
+            cardCount: player.cardCount,
+            detail: playerPlace ? `${placeLabel(playerPlace)} place` : `${player.cardCount} cards${player.passed ? " · passed" : ""}`,
+            modifiers: placementClassFor(playerPlace),
+            gameId: game.gameId,
+            showLastPlay: true
+          });
+        }).join(""),
+        centerMarkup: `
+          <section class="game-table">
+            <div class="game-status"><span><strong>${match.roundOver ? match.matchOver ? "Match complete" : "Round complete" : isYourTurn ? `${escapeHtml(yourPlayer?.name || "You")}, your turn` : `${escapeHtml(activePlayer?.name || "Player")} is thinking`}</strong><small>${tableCount} · ${lead ? `${escapeHtml(lead.playerName)} controls the pile` : "open lead"}</small></span><span class="badge">${lead ? escapeHtml(lead.label) : "Open lead"}</span></div>
+            <div class="active-pile ${lead ? "cards-pile" : ""}">${lead ? lead.cards.map((card, index) => renderPlayingCard(card, index, { played: true, enter: pileIsNew })).join("") : `<div class="empty-pile"><strong>No active pile</strong><span>${match.openingRequired ? `Lead must include ${standardCardLabel(match.openingCardId)}.` : "Lead with any legal combination."}</span></div>`}</div>
+          </section>`,
+        handMarkup: `
+          <section class="physical-hand ${isYourTurn ? "your-turn" : ""}">
+            <div class="hand-heading"><span><strong>Your hand</strong><small>${view.hand.length} cards · ${escapeHtml(state.gameSort)} sort</small></span><span class="selection-status ${evaluation.ok ? "valid" : state.selectedCards.size ? "invalid" : ""}">${escapeHtml(evaluation.reason)}</span></div>
+            <div class="game-hand" data-hand-owner="${escapeHtml(handOwner)}" aria-label="${standardHandAriaLabel("Your fanned hand", "Your flat legacy hand")}">${sortedHand.map((card, index) => renderPlayingCard(card, index, { selectable: isYourTurn && !state.gameActionLock, dealt: isDealing })).join("")}</div>
+          </section>`,
+        localDetail: `${yourPlayer?.score ?? 0} pts · ${view.hand.length} cards`,
+        localActive: isYourTurn,
+        playOriginSeat: lead?.playerSeat
+      })}
       <nav class="game-actions">
         <button type="button" data-action="game-hint" ${isYourTurn && !state.gameActionLock ? "" : "disabled"}>Hint</button>
         <button type="button" data-action="game-sort" ${state.gameActionLock ? "disabled" : ""}>Sort</button>
@@ -2105,41 +2225,54 @@ function renderRotatingRummyGame() {
         <div class="rummy-route-circuit" aria-label="Your Route progress">${renderRummyRouteProgress(yourPlayer, match.totalRoutes)}</div>
       </section>
       ${renderRummyPatternHelp()}
-      <div class="game-opponents ${opponents.length <= 3 ? "fit-opponents" : ""}">
-        ${opponents.map((player) => `
-          <article class="game-seat ${match.activeSeat === player.seat ? "active" : ""} ${player.routeComplete ? "rummy-route-clear" : ""}">
-            ${renderSeatLastCard(player, "rotating-rummy")}
-            <span class="game-seat-copy" title="${escapeHtml(player.name)}"><strong>${escapeHtml(player.name)}</strong><small>${player.routeComplete ? `Route ${match.roundOver && player.completedThisRound ? player.routeIndex : Math.min(match.totalRoutes, player.routeIndex + 1)} clear${match.roundOver ? "" : " · link or discard next"}` : `Route ${Math.min(match.totalRoutes, player.routeIndex + 1)}/${match.totalRoutes} · ${player.cardCount} cards`}</small></span>
-            ${renderMiniCardBack("rotating-rummy", Math.min(player.cardCount, 7), { ariaHidden: true })}
-          </article>`).join("")}
-      </div>
-      <div class="rummy-table-stage">
-        <section class="game-table rummy-table">
-          <div class="game-status"><span><strong>${escapeHtml(tableStatus)}</strong><small>${escapeHtml(match.routeDeck.description)} · ${match.roundOver ? match.matchOver ? "the Route circuit is complete" : "review progress, then deal the next Route round" : match.turnStage === "draw" ? "draw from either pile" : yourPlayer?.routeComplete ? "Route is down — link cards or discard" : "lay down your Route or discard"}</small></span><span class="badge">${match.stockCount} stock</span></div>
-          <div class="rummy-pile-zone">
-            ${renderCardBack({ deckFamilyId: "rotating-rummy", context: "stock", className: "rummy-stock", ariaLabel: `${match.stockCount} cards in stock`, parts: [{ tag: "span", text: "RR" }, { tag: "b", text: match.stockCount }] })}
-            <div class="active-pile cards-pile">${match.topCard ? renderRotatingRummyCard(match.topCard, 0, { played: true, enter: pileIsNew }) : ""}</div>
-          </div>
-        </section>
-        ${linkTargets.length ? `<section class="rummy-link-board" aria-label="Completed Route groups">
-          <div class="rummy-link-board-heading"><span class="family-kicker">Route links</span><small>${yourPlayer?.routeComplete ? "Choose your Route or another completed group, then link compatible cards before your discard." : "Complete your Route before linking cards."}</small></div>
-          <div class="rummy-link-targets">${linkTargets.map((target) => {
-            const selectedTarget = selection.linkTarget?.player.seat === target.player.seat && selection.linkTarget.groupIndex === target.groupIndex;
-            const targetName = target.player.seat === viewerSeat ? "Your Route" : `${target.player.name}'s Route`;
-            return `<article class="rummy-link-group-card ${selectedTarget ? "selected" : ""}">
-              <div class="rummy-link-group-cards" aria-label="${escapeHtml(targetName)} group ${target.groupIndex + 1}">${target.group.map((card, index) => renderRotatingRummyCard(card, index, { played: true })).join("")}</div>
-              <button type="button" data-action="rummy-select-link-target" data-rummy-link-seat="${target.player.seat}" data-rummy-link-group="${target.groupIndex}" ${canSelectLinkTarget ? "" : "disabled"}>${selectedTarget ? "Link target ✓" : `Link to ${escapeHtml(targetName)}`}</button>
-            </article>`;
-          }).join("")}</div>
-        </section>` : ""}
-      </div>
-      <section class="physical-hand ${isYourTurn ? "your-turn" : ""}">
-        <div class="hand-heading"><span><strong>Your hand</strong><small>${view.hand.length} cards · ${escapeHtml(state.gameSort)} sort</small></span><span class="selection-status ${selection.routeOk || selection.linkOk || selection.discardOk ? "valid" : state.selectedCards.size ? "invalid" : ""}">${escapeHtml(selection.reason)}</span></div>
-        <div class="game-hand" data-hand-owner="${escapeHtml(handOwner)}" aria-label="Your fanned Rotating Rummy hand">${sortedHand.map((card, index) => renderRotatingRummyCard(card, index, {
-          selectable: isYourTurn && match.turnStage === "play" && !state.gameActionLock,
-          dealt: isDealing
-        })).join("")}</div>
-      </section>
+      ${renderTableScene({
+        match,
+        viewerSeat,
+        opponentsMarkup: opponents.map((player) => renderTableOpponent({
+          match,
+          viewerSeat,
+          player,
+          deckFamilyId: "rotating-rummy",
+          cardCount: player.cardCount,
+          detail: player.routeComplete ? `Route ${match.roundOver && player.completedThisRound ? player.routeIndex : Math.min(match.totalRoutes, player.routeIndex + 1)} clear${match.roundOver ? "" : " · link or discard next"}` : `Route ${Math.min(match.totalRoutes, player.routeIndex + 1)}/${match.totalRoutes} · ${player.cardCount} cards`,
+          modifiers: player.routeComplete ? "rummy-route-clear" : "",
+          gameId: "rotating-rummy",
+          showLastPlay: true
+        })).join(""),
+        centerMarkup: `
+          <div class="rummy-table-stage">
+            <section class="game-table rummy-table">
+              <div class="game-status"><span><strong>${escapeHtml(tableStatus)}</strong><small>${escapeHtml(match.routeDeck.description)} · ${match.roundOver ? match.matchOver ? "the Route circuit is complete" : "review progress, then deal the next Route round" : match.turnStage === "draw" ? "draw from either pile" : yourPlayer?.routeComplete ? "Route is down — link cards or discard" : "lay down your Route or discard"}</small></span><span class="badge">${match.stockCount} stock</span></div>
+              <div class="rummy-pile-zone">
+                ${renderCardBack({ deckFamilyId: "rotating-rummy", context: "stock", className: "rummy-stock", ariaLabel: `${match.stockCount} cards in stock`, parts: [{ tag: "span", text: "RR" }, { tag: "b", text: match.stockCount }] })}
+                <div class="active-pile cards-pile">${match.topCard ? renderRotatingRummyCard(match.topCard, 0, { played: true, enter: pileIsNew }) : ""}</div>
+              </div>
+            </section>
+            ${linkTargets.length ? `<section class="rummy-link-board" aria-label="Completed Route groups">
+              <div class="rummy-link-board-heading"><span class="family-kicker">Route links</span><small>${yourPlayer?.routeComplete ? "Choose your Route or another completed group, then link compatible cards before your discard." : "Complete your Route before linking cards."}</small></div>
+              <div class="rummy-link-targets">${linkTargets.map((target) => {
+                const selectedTarget = selection.linkTarget?.player.seat === target.player.seat && selection.linkTarget.groupIndex === target.groupIndex;
+                const targetName = target.player.seat === viewerSeat ? "Your Route" : `${target.player.name}'s Route`;
+                return `<article class="rummy-link-group-card ${selectedTarget ? "selected" : ""}">
+                  <div class="rummy-link-group-cards" aria-label="${escapeHtml(targetName)} group ${target.groupIndex + 1}">${target.group.map((card, index) => renderRotatingRummyCard(card, index, { played: true })).join("")}</div>
+                  <button type="button" data-action="rummy-select-link-target" data-rummy-link-seat="${target.player.seat}" data-rummy-link-group="${target.groupIndex}" ${canSelectLinkTarget ? "" : "disabled"}>${selectedTarget ? "Link target ✓" : `Link to ${escapeHtml(targetName)}`}</button>
+                </article>`;
+              }).join("")}</div>
+            </section>` : ""}
+          </div>`,
+        handMarkup: `
+          <section class="physical-hand ${isYourTurn ? "your-turn" : ""}">
+            <div class="hand-heading"><span><strong>Your hand</strong><small>${view.hand.length} cards · ${escapeHtml(state.gameSort)} sort</small></span><span class="selection-status ${selection.routeOk || selection.linkOk || selection.discardOk ? "valid" : state.selectedCards.size ? "invalid" : ""}">${escapeHtml(selection.reason)}</span></div>
+            <div class="game-hand" data-hand-owner="${escapeHtml(handOwner)}" aria-label="Your fanned Rotating Rummy hand">${sortedHand.map((card, index) => renderRotatingRummyCard(card, index, {
+              selectable: isYourTurn && match.turnStage === "play" && !state.gameActionLock,
+              dealt: isDealing
+            })).join("")}</div>
+          </section>`,
+        localDetail: `Route ${Math.min(match.totalRoutes, (yourPlayer?.routeIndex || 0) + 1)}/${match.totalRoutes} · ${view.hand.length} cards`,
+        localActive: isYourTurn,
+        playOriginSeat: match.players.find((player) => player.lastPlayedCard?.id === match.topCard?.id)?.seat,
+        className: "rummy-table-scene"
+      })}
       <nav class="game-actions rummy-actions">
         <button type="button" data-action="rummy-hint" ${isYourTurn && !state.gameActionLock ? "" : "disabled"}>Hint</button>
         <button type="button" data-action="game-sort" ${state.gameActionLock ? "disabled" : ""}>Sort</button>
@@ -2293,29 +2426,32 @@ function renderFindersMakersGame() {
         <div><span class="family-kicker">${match.suddenDeath ? "Sudden Death" : `Round ${match.round} of ${match.normalRounds}`}</span><h2>Finders Makers</h2><p>${escapeHtml(match.lastMoveText)}</p></div>
         <button class="game-score" type="button" disabled><span>Score</span><strong>${match.players.map((player) => player.score).join("–")}</strong></button>
       </header>
-      <div class="finders-scoreboard" aria-label="Match score">${match.players.map((player) => `
-        <article class="finders-player ${player.seat === match.activeSeat ? "active" : ""} ${player.seat === viewerSeat ? "you" : ""}">
-          <span>${escapeHtml(player.avatar)}</span><strong title="${escapeHtml(player.name)}">${escapeHtml(player.name)}</strong><b>${player.score}</b><small>${player.seat === match.activeSeat && !match.roundOver ? "TURN" : player.seat === viewerSeat ? "YOU" : player.type === "bot" ? "CPU" : ""}</small>
-        </article>`).join("")}</div>
-      ${renderFindersBuild(objective, { shared: Boolean(match.sharedBuild) || match.suddenDeath })}
-      <section class="finders-board-zone">
-        <div class="finders-board-status"><span><strong>${escapeHtml(currentStatus)}</strong><small>${match.suddenDeath ? "First complete shared Build wins the match." : "Searches reveal one Piece only to the active player."}</small></span><span class="badge">${match.grid.cardCount} hidden Pieces</span></div>
-        <div class="finders-piece-board" data-finders-rows="${Number(match.grid.rows) || 3}" style="--finders-columns:${Number(match.grid.columns) || 4};--finders-rows:${Number(match.grid.rows) || 3}" aria-label="${match.grid.rows} by ${match.grid.columns} face-down Piece board">
-          ${(match.board || []).map((card) => {
-            const position = card.position;
-            const selected = isBuilding ? selectedPositions.has(position) : searchConfirmation?.position === position;
-            const selectable = !interactionLocked && isYourTurn && (match.turnMode === "choose" || isBuilding);
-            return renderFindersPieceCard(card, {
-              selected,
-              selectable,
-              building: isBuilding,
-              latestSearch: match.latestSearch,
-              latestSearchPlayer: findersPlayerLabel(match, match.latestSearch?.seat),
-              attempted: attemptedPositions.has(position)
-            });
-          }).join("")}
-        </div>
-      </section>
+      <div class="card-table-scene finders-table-scene" data-seat-count="${match.players.length}" data-opponent-count="${Math.max(0, match.players.length - 1)}">
+        <div class="card-table-depth" aria-hidden="true"><div class="card-table-surface"><i></i></div></div>
+        <div class="finders-scoreboard" aria-label="Players around the Piece table">${match.players.map((player) => `
+          <article class="finders-player ${player.seat === match.activeSeat ? "active" : ""} ${player.seat === viewerSeat ? "you" : ""}" data-table-seat="${player.seat === viewerSeat ? "south" : "north"}">
+            <span>${escapeHtml(player.avatar)}</span><strong title="${escapeHtml(player.name)}">${escapeHtml(player.name)}</strong><b>${player.score}</b><small>${player.seat === match.activeSeat && !match.roundOver ? "TURN" : player.seat === viewerSeat ? "YOU" : player.type === "bot" ? "CPU" : ""}</small>
+          </article>`).join("")}</div>
+        ${renderFindersBuild(objective, { shared: Boolean(match.sharedBuild) || match.suddenDeath })}
+        <section class="finders-board-zone">
+          <div class="finders-board-status"><span><strong>${escapeHtml(currentStatus)}</strong><small>${match.suddenDeath ? "First complete shared Build wins the match." : "Searches reveal one Piece only to the active player."}</small></span><span class="badge">${match.grid.cardCount} hidden Pieces</span></div>
+          <div class="finders-piece-board" data-finders-rows="${Number(match.grid.rows) || 3}" style="--finders-columns:${Number(match.grid.columns) || 4};--finders-rows:${Number(match.grid.rows) || 3}" aria-label="${match.grid.rows} by ${match.grid.columns} face-down Piece board">
+            ${(match.board || []).map((card) => {
+              const position = card.position;
+              const selected = isBuilding ? selectedPositions.has(position) : searchConfirmation?.position === position;
+              const selectable = !interactionLocked && isYourTurn && (match.turnMode === "choose" || isBuilding);
+              return renderFindersPieceCard(card, {
+                selected,
+                selectable,
+                building: isBuilding,
+                latestSearch: match.latestSearch,
+                latestSearchPlayer: findersPlayerLabel(match, match.latestSearch?.seat),
+                attempted: attemptedPositions.has(position)
+              });
+            }).join("")}
+          </div>
+        </section>
+      </div>
       ${!match.roundOver ? `
         <nav class="game-actions finders-actions ${isBuilding ? "building" : "idle"}">
           ${isBuilding ? `
@@ -2668,34 +2804,47 @@ function renderJuanGame() {
         <span class="juan-direction" aria-label="Play direction ${match.direction === 1 ? "forward" : "backward"}">${match.direction === 1 ? "↻" : "↺"}</span>
       </div>
       ${renderJuanReactionPanels(match, viewerSeat)}
-      <div class="game-opponents ${opponents.length <= 3 ? "fit-opponents" : ""}">
-        ${opponents.map((player) => {
+      ${renderTableScene({
+        match,
+        viewerSeat,
+        opponentsMarkup: opponents.map((player) => {
           const playerPlace = placementForPlayer(match, player);
           const needsJuanCall = match.juanCall?.seat === player.seat;
-          return `
-          <article class="game-seat ${match.activeSeat === player.seat ? "active" : ""} ${player.juan ? "juan-alert" : ""} ${needsJuanCall ? "juan-call-pending" : ""} ${placementClassFor(playerPlace)}">
-            ${renderSeatLastCard(player, "juan")}
-            <span class="game-seat-copy" title="${escapeHtml(player.name)}"><strong>${escapeHtml(player.name)}</strong><small>${playerPlace ? `${placeLabel(playerPlace)} place` : player.juan ? "JUAN! · 1 card" : needsJuanCall ? "1 card · call JUAN!" : `${player.cardCount} cards`}</small></span>
-            ${renderMiniCardBack("color-action", Math.min(player.cardCount, 7), { ariaHidden: true })}
-          </article>`;
-        }).join("")}
-      </div>
-      <section class="game-table juan-table">
-        <div class="game-status"><span><strong>${match.roundOver ? "Match complete" : hasPrismBurstDecision ? `${escapeHtml(activePlayer?.name || "Player")} is resolving +4` : isYourTurn ? `${escapeHtml(yourPlayer?.name || "You")}, your turn` : `${escapeHtml(activePlayer?.name || "Player")} is thinking`}</strong><small>${hasPrismBurstDecision ? "Challenge it or take four" : `Stock ${match.stockCount} · match color or face`}</small></span><span class="badge">${escapeHtml(juanDeck.COLOR_NAME[match.activeColor])}</span></div>
-        <div class="juan-pile-zone">
-          ${renderCardBack({ deckFamilyId: "color-action", context: "stock", className: "juan-stock", ariaLabel: `${match.stockCount} cards in stock`, parts: [{ tag: "span", text: "JUAN" }, { tag: "b", text: match.stockCount }] })}
-          <div class="active-pile cards-pile">${renderJuanCard(match.topCard, 0, { played: true, enter: pileIsNew })}</div>
-        </div>
-      </section>
-      <section class="physical-hand ${isYourTurn ? "your-turn" : ""}">
-        <div class="hand-heading"><span><strong>Your hand${yourPlayer?.juan ? " · JUAN!" : match.juanCall?.seat === viewerSeat ? " · call JUAN!" : ""}</strong><small>${view.hand.length} cards · ${escapeHtml(state.gameSort)} sort</small></span><span class="selection-status ${evaluation.ok ? "valid" : state.selectedCards.size ? "invalid" : ""}">${escapeHtml(evaluation.reason)}</span></div>
-        ${juanColorChooser(selectedCard)}
-        <div class="game-hand" data-hand-owner="${escapeHtml(handOwner)}" aria-label="Your fanned JUAN hand">${sortedHand.map((card, index) => renderJuanCard(card, index, {
-          selectable: isYourTurn && !state.gameActionLock && (!match.drawnCardId || match.drawnCardId === card.id),
-          dealt: isDealing,
-          turnDrawn: match.drawnCardId === card.id
-        })).join("")}</div>
-      </section>
+          return renderTableOpponent({
+            match,
+            viewerSeat,
+            player,
+            deckFamilyId: "color-action",
+            cardCount: player.cardCount,
+            detail: playerPlace ? `${placeLabel(playerPlace)} place` : player.juan ? "JUAN! · 1 card" : needsJuanCall ? "1 card · call JUAN!" : `${player.cardCount} cards`,
+            modifiers: `${player.juan ? "juan-alert" : ""} ${needsJuanCall ? "juan-call-pending" : ""} ${placementClassFor(playerPlace)}`,
+            gameId: "juan",
+            showLastPlay: true
+          });
+        }).join(""),
+        centerMarkup: `
+          <section class="game-table juan-table">
+            <div class="game-status"><span><strong>${match.roundOver ? "Match complete" : hasPrismBurstDecision ? `${escapeHtml(activePlayer?.name || "Player")} is resolving +4` : isYourTurn ? `${escapeHtml(yourPlayer?.name || "You")}, your turn` : `${escapeHtml(activePlayer?.name || "Player")} is thinking`}</strong><small>${hasPrismBurstDecision ? "Challenge it or take four" : `Stock ${match.stockCount} · match color or face`}</small></span><span class="badge">${escapeHtml(juanDeck.COLOR_NAME[match.activeColor])}</span></div>
+            <div class="juan-pile-zone">
+              ${renderCardBack({ deckFamilyId: "color-action", context: "stock", className: "juan-stock", ariaLabel: `${match.stockCount} cards in stock`, parts: [{ tag: "span", text: "JUAN" }, { tag: "b", text: match.stockCount }] })}
+              <div class="active-pile cards-pile">${renderJuanCard(match.topCard, 0, { played: true, enter: pileIsNew })}</div>
+            </div>
+          </section>`,
+        handMarkup: `
+          <section class="physical-hand ${isYourTurn ? "your-turn" : ""}">
+            <div class="hand-heading"><span><strong>Your hand${yourPlayer?.juan ? " · JUAN!" : match.juanCall?.seat === viewerSeat ? " · call JUAN!" : ""}</strong><small>${view.hand.length} cards · ${escapeHtml(state.gameSort)} sort</small></span><span class="selection-status ${evaluation.ok ? "valid" : state.selectedCards.size ? "invalid" : ""}">${escapeHtml(evaluation.reason)}</span></div>
+            ${juanColorChooser(selectedCard)}
+            <div class="game-hand" data-hand-owner="${escapeHtml(handOwner)}" aria-label="Your fanned JUAN hand">${sortedHand.map((card, index) => renderJuanCard(card, index, {
+              selectable: isYourTurn && !state.gameActionLock && (!match.drawnCardId || match.drawnCardId === card.id),
+              dealt: isDealing,
+              turnDrawn: match.drawnCardId === card.id
+            })).join("")}</div>
+          </section>`,
+        localDetail: `${yourPlayer?.score ?? 0} pts · ${view.hand.length} cards${yourPlayer?.juan ? " · JUAN!" : ""}`,
+        localActive: isYourTurn,
+        playOriginSeat: match.players.find((player) => player.lastPlayedCard?.id === match.topCard.id)?.seat,
+        className: "juan-table-scene"
+      })}
       <nav class="game-actions juan-actions">
         <button type="button" data-action="game-hint" ${isYourTurn && !state.gameActionLock ? "" : "disabled"}>Hint</button>
         <button type="button" data-action="game-sort" ${state.gameActionLock ? "disabled" : ""}>Sort</button>
@@ -3083,6 +3232,7 @@ function render() {
   syncControllerTextEntry();
   if (state.screen === "game") {
     layoutActivePiles();
+    layoutOpponentHands();
     layoutStandardHand();
     animateStandardHandReflow(previousHand);
     const firstColor = app.querySelector(".juan-prism-dialog .juan-color-choice");
@@ -3138,6 +3288,38 @@ function layoutActivePiles() {
       card.style.setProperty("--pile-x", `${position.x}px`);
       card.style.setProperty("--pile-y", `${position.y}px`);
       card.style.setProperty("--pile-rotation", `${position.rotation}deg`);
+      card.style.zIndex = String(position.zIndex);
+    });
+  });
+}
+
+function layoutOpponentHands() {
+  if (!cardPresentation) return;
+  app.querySelectorAll("[data-opponent-hand]").forEach((hand) => {
+    const cards = [...hand.querySelectorAll(".opponent-card")];
+    if (!cards.length) return;
+    const containerWidth = hand.clientWidth;
+    const cardWidth = cards[0].offsetWidth;
+    const cardHeight = cards[0].offsetHeight || cardWidth * 1.42;
+    if (!containerWidth || !cardWidth) return;
+    const layout = cardPresentation.calculateFanLayout({
+      count: cards.length,
+      containerWidth,
+      cardWidth,
+      cardHeight,
+      sidePadding: 3,
+      minimumVisibleIndex: Math.max(4, cardWidth * 0.12),
+      maximumRotation: cards.length > 14 ? 7 : 10,
+      curveRatio: 0.09,
+      focusLiftRatio: 0,
+      selectedLiftRatio: 0
+    });
+    hand.dataset.density = layout.density;
+    cards.forEach((card, index) => {
+      const position = layout.cards[index];
+      card.style.setProperty("--opponent-x", `${position.x}px`);
+      card.style.setProperty("--opponent-y", `${position.y}px`);
+      card.style.setProperty("--opponent-rotation", `${position.rotation}deg`);
       card.style.zIndex = String(position.zIndex);
     });
   });
@@ -4759,6 +4941,7 @@ function scheduleGameTableLayout() {
   gameTableLayoutFrame = requestAnimationFrame(() => {
     gameTableLayoutFrame = null;
     layoutActivePiles();
+    layoutOpponentHands();
     layoutStandardHand();
   });
 }

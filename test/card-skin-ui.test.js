@@ -63,9 +63,9 @@ test("faces and all hidden-card contexts use the shared skin boundary", () => {
 
   assert.match(app, /const cardSkins = globalThis\.CardcadeCardSkins/);
   assert.match(app, /function renderCardBack/);
-  assert.match(app, /function renderMiniCardBack/);
+  assert.match(app, /function renderOpponentFan/);
   assert.match(app, /"card-skin-face"/);
-  for (const context of ["opponent-mini", "dealer-hole", "private-seat", "draw-stock", "discard", "stock", "hot-seat-handoff"]) {
+  for (const context of ["opponent-hand", "dealer-hole", "draw-stock", "discard", "stock", "hot-seat-handoff"]) {
     assert.match(app, new RegExp(`context: "${context}"`));
   }
 });
@@ -168,7 +168,7 @@ test("JUAN skins cover number, action, Prism, backs, piles, opponent minis, and 
   const css = read("public/app.css");
 
   assert.match(app, /skin-preview-juan-prism/);
-  assert.match(app, /renderMiniCardBack\("color-action"/);
+  assert.match(app, /deckFamilyId: "color-action",[\s\S]*?cardCount: player\.cardCount/);
   assert.match(app, /deckFamilyId: "color-action", context: "stock"/);
   assert.match(app, /juan-prism-stage-card.*renderJuanCard/s);
   assert.match(app, /juan-prism-reveal-card.*renderJuanCard/s);

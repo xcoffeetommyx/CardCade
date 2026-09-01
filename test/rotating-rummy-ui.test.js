@@ -51,7 +51,7 @@ test("Rotating Rummy has its own Route UI, controls, and fanned-card renderer", 
   assert.doesNotMatch(app, /recommendedDiscard\(state\.gameView\.hand, match\.yourRoute\)/);
   assert.match(app, /rummy_next_round/);
   assert.match(app, /data-game-card=/);
-  assert.match(app, /renderMiniCardBack\("rotating-rummy"/);
+  assert.match(app, /deckFamilyId: "rotating-rummy",[\s\S]*?cardCount: player\.cardCount/);
   assert.match(app, /standard-card-game \$\{activeTableAppearanceClass\(\)\} rotating-rummy-game/);
   assert.match(app, /class="rummy-table-stage"/);
   assert.match(app, /rummy-route-banner \$\{yourPlayer\?\.routeComplete \? "complete" : ""\}/);

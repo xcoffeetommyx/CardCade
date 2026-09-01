@@ -4676,3 +4676,575 @@ body.reduced-motion *::after {
 }
 body.reduced-motion #app.shell-transition-forward,
 body.reduced-motion #app.shell-transition-back { animation: none !important; }
+
+/* ---------- Shared pseudo-3D tabletop scene ---------- */
+.card-table-scene {
+  --opponent-card-width: clamp(34px, 4.2vw, 54px);
+  --opponent-card-height: calc(var(--opponent-card-width) * 1.42);
+  --play-origin-x: 0px;
+  --play-origin-y: -150px;
+  --play-origin-rotation: 180deg;
+  position: relative;
+  min-height: clamp(590px, 72vh, 760px);
+  overflow: hidden;
+  isolation: isolate;
+  perspective: 1050px;
+  perspective-origin: 50% 42%;
+  border-radius: 34px 34px 12px 12px;
+  background:
+    radial-gradient(ellipse at 50% 44%, rgba(38, 73, 105, .16), transparent 58%),
+    linear-gradient(180deg, rgba(2, 8, 17, .08), rgba(2, 8, 17, .62));
+}
+
+.card-table-depth {
+  position: absolute;
+  z-index: 1;
+  inset: 3% 1% 18%;
+  transform-style: preserve-3d;
+  pointer-events: none;
+}
+
+.card-table-surface {
+  position: absolute;
+  inset: 7% 5% 1%;
+  overflow: hidden;
+  border: clamp(10px, 1.5vw, 18px) solid var(--table-border);
+  border-radius: 45% 45% 25% 25% / 34% 34% 18% 18%;
+  background:
+    linear-gradient(var(--table-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--table-grid) 1px, transparent 1px),
+    radial-gradient(ellipse at 50% 100%, var(--table-green-light), var(--table-green) 52%, var(--table-green-deep));
+  background-size: 4px 4px, 4px 4px, auto;
+  box-shadow:
+    inset 0 0 70px var(--table-felt-shadow),
+    inset 0 -18px 26px rgba(255, 255, 255, .035),
+    0 26px 34px rgba(0, 0, 0, .48),
+    0 7px 0 color-mix(in srgb, var(--table-border) 52%, #050a11);
+  transform: rotateX(55deg) translateZ(-8px);
+  transform-origin: 50% 100%;
+}
+
+.card-table-surface::before {
+  content: "";
+  position: absolute;
+  inset: clamp(8px, 1.2vw, 15px);
+  border: 1px solid var(--table-preview-line);
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .035);
+}
+
+.card-table-surface::after {
+  content: "";
+  position: absolute;
+  left: 20%;
+  right: 20%;
+  bottom: 13%;
+  height: 16%;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, .12);
+  filter: blur(10px);
+}
+
+.card-table-surface > i {
+  position: absolute;
+  left: 50%;
+  top: 48%;
+  width: 30%;
+  aspect-ratio: 2.4 / 1;
+  border: 1px solid color-mix(in srgb, var(--table-preview-line) 55%, transparent);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.card-table-scene .table-seats-layer {
+  position: absolute;
+  z-index: 45;
+  inset: 0;
+  display: block;
+  pointer-events: none;
+}
+
+.card-table-scene .table-seat {
+  --seat-hand-angle: 180deg;
+  --seat-hand-scale: .88;
+  position: absolute;
+  width: clamp(142px, 21%, 250px);
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  display: grid;
+  grid-template-rows: auto 72px;
+  justify-items: center;
+  gap: 2px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  transform: translate(-50%, 0);
+  transition: translate 160ms ease, filter 160ms ease;
+}
+
+.card-table-scene .table-seat.active {
+  border: 0;
+  box-shadow: none;
+  translate: 0 -5px;
+  filter: brightness(1.08);
+}
+
+.table-seat-north { left: 50%; top: 1%; }
+.table-seat-north-west { left: 28%; top: 5%; --seat-hand-angle: 152deg !important; --seat-hand-scale: .82 !important; }
+.table-seat-north-east { left: 72%; top: 5%; --seat-hand-angle: -152deg !important; --seat-hand-scale: .82 !important; }
+.table-seat-west { left: 10%; top: 29%; --seat-hand-angle: 92deg !important; --seat-hand-scale: .78 !important; }
+.table-seat-east { left: 90%; top: 29%; --seat-hand-angle: -92deg !important; --seat-hand-scale: .78 !important; }
+.table-seat-west-near { left: 13%; top: 52%; --seat-hand-angle: 63deg !important; --seat-hand-scale: .7 !important; }
+.table-seat-east-near { left: 87%; top: 52%; --seat-hand-angle: -63deg !important; --seat-hand-scale: .7 !important; }
+
+.card-table-scene .player-hud {
+  max-width: 100%;
+  min-width: 0;
+  min-height: 29px;
+  padding: 4px 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid rgba(135, 173, 205, .22);
+  border-radius: 999px;
+  color: #eef6ff;
+  background: rgba(4, 13, 25, .78);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, .24);
+  backdrop-filter: blur(5px);
+}
+
+.card-table-scene .player-hud .game-seat-copy { text-align: center; }
+.card-table-scene .player-hud .game-seat-copy > strong { font: 800 clamp(.58rem, 1.1vw, .76rem) "Cardcade Pixel", monospace; }
+.card-table-scene .player-hud .game-seat-copy > small { margin-top: 1px; color: #aebed0; font-size: clamp(.48rem, .8vw, .62rem); }
+.card-table-scene .table-seat.active .player-hud,
+.card-table-scene .local-player-hud.active {
+  border-color: rgba(84, 223, 177, .58);
+  box-shadow: 0 0 18px rgba(84, 223, 177, .18), 0 5px 15px rgba(0, 0, 0, .3);
+}
+.card-table-scene .table-seat.active .player-hud strong,
+.card-table-scene .local-player-hud.active strong { color: #d6fff2; text-shadow: 0 0 11px rgba(84, 223, 177, .44); }
+.turn-indicator {
+  flex: 0 0 auto;
+  padding: 3px 5px;
+  border-radius: 999px;
+  color: #071a16;
+  background: var(--mint);
+  font: 900 .45rem "Cardcade Pixel", monospace;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.seat-played-card { display: grid; flex: 0 0 auto; transform: scale(.7); margin: -10px; }
+
+.opponent-hand-wrap {
+  width: 100%;
+  height: 72px;
+  display: grid;
+  place-items: start center;
+}
+
+.opponent-hand {
+  position: relative;
+  width: 100%;
+  height: 70px;
+  transform: rotate(var(--seat-hand-angle)) scale(var(--seat-hand-scale));
+  transform-origin: 50% 34%;
+  transition: transform 180ms ease, filter 180ms ease;
+}
+
+.table-seat.active .opponent-hand {
+  filter: drop-shadow(0 0 9px rgba(84, 223, 177, .35));
+  transform: translateY(-3px) rotate(var(--seat-hand-angle)) scale(calc(var(--seat-hand-scale) * 1.03));
+}
+
+.opponent-card {
+  --opponent-x: 0px;
+  --opponent-y: 0px;
+  --opponent-rotation: 0deg;
+  position: absolute !important;
+  left: 50% !important;
+  top: 0 !important;
+  width: var(--opponent-card-width) !important;
+  height: var(--opponent-card-height) !important;
+  min-width: 0;
+  display: grid;
+  place-items: center;
+  margin: 0 !important;
+  border-width: 2px;
+  border-radius: clamp(4px, .6vw, 7px);
+  box-shadow: 3px 4px 0 rgba(0, 0, 0, .42), inset 0 0 0 1px rgba(255, 255, 255, .1);
+  transform: translate3d(calc(-50% + var(--opponent-x)), var(--opponent-y), 0) rotate(var(--opponent-rotation)) !important;
+  transform-origin: 50% 120%;
+  transition: none !important;
+  pointer-events: none;
+  contain: layout paint;
+}
+
+.opponent-card.playing-card .card-corner strong { font-size: 18cqh; }
+.opponent-card.playing-card .card-corner i { font-size: 10.5cqh; }
+
+.card-table-scene[data-opponent-count="6"],
+.card-table-scene[data-opponent-count="7"] { --opponent-card-width: clamp(28px, 3.3vw, 43px); }
+.card-table-scene[data-opponent-count="6"] .table-seat,
+.card-table-scene[data-opponent-count="7"] .table-seat { width: clamp(118px, 17%, 190px); }
+
+.center-play-area {
+  position: absolute;
+  z-index: 30;
+  left: 22%;
+  top: 23%;
+  width: 56%;
+  height: 34%;
+  min-width: 0;
+  display: grid;
+  place-items: stretch;
+}
+
+.card-table-scene .game-table {
+  width: 100%;
+  min-height: 0;
+  height: 100%;
+  padding: 8px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.card-table-scene .game-status {
+  position: relative;
+  z-index: 4;
+  padding: 5px 7px;
+  border: 1px solid rgba(255, 255, 255, .1);
+  border-radius: 10px;
+  background: rgba(3, 18, 16, .34);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, .35);
+}
+.card-table-scene .active-pile { min-height: 0; }
+.card-table-scene .active-pile .empty-pile {
+  min-width: min(420px, 88%);
+  padding: 15px;
+  border-width: 1px;
+  background: rgba(3, 13, 11, .15);
+}
+
+.card-table-scene .local-player-hud {
+  position: absolute;
+  z-index: 86;
+  left: 50%;
+  bottom: 252px;
+  max-width: min(78%, 420px);
+  transform: translateX(-50%);
+}
+
+.card-table-scene .physical-hand {
+  position: absolute;
+  z-index: 80;
+  left: 5%;
+  right: 5%;
+  bottom: 0;
+  min-height: 250px;
+  padding: 10px 12px 0;
+  overflow: visible;
+  border: 0;
+  border-top: 1px solid rgba(126, 168, 208, .18);
+  border-radius: 48% 48% 0 0 / 14% 14% 0 0;
+  background: linear-gradient(180deg, rgba(5, 17, 31, .14), rgba(5, 17, 31, .82) 76%);
+  box-shadow: none;
+}
+.card-table-scene .physical-hand.your-turn { border-color: rgba(84, 223, 177, .38); box-shadow: 0 -18px 28px rgba(84, 223, 177, .045); }
+.card-table-scene .hand-heading { padding-inline: clamp(2px, 4vw, 52px); }
+
+.card-table-scene[data-play-origin="north"] { --play-origin-x: 0px; --play-origin-y: -155px; --play-origin-rotation: 180deg; }
+.card-table-scene[data-play-origin="north-west"] { --play-origin-x: -145px; --play-origin-y: -125px; --play-origin-rotation: 145deg; }
+.card-table-scene[data-play-origin="north-east"] { --play-origin-x: 145px; --play-origin-y: -125px; --play-origin-rotation: -145deg; }
+.card-table-scene[data-play-origin="west"],
+.card-table-scene[data-play-origin="west-near"] { --play-origin-x: -185px; --play-origin-y: -8px; --play-origin-rotation: 88deg; }
+.card-table-scene[data-play-origin="east"],
+.card-table-scene[data-play-origin="east-near"] { --play-origin-x: 185px; --play-origin-y: -8px; --play-origin-rotation: -88deg; }
+.card-table-scene[data-play-origin="south"] { --play-origin-x: 0px; --play-origin-y: 190px; --play-origin-rotation: 0deg; }
+
+.card-table-scene .playing-card.played.enter { animation-name: tableCardPileIn; animation-duration: .3s; }
+@keyframes tableCardPileIn {
+  from {
+    transform: translate3d(
+      calc(-50% + var(--pile-x, 0px) + var(--play-origin-x)),
+      calc(-50% + var(--pile-y, 0px) + var(--play-origin-y)),
+      0
+    ) rotate(calc(var(--pile-rotation, 0deg) + var(--play-origin-rotation))) scale(.68);
+    opacity: .18;
+  }
+  to {
+    transform: translate3d(calc(-50% + var(--pile-x, 0px)), calc(-50% + var(--pile-y, 0px)), 0) rotate(var(--pile-rotation, 0deg)) scale(1);
+    opacity: 1;
+  }
+}
+
+@media (max-width: 820px) {
+  .card-table-scene {
+    --opponent-card-width: clamp(28px, 8vw, 38px);
+    min-height: clamp(540px, 76svh, 650px);
+    border-radius: 24px 24px 8px 8px;
+    perspective: 820px;
+    perspective-origin: 50% 36%;
+  }
+  .card-table-depth { inset: 1% -3% 20%; }
+  .card-table-surface { inset: 5% 2% 0; border-width: 10px; transform: rotateX(61deg) translateZ(-10px); }
+  .card-table-scene .table-seat { width: clamp(105px, 29%, 160px); grid-template-rows: auto 58px; }
+  .table-seat-north { top: 0; }
+  .table-seat-north-west { left: 29%; top: 3%; }
+  .table-seat-north-east { left: 71%; top: 3%; }
+  .table-seat-west { left: 8%; top: 25%; }
+  .table-seat-east { left: 92%; top: 25%; }
+  .table-seat-west-near { left: 10%; top: 45%; }
+  .table-seat-east-near { left: 90%; top: 45%; }
+  .card-table-scene .player-hud { min-height: 24px; padding: 3px 5px; gap: 3px; }
+  .card-table-scene .player-hud .game-seat-copy > strong { font-size: .53rem; }
+  .card-table-scene .player-hud .game-seat-copy > small { font-size: .43rem; }
+  .card-table-scene .turn-indicator { padding: 2px 3px; font-size: .38rem; }
+  .seat-played-card { display: none; }
+  .opponent-hand-wrap, .opponent-hand { height: 56px; }
+  .center-play-area { left: 15%; top: 21%; width: 70%; height: 31%; }
+  .card-table-scene .game-status small { font-size: .6rem; }
+  .card-table-scene .local-player-hud { bottom: 218px; }
+  .card-table-scene .physical-hand { left: 0; right: 0; min-height: 218px; padding-inline: 6px; }
+  .card-table-scene .hand-heading { padding-inline: 6px; }
+  .card-table-scene[data-opponent-count="6"],
+  .card-table-scene[data-opponent-count="7"] { --opponent-card-width: clamp(22px, 6vw, 29px); }
+  .card-table-scene[data-opponent-count="6"] .table-seat,
+  .card-table-scene[data-opponent-count="7"] .table-seat { width: 102px; }
+}
+
+@media (max-width: 520px) and (orientation: portrait) {
+  .card-table-scene { min-height: clamp(520px, 78svh, 620px); }
+  .center-play-area { top: 22%; height: 29%; }
+  .card-table-scene .active-pile .empty-pile span { display: none; }
+  .card-table-scene .local-player-hud { bottom: 205px; }
+  .card-table-scene .physical-hand { min-height: 205px; }
+}
+
+@media (orientation: landscape) and (max-height: 640px) {
+  .card-table-scene {
+    --opponent-card-width: clamp(22px, 7vh, 34px);
+    min-height: 410px;
+    perspective-origin: 50% 34%;
+  }
+  .card-table-depth { inset: 0 1% 16%; }
+  .card-table-surface { transform: rotateX(58deg) translateZ(-8px); }
+  .center-play-area { left: 27%; top: 21%; width: 46%; height: 34%; }
+  .card-table-scene .table-seat { width: 126px; grid-template-rows: auto 48px; }
+  .card-table-scene .local-player-hud { bottom: 142px; }
+  .card-table-scene .physical-hand { left: 8%; right: 8%; min-height: 142px; padding-top: 5px; }
+  .card-table-scene .hand-heading { min-height: 26px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-table-scene .playing-card.played.enter { animation: none !important; }
+  .card-table-scene .table-seat.active { translate: 0; }
+  .card-table-scene .table-seat.active .opponent-hand { transform: rotate(var(--seat-hand-angle)) scale(var(--seat-hand-scale)); }
+}
+
+body.reduced-motion .card-table-scene .playing-card.played.enter { animation: none !important; }
+body.reduced-motion .card-table-scene .table-seat.active { translate: 0; }
+body.reduced-motion .card-table-scene .table-seat.active .opponent-hand { transform: rotate(var(--seat-hand-angle)) scale(var(--seat-hand-scale)); }
+
+/* Game-specific center objects remain screen-facing while the felt supplies
+   the shared depth cue. This keeps dense rules text and reaction cards clear. */
+.casino-table-scene .center-play-area { top: 20%; height: 39%; }
+.casino-table-scene .blackjack-dealer-zone,
+.casino-table-scene .holdem-board-zone,
+.casino-table-scene .five-card-draw-table-zone { height: 100%; min-height: 0; }
+.casino-table-scene .blackjack-dealer-pile,
+.casino-table-scene .holdem-board { min-height: 126px !important; }
+.casino-table-scene .physical-hand { min-height: 262px; }
+.casino-table-scene .local-player-hud { bottom: 264px; }
+
+.card-table-scene .table-seat.folded .player-hud,
+.card-table-scene .table-seat.eliminated .player-hud { opacity: .58; }
+.card-table-scene .table-seat.all-in .player-hud { border-color: rgba(79, 167, 255, .68); }
+.card-table-scene .table-seat.placement-first .player-hud { border-color: #f0c553; box-shadow: 0 0 18px rgba(240, 197, 83, .22); }
+.card-table-scene .table-seat.placement-second .player-hud { border-color: #c9d4e3; }
+.card-table-scene .table-seat.placement-third .player-hud { border-color: #dc9764; }
+.card-table-scene .table-seat.juan-alert,
+.card-table-scene .table-seat.juan-call-pending,
+.card-table-scene .table-seat.rummy-route-clear { border: 0; background: transparent; box-shadow: none; }
+.card-table-scene .table-seat.juan-alert .player-hud { border-color: var(--coral); box-shadow: 0 0 18px rgba(255, 94, 98, .22); }
+.card-table-scene .table-seat.juan-call-pending .player-hud { border-color: #f0c553; box-shadow: 0 0 18px rgba(240, 197, 83, .2); }
+.card-table-scene .table-seat.rummy-route-clear .player-hud { border-color: #f5ca4d; box-shadow: 0 0 16px rgba(245, 202, 77, .17); }
+
+.juan-table-scene .center-play-area { top: 21%; height: 37%; }
+.juan-table-scene .juan-pile-zone { height: 100%; min-height: 0; }
+.juan-table-scene .juan-table { grid-template-rows: auto minmax(0, 1fr); }
+
+.rummy-table-scene .center-play-area { top: 20%; height: 39%; }
+.rummy-table-scene .rummy-table-stage {
+  min-height: 0;
+  height: 100%;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 5px;
+}
+.rummy-table-scene .rummy-table { min-height: 0; }
+.rummy-table-scene .rummy-pile-zone { height: 100%; min-height: 0; }
+.rummy-table-scene .rummy-link-board {
+  max-height: 108px;
+  padding: 5px 7px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  background: rgba(4, 13, 24, .68);
+}
+
+.playing-game .rotating-rummy-game {
+  height: auto;
+  min-height: calc(var(--game-viewport-height) - var(--safe-top) - var(--game-main-top) - var(--game-main-bottom));
+  grid-template-rows: auto auto auto auto auto;
+  overflow: visible;
+}
+
+.snap-game { padding-bottom: max(9rem, env(safe-area-inset-bottom)); }
+.snap-table-scene {
+  min-height: clamp(520px, 68vh, 660px);
+  margin-inline: auto;
+}
+.snap-table-scene .center-play-area { left: 5%; top: 18%; width: 90%; height: 55%; }
+.snap-table-scene .snap-center-board {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: clamp(7px, 1.4vw, 14px);
+  border: 0;
+  background: radial-gradient(circle at 50% 45%, rgba(255, 255, 255, .08), transparent 64%);
+}
+.snap-table-scene .snap-center-board .playing-card,
+.snap-table-scene .snap-empty-card { width: clamp(78px, 11vw, 128px); height: auto; aspect-ratio: 5 / 7; }
+.snap-table-scene .physical-hand.snap-local-pile {
+  --seat-hand-angle: 0deg;
+  --seat-hand-scale: 1;
+  left: 18%;
+  right: 18%;
+  min-height: 132px;
+  padding: 0;
+  display: grid;
+  place-items: start center;
+  border: 0;
+  background: transparent;
+}
+.snap-local-pile-fan { width: min(100%, 480px); height: 115px; }
+.snap-local-pile-fan .opponent-hand { height: 108px; }
+.snap-table-scene .local-player-hud { bottom: 116px; }
+.snap-table-scene .table-seat.ready .player-hud { border-color: rgba(114, 238, 168, .58); }
+.snap-table-scene .table-seat.penalized .player-hud { border-color: var(--snap-coral); }
+
+/* Finders Makers keeps its board top-down and interactive, but places its
+   two player HUDs at the near and far edges of the shared physical table. */
+.playing-game .finders-makers-game {
+  height: auto;
+  min-height: calc(var(--game-viewport-height) - var(--safe-top) - var(--game-main-top) - var(--game-main-bottom));
+  grid-template-rows: auto minmax(610px, 1fr) auto;
+  overflow: visible;
+}
+.finders-table-scene { min-height: clamp(610px, 76vh, 790px); }
+.finders-table-scene .card-table-depth { inset: 1% 1% 7%; }
+.finders-table-scene .card-table-surface { inset: 4% 3% 0; transform: rotateX(47deg) translateZ(-7px); }
+.finders-table-scene .finders-scoreboard {
+  position: absolute;
+  z-index: 55;
+  inset: 0;
+  display: block;
+  pointer-events: none;
+}
+.finders-table-scene .finders-player {
+  position: absolute;
+  left: 50%;
+  width: min(270px, 42%);
+  min-height: 40px;
+  padding: 5px 8px;
+  grid-template-columns: 27px minmax(0, 1fr) auto;
+  border: 1px solid rgba(126, 168, 208, .28);
+  border-radius: 999px;
+  background: rgba(4, 13, 25, .8);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, .24);
+  transform: translateX(-50%);
+}
+.finders-table-scene .finders-player[data-table-seat="north"] { top: 1%; }
+.finders-table-scene .finders-player[data-table-seat="south"] { bottom: 1%; }
+.finders-table-scene .finders-player.active { transform: translateX(-50%) translateY(-3px); border-color: var(--mint); box-shadow: 0 0 17px rgba(84, 223, 177, .2); }
+.finders-table-scene .finders-player > span { width: 27px; height: 27px; border-radius: 50%; }
+.finders-table-scene .finders-build-card {
+  position: absolute;
+  z-index: 52;
+  left: 2%;
+  top: 18%;
+  width: min(250px, 21%);
+  min-height: 0;
+  padding: 7px 8px;
+}
+.finders-table-scene .finders-piece-list { grid-template-columns: 1fr; }
+.finders-table-scene .finders-board-zone {
+  position: absolute;
+  z-index: 35;
+  left: 17%;
+  top: 15%;
+  width: 66%;
+  height: 70%;
+  min-height: 0;
+  padding: 9px;
+  border: 1px solid rgba(255, 255, 255, .12);
+  background: rgba(3, 24, 20, .18);
+  box-shadow: 0 14px 28px rgba(0, 0, 0, .18);
+}
+
+@media (max-width: 820px) {
+  .casino-table-scene .center-play-area { top: 21%; height: 35%; }
+  .casino-table-scene .physical-hand { min-height: 222px; }
+  .casino-table-scene .local-player-hud { bottom: 224px; }
+  .rummy-table-scene .center-play-area { top: 20%; height: 36%; }
+  .rummy-table-scene .rummy-link-board { max-height: 90px; }
+  .snap-table-scene { min-height: 530px; }
+  .snap-table-scene .center-play-area { left: 2%; top: 18%; width: 96%; height: 52%; }
+  .snap-table-scene .physical-hand.snap-local-pile { left: 8%; right: 8%; min-height: 118px; }
+  .snap-table-scene .local-player-hud { bottom: 104px; }
+  .finders-table-scene { min-height: 590px; }
+  .finders-table-scene .finders-build-card { left: 2%; top: 14%; width: 29%; }
+  .finders-table-scene .finders-board-zone { left: 12%; top: 23%; width: 76%; height: 62%; }
+  .finders-table-scene .finders-piece-list { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 520px) and (orientation: portrait) {
+  .casino-table-scene .blackjack-dealer-zone,
+  .casino-table-scene .holdem-board-zone,
+  .casino-table-scene .five-card-draw-table-zone { align-content: center; }
+  .juan-table-scene .center-play-area { top: 21%; height: 34%; }
+  .rummy-table-scene .center-play-area { left: 12%; top: 19%; width: 76%; height: 37%; }
+  .rummy-table-scene .rummy-link-board-heading small { display: none; }
+  .snap-table-scene { min-height: 510px; }
+  .snap-table-scene .center-play-area { top: 19%; height: 47%; }
+  .snap-table-scene .snap-center-board { grid-template-columns: repeat(3, minmax(72px, 1fr)); gap: 4px; }
+  .snap-table-scene .snap-hidden-source { display: none; }
+  .snap-table-scene .snap-center-board .playing-card,
+  .snap-table-scene .snap-empty-card { width: clamp(72px, 24vw, 105px); }
+  .finders-table-scene { min-height: 565px; }
+  .finders-table-scene .finders-build-card {
+    left: 4%;
+    top: 10%;
+    width: 92%;
+    min-height: 64px;
+  }
+  .finders-table-scene .finders-piece-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .finders-table-scene .finders-board-zone { left: 3%; top: 26%; width: 94%; height: 62%; }
+  .finders-table-scene .finders-player { width: min(250px, 72%); }
+}
+
+@media (orientation: landscape) and (max-height: 640px) {
+  .casino-table-scene .center-play-area { top: 17%; height: 43%; }
+  .casino-table-scene .physical-hand { min-height: 150px; }
+  .casino-table-scene .local-player-hud { bottom: 146px; }
+  .snap-table-scene { min-height: 390px; }
+  .snap-table-scene .center-play-area { left: 16%; top: 15%; width: 68%; height: 55%; }
+  .snap-table-scene .physical-hand.snap-local-pile { min-height: 88px; }
+  .snap-table-scene .local-player-hud { bottom: 76px; }
+  .finders-table-scene { min-height: 420px; }
+  .finders-table-scene .finders-build-card { top: 17%; width: 23%; }
+  .finders-table-scene .finders-board-zone { left: 20%; top: 12%; width: 60%; height: 74%; }
+}

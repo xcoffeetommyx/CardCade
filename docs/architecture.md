@@ -91,6 +91,14 @@ ThreeSeven currently has the strongest version of these pieces:
 
 These are now shared Cardcade presentation modules rather than imported game-specific assets. Thirteen keeps its own ranks, legal combinations, turn rules, scoring, and CPU decisions. JUAN uses the same fan, focus, selection, and movement vocabulary with an independent 108-card color/action deck and renderer. Rotating Rummy follows the same boundary with a distinct 108-card Route deck, public Route objectives, and Link actions on completed Route groups.
 
+## Shared tabletop presentation
+
+Playable card games render through a common pseudo-3D table scene in `public/app.js`. The scene keeps two presentation layers separate: cards, piles, and boards occupy a CSS-perspective table world, while player names, scores, turn state, prompts, and controls remain screen-facing HUD content. The decorative table surface consumes the existing table-skin custom properties, so changing a table skin changes the felt and rail material without changing game state or markup semantics.
+
+`shared/card-presentation.js` resolves clockwise player order into named table slots relative to the local viewer. The local player is always south; one through seven opponents spread across the far, side, and near-side positions so two-player through eight-player games share the same spatial vocabulary. Opponent hands contain one privacy-safe card-back element for every projected hidden card and use the existing adaptive fan calculator with smaller, seat-oriented parameters. The interactive local hand keeps its original DOM, fan layout, hit testing, selection, focus, touch, keyboard, and controller behavior.
+
+Each game supplies its own center content to the shared shell. Casino games keep dealer, community-card, and betting zones; Snap keeps its unwarped comparison area; Rotating Rummy keeps Route and Link content; and Finders Makers places its top-down memory board inside a conservative table shell. A seat slot also selects the transform origin used by public pile-entry animation. Reduced-motion mode retains all spatial placement while removing that travel.
+
 ## Persistence
 
 Cardcade stores private room state and active game snapshots in a single SQLite database. Reconnect tokens themselves are never written; only their SHA-256 hashes are persisted. On restart, live sockets are correctly restored as disconnected while seats, private hands, scores, piles, and rounds remain recoverable.

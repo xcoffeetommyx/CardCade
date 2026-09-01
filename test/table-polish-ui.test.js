@@ -63,8 +63,9 @@ test("table seats render the last public card instead of player initials", () =>
   const app = read("public/app.js");
   assert.match(app, /function renderSeatLastCard/);
   assert.match(app, /player\.lastPlayedCard/);
-  assert.match(app, /renderSeatLastCard\(player, game\.gameId\)/);
-  assert.match(app, /renderSeatLastCard\(player, "juan"\)/);
+  assert.match(app, /showLastPlay \? `<span class="seat-played-card">\$\{renderSeatLastCard\(player, gameId\)\}/);
+  assert.match(app, /gameId: game\.gameId,[\s\S]*?showLastPlay: true/);
+  assert.match(app, /gameId: "juan",[\s\S]*?showLastPlay: true/);
 });
 
 test("mobile tables use the visible viewport and keep long player names inside their seats", () => {
@@ -91,7 +92,7 @@ test("shedding tables visibly mark first, second, and third place as players go 
   assert.match(app, /const playerPlace = placementForPlayer\(match, player\);/);
   assert.match(app, /class="game-score \$\{placementClassFor\(yourPlace\)\}"/);
   assert.match(app, /\$\{placementClassFor\(playerPlace\)\}/);
-  assert.match(app, /\$\{playerPlace \? `\$\{placeLabel\(playerPlace\)\} place`/);
+  assert.match(app, /detail: playerPlace \? `\$\{placeLabel\(playerPlace\)\} place`/);
   assert.match(css, /\.game-seat\.placement-first,[\s\S]*?\.game-score\.placement-first,[\s\S]*?\.juan-game \.game-seat\.placement-first/);
   assert.match(css, /\.game-seat\.placement-second,[\s\S]*?\.game-score\.placement-second,[\s\S]*?\.juan-game \.game-seat\.placement-second/);
   assert.match(css, /\.game-seat\.placement-third,[\s\S]*?\.game-score\.placement-third,[\s\S]*?\.juan-game \.game-seat\.placement-third/);
