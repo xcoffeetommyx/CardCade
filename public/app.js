@@ -1546,9 +1546,9 @@ function renderBlackjackGame() {
           cardCount: player.cardCount,
           detail: `${formatPoints(player.score)} pts · ${player.cardCount} card${player.cardCount === 1 ? "" : "s"}${player.lastAction ? ` · ${player.lastAction.label}` : ""}`
         })).join(""),
+        tableStatusMarkup: `<div class="game-status"><span><strong>${escapeHtml(playerStatus)}</strong><small>${escapeHtml(match.lastMoveText)}</small></span><span class="badge">${match.dealer?.revealed ? escapeHtml(match.dealer.label || "Dealer") : "Dealer upcard"}</span></div>`,
         centerMarkup: `
-          <section class="game-table blackjack-table ${isInsuranceTurn ? "insurance-pending" : ""}">
-            <div class="game-status"><span><strong>${escapeHtml(playerStatus)}</strong><small>${escapeHtml(match.lastMoveText)}</small></span><span class="badge">${match.dealer?.revealed ? escapeHtml(match.dealer.label || "Dealer") : "Dealer upcard"}</span></div>
+          <section class="game-table status-separated-table blackjack-table ${isInsuranceTurn ? "insurance-pending" : ""}">
             ${isInsuranceTurn ? renderBlackjackInsurancePrompt(state.gameActionLock) : ""}
             <div class="blackjack-dealer-zone">
               <div class="blackjack-dealer-copy"><span>Dealer</span><strong>${escapeHtml(dealerLabel)}</strong></div>
@@ -1672,9 +1672,9 @@ function renderHoldemGame() {
           modifiers: `${player.folded ? "folded" : ""} ${player.allIn ? "all-in" : ""} ${player.eliminated ? "eliminated" : ""}`,
           revealedCards: player.revealedCards || []
         })).join(""),
+        tableStatusMarkup: `<div class="game-status"><span><strong>${escapeHtml(playerStatus)}</strong><small>${holdemStreetLabel(match.phase)} · ${match.currentBet ? `${formatPoints(match.currentBet)} to match` : "table is checked"}</small></span><span class="badge">Pot ${formatPoints(match.pot)}</span></div>`,
         centerMarkup: `
-          <section class="game-table holdem-table">
-            <div class="game-status"><span><strong>${escapeHtml(playerStatus)}</strong><small>${holdemStreetLabel(match.phase)} · ${match.currentBet ? `${formatPoints(match.currentBet)} to match` : "table is checked"}</small></span><span class="badge">Pot ${formatPoints(match.pot)}</span></div>
+          <section class="game-table status-separated-table holdem-table">
             <div class="holdem-board-zone">
               <div class="holdem-board-copy"><span>Community board</span><strong>${escapeHtml(showdownDetail)}</strong></div>
               <div class="active-pile cards-pile holdem-board" aria-label="Community cards">${board.length ? board.map((card, index) => renderPlayingCard(card, index, { played: true, enter: boardIsNew })).join("") : `<div class="empty-pile"><strong>Face-down board</strong><span>Cards arrive after the first betting round.</span></div>`}</div>
@@ -1833,9 +1833,9 @@ function renderFiveCardDrawGame() {
           modifiers: `${player.folded ? "folded" : ""} ${player.allIn ? "all-in" : ""} ${player.eliminated ? "eliminated" : ""}`,
           revealedCards: player.revealedCards || []
         })).join(""),
+        tableStatusMarkup: `<div class="game-status"><span><strong>${escapeHtml(playerStatus)}</strong><small>${fiveCardDrawPhaseLabel(match.phase)} · ${match.currentBet ? `${formatPoints(match.currentBet)} to match` : match.phase === "draw" ? "replacements are private" : "table is checked"}</small></span><span class="badge">Pot ${formatPoints(match.pot)}</span></div>`,
         centerMarkup: `
-          <section class="game-table five-card-draw-table">
-            <div class="game-status"><span><strong>${escapeHtml(playerStatus)}</strong><small>${fiveCardDrawPhaseLabel(match.phase)} · ${match.currentBet ? `${formatPoints(match.currentBet)} to match` : match.phase === "draw" ? "replacements are private" : "table is checked"}</small></span><span class="badge">Pot ${formatPoints(match.pot)}</span></div>
+          <section class="game-table status-separated-table five-card-draw-table">
             <div class="five-card-draw-table-zone">
               <div class="five-card-draw-copy"><span>${tableLabel}</span><strong>${escapeHtml(showdownDetail)}</strong></div>
               <div class="five-card-draw-piles" aria-label="Draw and discard piles">
@@ -2242,10 +2242,10 @@ function renderRotatingRummyGame() {
           gameId: "rotating-rummy",
           showLastPlay: true
         })).join(""),
+        tableStatusMarkup: `<div class="game-status"><span><strong>${escapeHtml(tableStatus)}</strong><small>${escapeHtml(match.routeDeck.description)} · ${match.roundOver ? match.matchOver ? "the Route circuit is complete" : "review progress, then deal the next Route round" : match.turnStage === "draw" ? "draw from either pile" : yourPlayer?.routeComplete ? "Route is down — link cards or discard" : "lay down your Route or discard"}</small></span><span class="badge">${match.stockCount} stock</span></div>`,
         centerMarkup: `
           <div class="rummy-table-stage">
-            <section class="game-table rummy-table">
-              <div class="game-status"><span><strong>${escapeHtml(tableStatus)}</strong><small>${escapeHtml(match.routeDeck.description)} · ${match.roundOver ? match.matchOver ? "the Route circuit is complete" : "review progress, then deal the next Route round" : match.turnStage === "draw" ? "draw from either pile" : yourPlayer?.routeComplete ? "Route is down — link cards or discard" : "lay down your Route or discard"}</small></span><span class="badge">${match.stockCount} stock</span></div>
+            <section class="game-table status-separated-table rummy-table">
               <div class="rummy-pile-zone">
                 ${renderCardBack({ deckFamilyId: "rotating-rummy", context: "stock", className: "rummy-stock", ariaLabel: `${match.stockCount} cards in stock`, parts: [{ tag: "span", text: "RR" }, { tag: "b", text: match.stockCount }] })}
                 <div class="active-pile cards-pile">${match.topCard ? renderRotatingRummyCard(match.topCard, 0, { played: true, enter: pileIsNew }) : ""}</div>
@@ -2825,9 +2825,9 @@ function renderJuanGame() {
             showLastPlay: true
           });
         }).join(""),
+        tableStatusMarkup: `<div class="game-status"><span><strong>${match.roundOver ? "Match complete" : hasPrismBurstDecision ? `${escapeHtml(activePlayer?.name || "Player")} is resolving +4` : isYourTurn ? `${escapeHtml(yourPlayer?.name || "You")}, your turn` : `${escapeHtml(activePlayer?.name || "Player")} is thinking`}</strong><small>${hasPrismBurstDecision ? "Challenge it or take four" : `Stock ${match.stockCount} · match color or face`}</small></span><span class="badge">${escapeHtml(juanDeck.COLOR_NAME[match.activeColor])}</span></div>`,
         centerMarkup: `
-          <section class="game-table juan-table">
-            <div class="game-status"><span><strong>${match.roundOver ? "Match complete" : hasPrismBurstDecision ? `${escapeHtml(activePlayer?.name || "Player")} is resolving +4` : isYourTurn ? `${escapeHtml(yourPlayer?.name || "You")}, your turn` : `${escapeHtml(activePlayer?.name || "Player")} is thinking`}</strong><small>${hasPrismBurstDecision ? "Challenge it or take four" : `Stock ${match.stockCount} · match color or face`}</small></span><span class="badge">${escapeHtml(juanDeck.COLOR_NAME[match.activeColor])}</span></div>
+          <section class="game-table status-separated-table juan-table">
             <div class="juan-pile-zone">
               ${renderCardBack({ deckFamilyId: "color-action", context: "stock", className: "juan-stock", ariaLabel: `${match.stockCount} cards in stock`, parts: [{ tag: "span", text: "JUAN" }, { tag: "b", text: match.stockCount }] })}
               <div class="active-pile cards-pile">${renderJuanCard(match.topCard, 0, { played: true, enter: pileIsNew })}</div>

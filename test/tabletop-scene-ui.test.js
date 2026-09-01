@@ -62,17 +62,33 @@ test("screen-facing HUDs, seat-origin motion, responsive depth, and reduced moti
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)[\s\S]*?\.card-table-scene \.playing-card\.played\.enter/);
 });
 
-test("the shedding-game turn banner occupies the sky above lowered opponents", () => {
+test("hand-based turn banners occupy the sky above lowered opponents", () => {
   const app = read("public/app.js");
   const css = read("public/app.css");
 
   assert.match(app, /tableStatusMarkup = ""/);
   assert.match(app, /class="tabletop-status-area"/);
-  assert.match(app, /tableStatusMarkup: `<div class="game-status">/);
+  assert.equal((app.match(/tableStatusMarkup: `<div class="game-status">/g) || []).length, 6);
   assert.match(app, /class="game-table shedding-game-table"/);
+  assert.equal((app.match(/class="game-table status-separated-table/g) || []).length, 5);
   assert.match(css, /\.tabletop-status-area \{[\s\S]*?position: absolute;[\s\S]*?top: 2%;/);
   assert.match(css, /\.card-table-scene \.shedding-game-table \{[\s\S]*?grid-template-rows: 1fr;/);
+  assert.match(css, /\.card-table-scene \.game-table\.status-separated-table \{[\s\S]*?grid-template-rows: minmax\(0, 1fr\);/);
   assert.match(css, /@media \(max-width: 520px\)[\s\S]*?\.table-seat-north \{ top: 13%; \}[\s\S]*?\.table-seat-west \{ left: 14%; top: 48%; \}/);
+});
+
+test("shared table action bars follow the cards instead of covering them", () => {
+  const css = read("public/app.css");
+
+  assert.match(css, /\.standard-card-game > \.game-actions \{[\s\S]*?position: static;[\s\S]*?bottom: auto;/);
+  assert.match(css, /\.snap-action-dock \{[\s\S]*?position: fixed;/);
+});
+
+test("Five Card Draw centers a single laid-down stock beside its discard", () => {
+  const css = read("public/app.css");
+
+  assert.match(css, /\.juan-table-scene \.center-play-area,[\s\S]*?\.five-card-draw-table-scene \.center-play-area \{ top: 21%; height: 37%; \}/);
+  assert.match(css, /\.five-card-draw-table-scene \.draw-stack::before,[\s\S]*?\.five-card-draw-table-scene \.draw-stack::after \{[\s\S]*?display: none;/);
 });
 
 test("opponent seats share one camera instead of a flattened fake perspective", () => {
