@@ -62,6 +62,17 @@ test("screen-facing HUDs, seat-origin motion, responsive depth, and reduced moti
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)[\s\S]*?\.card-table-scene \.playing-card\.played\.enter/);
 });
 
+test("the shedding-game turn banner occupies the sky above lowered opponents", () => {
+  const app = read("public/app.js");
+  const css = read("public/app.css");
+
+  assert.match(app, /tableStatusMarkup = ""/);
+  assert.match(app, /class="tabletop-status-area"/);
+  assert.match(app, /tableStatusMarkup: `<div class="game-status">/);
+  assert.match(css, /\.tabletop-status-area \{[\s\S]*?position: absolute;[\s\S]*?top: 2%;/);
+  assert.match(css, /@media \(max-width: 520px\)[\s\S]*?\.table-seat-north \{ top: 13%; \}[\s\S]*?\.table-seat-west \{ left: 14%; top: 48%; \}/);
+});
+
 test("opponent seats share one camera instead of a flattened fake perspective", () => {
   const app = read("public/app.js");
   const css = read("public/app.css");

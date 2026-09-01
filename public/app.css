@@ -4853,7 +4853,7 @@ body.reduced-motion #app.shell-transition-back { animation: none !important; }
 
 .card-table-scene .table-seat-north {
   left: 50%;
-  top: 7%;
+  top: 13%;
   width: clamp(280px, 36%, 460px) !important;
   --seat-hand-shift-y: 18px;
   --seat-hand-depth: 38px;
@@ -4893,8 +4893,8 @@ body.reduced-motion #app.shell-transition-back { animation: none !important; }
   grid-template-rows: auto;
   row-gap: 0;
 }
-.card-table-scene .table-seat-west { left: 4.6%; top: 38%; }
-.card-table-scene .table-seat-east { left: 95.4%; top: 38%; }
+.card-table-scene .table-seat-west { left: 4.6%; top: 44%; }
+.card-table-scene .table-seat-east { left: 95.4%; top: 44%; }
 .card-table-scene .table-seat-west-near { left: 4.6%; top: 60%; }
 .card-table-scene .table-seat-east-near { left: 95.4%; top: 60%; }
 .card-table-scene :is(.table-seat-west, .table-seat-east, .table-seat-west-near, .table-seat-east-near) .player-hud {
@@ -5032,6 +5032,17 @@ body.reduced-motion #app.shell-transition-back { animation: none !important; }
   place-items: stretch;
 }
 
+/* Thirteen and 3s & 7s use the open sky above the north player for the turn
+   banner. Keeping it outside the center play area lets the opponent move toward
+   the table without dragging the played pile away from the felt. */
+.tabletop-status-area {
+  position: absolute;
+  z-index: 60;
+  left: 22%;
+  top: 2%;
+  width: 56%;
+}
+
 .card-table-scene .game-table {
   width: 100%;
   min-height: 0;
@@ -5164,14 +5175,14 @@ body.reduced-motion #app.shell-transition-back { animation: none !important; }
   .card-table-depth { inset: 0 -5% 18%; }
   .card-table-surface { inset: 1% 1% 0; border-width: 10px; transform: rotateX(46deg) translateZ(-10px); }
   .card-table-scene .table-seat { width: clamp(150px, 36%, 220px); grid-template-rows: auto 82px; }
-  .card-table-scene .table-seat-north { top: 3%; width: min(62%, 340px) !important; }
+  .card-table-scene .table-seat-north { top: 12%; width: min(62%, 340px) !important; }
   .card-table-scene .table-seat-north-west { left: 28%; top: 6%; }
   .card-table-scene .table-seat-north-east { left: 72%; top: 6%; }
   /* A narrower scene cannot spare a full gutter, so the name tucks in far enough
      to clear the scene's own edge rather than being sliced by it. */
   .card-table-scene :is(.table-seat-west, .table-seat-east, .table-seat-west-near, .table-seat-east-near) { width: clamp(70px, 12%, 104px); row-gap: 0; }
-  .card-table-scene .table-seat-west { left: 7%; top: 40%; }
-  .card-table-scene .table-seat-east { left: 93%; top: 40%; }
+  .card-table-scene .table-seat-west { left: 7%; top: 46%; }
+  .card-table-scene .table-seat-east { left: 93%; top: 46%; }
   .card-table-scene .table-seat-north-west { --seat-hand-depth: 34px; --seat-hand-yaw: 45deg; --seat-hand-scale: .72; }
   .card-table-scene .table-seat-north-east { --seat-hand-depth: 34px; --seat-hand-yaw: -45deg; --seat-hand-scale: .72; }
   .card-table-scene .table-seat-west-near { left: 7%; top: 62%; }
@@ -5183,6 +5194,7 @@ body.reduced-motion #app.shell-transition-back { animation: none !important; }
   .seat-played-card { display: none; }
   .opponent-hand-wrap, .opponent-hand { height: 82px; }
   .center-play-area { left: 15%; top: 24%; width: 70%; height: 30%; }
+  .tabletop-status-area { left: 15%; top: 2%; width: 70%; }
   .card-table-scene .game-status small { font-size: .6rem; }
   .card-table-scene .local-player-hud { bottom: 218px; }
   .card-table-scene .physical-hand { left: 0; right: 0; min-height: 218px; padding-inline: 6px; }
@@ -5203,15 +5215,16 @@ body.reduced-motion #app.shell-transition-back { animation: none !important; }
   .card-table-scene { min-height: clamp(520px, 78svh, 620px); }
   .card-table-depth { inset-inline: -8%; }
   .card-table-surface { transform: rotateX(44deg) translateZ(-10px); }
-  .card-table-scene .table-seat-north { top: 7%; }
+  .card-table-scene .table-seat-north { top: 13%; }
   /* At phone width the felt runs edge to edge and there is no gutter left, so
      the name sits at the table's shoulder, clear of the status bar and the pile. */
   .card-table-scene :is(.table-seat-west, .table-seat-east, .table-seat-west-near, .table-seat-east-near) { width: clamp(66px, 24%, 92px); }
-  .card-table-scene .table-seat-west { left: 14%; top: 42%; }
-  .card-table-scene .table-seat-east { left: 86%; top: 42%; }
+  .card-table-scene .table-seat-west { left: 14%; top: 48%; }
+  .card-table-scene .table-seat-east { left: 86%; top: 48%; }
   .card-table-scene .table-seat-west-near { left: 14%; top: 52%; }
   .card-table-scene .table-seat-east-near { left: 86%; top: 52%; }
   .center-play-area { top: 25%; height: 28%; }
+  .tabletop-status-area { top: 1.5%; }
   .card-table-scene .active-pile .empty-pile span { display: none; }
   .card-table-scene .local-player-hud { bottom: 205px; }
   .card-table-scene .physical-hand { min-height: 205px; }
@@ -5226,10 +5239,11 @@ body.reduced-motion #app.shell-transition-back { animation: none !important; }
   .card-table-depth { inset: 0 -2% 15%; }
   .card-table-surface { inset: 1% 2% 0; transform: rotateX(49deg) translateZ(-8px); }
   .center-play-area { left: 27%; top: 21%; width: 46%; height: 34%; }
+  .tabletop-status-area { left: 27%; top: 1%; width: 46%; }
   .card-table-scene .table-seat { width: 160px; grid-template-rows: auto 60px; }
-  .card-table-scene .table-seat-north { top: 0; width: min(38%, 300px) !important; }
+  .card-table-scene .table-seat-north { top: 10%; width: min(38%, 300px) !important; }
   .card-table-scene :is(.table-seat-north-west, .table-seat-north-east) { top: 2%; }
-  .card-table-scene :is(.table-seat-west, .table-seat-east) { top: 24%; }
+  .card-table-scene :is(.table-seat-west, .table-seat-east) { top: 32%; }
   .card-table-scene :is(.table-seat-west-near, .table-seat-east-near) { top: 43%; }
   .opponent-hand-wrap, .opponent-hand { height: 60px; }
   .card-table-scene .local-player-hud { bottom: 142px; }

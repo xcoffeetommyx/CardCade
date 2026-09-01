@@ -1231,6 +1231,7 @@ function renderTableScene({
   viewerSeat,
   opponentsMarkup,
   centerMarkup,
+  tableStatusMarkup = "",
   handMarkup = "",
   localDetail = "",
   localActive = false,
@@ -1244,6 +1245,7 @@ function renderTableScene({
   return `
     <div class="card-table-scene ${className}" data-seat-count="${match.players.length}" data-opponent-count="${Math.max(0, match.players.length - 1)}" data-play-origin="${escapeHtml(playOrigin)}">
       <div class="card-table-depth" aria-hidden="true"><div class="card-table-surface"><i></i></div></div>
+      ${tableStatusMarkup ? `<div class="tabletop-status-area">${tableStatusMarkup}</div>` : ""}
       <div class="game-opponents table-seats-layer" aria-label="Opponents around the table">${opponentsMarkup}</div>
       <div class="center-play-area">${centerMarkup}</div>
       ${renderLocalPlayerHud(localPlayer, { detail: localDetail, active: localActive })}
@@ -1924,9 +1926,9 @@ function renderStandardGame() {
             showLastPlay: true
           });
         }).join(""),
+        tableStatusMarkup: `<div class="game-status"><span><strong>${match.roundOver ? match.matchOver ? "Match complete" : "Round complete" : isYourTurn ? `${escapeHtml(yourPlayer?.name || "You")}, your turn` : `${escapeHtml(activePlayer?.name || "Player")} is thinking`}</strong><small>${tableCount} · ${lead ? `${escapeHtml(lead.playerName)} controls the pile` : "open lead"}</small></span><span class="badge">${lead ? escapeHtml(lead.label) : "Open lead"}</span></div>`,
         centerMarkup: `
           <section class="game-table">
-            <div class="game-status"><span><strong>${match.roundOver ? match.matchOver ? "Match complete" : "Round complete" : isYourTurn ? `${escapeHtml(yourPlayer?.name || "You")}, your turn` : `${escapeHtml(activePlayer?.name || "Player")} is thinking`}</strong><small>${tableCount} · ${lead ? `${escapeHtml(lead.playerName)} controls the pile` : "open lead"}</small></span><span class="badge">${lead ? escapeHtml(lead.label) : "Open lead"}</span></div>
             <div class="active-pile ${lead ? "cards-pile" : ""}">${lead ? lead.cards.map((card, index) => renderPlayingCard(card, index, { played: true, enter: pileIsNew })).join("") : `<div class="empty-pile"><strong>No active pile</strong><span>${match.openingRequired ? `Lead must include ${standardCardLabel(match.openingCardId)}.` : "Lead with any legal combination."}</span></div>`}</div>
           </section>`,
         handMarkup: `
