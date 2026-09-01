@@ -3298,6 +3298,8 @@ function layoutOpponentHands() {
   app.querySelectorAll("[data-opponent-hand]").forEach((hand) => {
     const cards = [...hand.querySelectorAll(".opponent-card")];
     if (!cards.length) return;
+    const seatSlot = hand.closest("[data-table-seat]")?.dataset.tableSeat || "";
+    const sideSeat = seatSlot === "west" || seatSlot === "east";
     const containerWidth = hand.clientWidth;
     const cardWidth = cards[0].offsetWidth;
     const cardHeight = cards[0].offsetHeight || cardWidth * 1.42;
@@ -3317,10 +3319,27 @@ function layoutOpponentHands() {
     hand.dataset.density = layout.density;
     cards.forEach((card, index) => {
       const position = layout.cards[index];
+      const progress = cards.length <= 1 ? 0.5 : index / (cards.length - 1);
+      const nearBias = seatSlot === "west"
+        ? 0.5 - progress
+        : seatSlot === "east"
+          ? progress - 0.5
+          : 0;
+      const mirroredDrift = sideSeat
+        ? (progress - 0.5) * (seatSlot === "west" ? 4 : -4)
+        : 0;
       card.style.setProperty("--opponent-x", `${position.x}px`);
       card.style.setProperty("--opponent-y", `${position.y}px`);
       card.style.setProperty("--opponent-rotation", `${position.rotation}deg`);
-      card.style.zIndex = String(position.zIndex);
+      if (sideSeat) {
+        card.style.setProperty("--opponent-perspective-x", `${mirroredDrift}px`);
+        card.style.setProperty("--opponent-perspective-y", `${nearBias * 6}px`);
+        card.style.setProperty("--opponent-perspective-z", `${nearBias * 18}px`);
+        card.style.setProperty("--opponent-perspective-scale", `${1 + nearBias * 0.08}`);
+        card.style.zIndex = String(seatSlot === "west" ? cards.length - index : index + 1);
+      } else {
+        card.style.zIndex = String(position.zIndex);
+      }
     });
   });
 }

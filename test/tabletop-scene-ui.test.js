@@ -62,7 +62,7 @@ test("screen-facing HUDs, seat-origin motion, responsive depth, and reduced moti
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)[\s\S]*?\.card-table-scene \.playing-card\.played\.enter/);
 });
 
-test("opponent seats preserve one fan and orient its wrapper toward the table", () => {
+test("opponent seats preserve one fan and use readable fake perspective toward the table", () => {
   const app = read("public/app.js");
   const css = read("public/app.css");
 
@@ -71,8 +71,11 @@ test("opponent seats preserve one fan and orient its wrapper toward the table", 
   assert.match(css, /\.opponent-hand \{[\s\S]*?rotateZ\(var\(--seat-hand-rotate-z\)\)[\s\S]*?rotateY\(var\(--seat-hand-rotate-y\)\)/);
   assert.match(css, /\.table-seat-north \{[\s\S]*?width: clamp\(280px, 36%, 460px\)/);
   assert.match(css, /\.table-seat-north \{[\s\S]*?--seat-hand-depth: 38px[\s\S]*?--seat-hand-rotate-x: -8deg/);
-  assert.match(css, /\.table-seat-west \{[\s\S]*?--seat-hand-rotate-z: 0deg[\s\S]*?--seat-hand-rotate-y: -78deg[\s\S]*?--seat-hand-scale-x: 1\.12/);
-  assert.match(css, /\.table-seat-east \{[\s\S]*?--seat-hand-rotate-z: 0deg[\s\S]*?--seat-hand-rotate-y: 78deg[\s\S]*?--seat-hand-scale-x: 1\.12/);
+  assert.match(css, /\.table-seat-west \{[\s\S]*?--seat-hand-rotate-z: 8deg[\s\S]*?--seat-hand-rotate-y: -24deg[\s\S]*?--seat-hand-scale-x: \.72/);
+  assert.match(css, /\.table-seat-east \{[\s\S]*?--seat-hand-rotate-z: -8deg[\s\S]*?--seat-hand-rotate-y: 24deg[\s\S]*?--seat-hand-scale-x: \.72/);
+  assert.match(css, /:is\(\.table-seat-west, \.table-seat-east\) \.opponent-card \{[\s\S]*?--opponent-perspective-z: 0px[\s\S]*?scale\(var\(--opponent-perspective-scale\)\)/);
+  assert.match(app, /const nearBias = seatSlot === "west"[\s\S]*?--opponent-perspective-z[\s\S]*?nearBias \* 18/);
+  assert.match(app, /if \(sideSeat\)[\s\S]*?seatSlot === "west" \? cards\.length - index : index \+ 1/);
   assert.doesNotMatch(css, /--seat-hand-angle:\s*-?92deg/);
   assert.doesNotMatch(css, /--seat-hand-rotate-z:\s*-?(?:3[2-9]|[4-9]\d)deg/);
   assert.match(css, /filter: drop-shadow\(var\(--seat-hand-shadow-x\) var\(--seat-hand-shadow-y\) 7px/);
