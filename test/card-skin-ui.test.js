@@ -211,3 +211,25 @@ test("Legacy Mode restores the original 3s & 7s and Thirteen cards without becom
   const saveFunction = app.match(/function saveAppearancePreferences[\s\S]*?\n}/)?.[0] || "";
   assert.doesNotMatch(saveFunction, /sendRoom|socket|api\(/);
 });
+
+test("every skin the picker offers actually paints a card back", () => {
+  const skins = read("shared/card-skins.js");
+  const css = read("public/app.css");
+
+  // The per-family tests above list the alternate skins by hand, so the three
+  // default skins were never covered -- which is how JUAN's default shipped with
+  // no back rule at all and its face-down cards rendered as transparent boxes
+  // with only a border. Derive the list from the registry so a default cannot be
+  // skipped again.
+  const classNames = [...skins.matchAll(/className: "(card-skin-[a-z0-9-]+)"/g)].map((match) => match[1]);
+  assert.ok(classNames.length >= 6, `found ${classNames.length} skins`);
+  for (const className of classNames) {
+    assert.ok(css.includes(`.card-back.${className}`), `${className} styles .card-back`);
+  }
+
+  const defaults = [...skins.matchAll(/"[a-z0-9-]+": "([a-z0-9-]+)"/g)].map((match) => match[1]);
+  for (const id of ["cardcade-pixel", "juan-minimal", "rotating-rummy-blackout"]) {
+    assert.ok(defaults.includes(id), `${id} is still a default skin`);
+    assert.ok(css.includes(`.card-back.card-skin-${id}`), `default skin ${id} styles .card-back`);
+  }
+});
