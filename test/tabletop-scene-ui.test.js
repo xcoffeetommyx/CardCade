@@ -199,6 +199,25 @@ test("the side fan keeps its middle edge-on and cannot slice through itself", as
     }
   }
 
+  // West and east already mirror through their seat yaw. Mirroring the bow on
+  // top of that double-negates it, and the pair ends up showing opposite faces
+  // at the same end -- one hand leading with its back, the other with its leaf.
+  // Read each hand from the card nearest the camera outward; they must agree.
+  const nearestFirst = (leadsWithFirstCard, yaw) => {
+    const layout = cardPresentation.calculateSideFanLayout({
+      count: 13, cardWidth, cardHeight: 82, leadsWithFirstCard
+    });
+    return layout.cards
+      .map((card) => ({ zIndex: card.zIndex, turned: Math.abs(yaw + card.bow) }))
+      .sort((a, b) => b.zIndex - a.zIndex)
+      .map((card) => Math.round(card.turned));
+  };
+  assert.deepEqual(
+    nearestFirst(true, 90),
+    nearestFirst(false, -90),
+    "west and east must mirror when read from the nearest card outward"
+  );
+
   // A real hand splits: some cards still show their printed back at an angle,
   // some have tipped past edge-on to a blank leaf. Losing either side is what
   // makes the fan read as one flat sheet.

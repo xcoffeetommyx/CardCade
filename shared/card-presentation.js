@@ -198,9 +198,11 @@
       : Math.min(Math.max(0, Number(bowDegrees) || 0), Math.max(0, Number(bowPerCard) || 0) * (safeCount - 1));
     const easing = positiveNumber(bowEasing, 3.2);
     const baseThickness = Math.max(0, Number(stackThickness) || 0);
-    // Mirrored seats rock their fans in opposite directions so the pair reads as
-    // two players facing each other rather than two copies of one hand.
-    const bowSign = leadsWithFirstCard ? 1 : -1;
+    // The bow is NOT mirrored here. West and east already mirror through their
+    // seat yaw, which points one hand's backs east and the other's west, so
+    // flipping the bow as well double-negates it: the two seats end up showing
+    // opposite faces at the same end, and the pair stops reading as a mirror.
+    // Local bow, mirrored yaw, mirrored result.
 
     const geometry = Array.from({ length: safeCount }, (_, index) => {
       const normalized = safeCount === 1 ? 0 : (index - (safeCount - 1) / 2) / ((safeCount - 1) / 2);
@@ -211,7 +213,7 @@
         index,
         angle,
         rotation: angle,
-        bow: bowSign * Math.sign(normalized) * bowLimit * Math.pow(Math.abs(normalized), easing),
+        bow: Math.sign(normalized) * bowLimit * Math.pow(Math.abs(normalized), easing),
         x: radius * Math.sin(radians),
         y: radius * (1 - Math.cos(radians)),
         zIndex: stackOrder,
