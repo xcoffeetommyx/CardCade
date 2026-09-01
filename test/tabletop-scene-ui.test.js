@@ -62,23 +62,58 @@ test("screen-facing HUDs, seat-origin motion, responsive depth, and reduced moti
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)[\s\S]*?\.card-table-scene \.playing-card\.played\.enter/);
 });
 
-test("opponent seats preserve one fan and use readable fake perspective toward the table", () => {
+test("opponent seats share one camera instead of a flattened fake perspective", () => {
   const app = read("public/app.js");
   const css = read("public/app.css");
 
   assert.match(css, /\.card-table-scene \.table-seat \{[\s\S]*?grid-template-columns: minmax\(0, 1fr\)/);
-  assert.match(css, /\.card-table-scene \.table-seat \{[\s\S]*?--seat-hand-depth: 26px[\s\S]*?--seat-hand-rotate-z: 0deg[\s\S]*?--seat-hand-rotate-x: -6deg/);
-  assert.match(css, /\.opponent-hand \{[\s\S]*?rotateZ\(var\(--seat-hand-rotate-z\)\)[\s\S]*?rotateY\(var\(--seat-hand-rotate-y\)\)/);
+
+  // The scene's perspective only reaches a seat if every element between them
+  // keeps the 3D context open. .table-seats-layer used to default to flat,
+  // which silently collapsed every opponent hand into a 2D squash.
+  assert.match(css, /\.card-table-scene \.table-seats-layer \{[\s\S]*?transform-style: preserve-3d/);
+  const ruleBody = (selector) => {
+    const at = css.indexOf(selector);
+    assert.notEqual(at, -1, `${selector} exists`);
+    return css.slice(at, css.indexOf("}", at));
+  };
+  for (const selector of [
+    ".card-table-scene .table-seat {",
+    ".opponent-hand-wrap {",
+    ".opponent-hand {"
+  ]) {
+    assert.match(ruleBody(selector), /transform-style: preserve-3d/, selector);
+  }
+
+  // A filter forces transform-style to flat, so the hand plane must not carry
+  // one. Its shadow rides on the cards instead.
+  assert.doesNotMatch(ruleBody(".opponent-hand {"), /filter:/);
+  assert.match(css, /\.opponent-card \{[\s\S]*?box-shadow:[\s\S]*?var\(--seat-hand-shadow-x/);
+
+  // Yaw turns a hand to face across the table, so west and east must be exact
+  // mirrors. Matching signs is the bug that made both side seats look wrong.
+  assert.match(css, /\.card-table-scene \.table-seat \{[\s\S]*?--seat-hand-yaw: 0deg[\s\S]*?--seat-hand-pitch: -8deg[\s\S]*?--seat-hand-roll: 0deg/);
+  assert.match(css, /\.opponent-hand \{[\s\S]*?rotateY\(var\(--seat-hand-yaw\)\)[\s\S]*?rotateX\(var\(--seat-hand-pitch\)\)[\s\S]*?rotateZ\(var\(--seat-hand-roll\)\)/);
+  for (const [west, east] of [["west", "east"], ["west-near", "east-near"], ["north-west", "north-east"]]) {
+    const yawOf = (slot) => {
+      const match = ruleBody(`.card-table-scene .table-seat-${slot} {`).match(/--seat-hand-yaw: (-?[\d.]+)deg/);
+      assert.ok(match, `${slot} declares a yaw`);
+      return Number(match[1]);
+    };
+    assert.ok(yawOf(west) > 0, `${west} yaws toward the table`);
+    assert.equal(yawOf(east), -yawOf(west), `${east} mirrors ${west}`);
+  }
   assert.match(css, /\.table-seat-north \{[\s\S]*?width: clamp\(280px, 36%, 460px\)/);
-  assert.match(css, /\.table-seat-north \{[\s\S]*?--seat-hand-depth: 38px[\s\S]*?--seat-hand-rotate-x: -8deg/);
-  assert.match(css, /\.table-seat-west \{[\s\S]*?--seat-hand-rotate-z: 8deg[\s\S]*?--seat-hand-rotate-y: -24deg[\s\S]*?--seat-hand-scale-x: \.72/);
-  assert.match(css, /\.table-seat-east \{[\s\S]*?--seat-hand-rotate-z: -8deg[\s\S]*?--seat-hand-rotate-y: 24deg[\s\S]*?--seat-hand-scale-x: \.72/);
-  assert.match(css, /:is\(\.table-seat-west, \.table-seat-east\) \.opponent-card \{[\s\S]*?--opponent-perspective-z: 0px[\s\S]*?scale\(var\(--opponent-perspective-scale\)\)/);
-  assert.match(app, /const nearBias = seatSlot === "west"[\s\S]*?--opponent-perspective-z[\s\S]*?nearBias \* 18/);
-  assert.match(app, /if \(sideSeat\)[\s\S]*?seatSlot === "west" \? cards\.length - index : index \+ 1/);
-  assert.doesNotMatch(css, /--seat-hand-angle:\s*-?92deg/);
-  assert.doesNotMatch(css, /--seat-hand-rotate-z:\s*-?(?:3[2-9]|[4-9]\d)deg/);
-  assert.match(css, /filter: drop-shadow\(var\(--seat-hand-shadow-x\) var\(--seat-hand-shadow-y\) 7px/);
+
+  // The hand-tuned per-card fake perspective is gone; the camera does that work
+  // and the cards only carry real stack thickness.
+  assert.doesNotMatch(css, /--opponent-perspective/);
+  assert.doesNotMatch(app, /--opponent-perspective/);
+  assert.doesNotMatch(css, /--seat-hand-scale-x|--seat-hand-rotate-y/);
+  assert.match(css, /\.opponent-card \{[\s\S]*?--opponent-z: 0px/);
+  assert.match(app, /--opponent-z.*CARD_STACK_THICKNESS/);
+  assert.match(app, /const stackOrder = leadsWithFirstCard \? cards\.length - index : index \+ 1/);
+
   assert.match(css, /data-play-origin="west"[\s\S]*?--play-origin-x: -340px/);
   assert.match(css, /data-play-origin="east"[\s\S]*?--play-origin-x: 340px/);
   assert.equal((app.match(/cardPresentation\.calculateFanLayout\(\{/g) || []).length, 3);

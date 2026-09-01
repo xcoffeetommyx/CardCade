@@ -4761,18 +4761,21 @@ body.reduced-motion #app.shell-transition-back { animation: none !important; }
   z-index: 45;
   inset: 0;
   display: block;
+  transform-style: preserve-3d;
   pointer-events: none;
 }
 
 .card-table-scene .table-seat {
+  /* One shared camera: the scene supplies perspective, every seat is a plane
+     placed in that same space. --seat-hand-yaw turns a hand to face across the
+     table, so a seat's sign follows where its player sits, not a guess. */
   --seat-hand-shift-x: 0px;
   --seat-hand-shift-y: 0px;
   --seat-hand-depth: 26px;
-  --seat-hand-rotate-z: 0deg;
-  --seat-hand-rotate-x: -6deg;
-  --seat-hand-rotate-y: 0deg;
-  --seat-hand-scale-x: .9;
-  --seat-hand-scale-y: .9;
+  --seat-hand-yaw: 0deg;
+  --seat-hand-pitch: -8deg;
+  --seat-hand-roll: 0deg;
+  --seat-hand-scale: .9;
   --seat-hand-origin-x: 50%;
   --seat-hand-origin-y: 84%;
   --seat-hand-shadow-x: 0px;
@@ -4811,74 +4814,82 @@ body.reduced-motion #app.shell-transition-back { animation: none !important; }
   width: clamp(280px, 36%, 460px) !important;
   --seat-hand-shift-y: 18px;
   --seat-hand-depth: 38px;
-  --seat-hand-rotate-x: -8deg;
-  --seat-hand-scale-x: .94;
-  --seat-hand-scale-y: .9;
+  --seat-hand-pitch: -8deg;
+  --seat-hand-scale: .94;
   --seat-hand-origin-y: 92%;
 }
 .card-table-scene .table-seat-north-west {
-  left: 29%;
-  top: 9%;
-  --seat-hand-rotate-z: 4deg;
-  --seat-hand-rotate-y: -20deg;
-  --seat-hand-scale-x: .76;
-  --seat-hand-scale-y: .78;
+  left: 27%;
+  top: 10%;
+  --seat-hand-shift-x: 6px;
+  --seat-hand-depth: 46px;
+  --seat-hand-yaw: 30deg;
+  --seat-hand-pitch: -10deg;
+  --seat-hand-roll: 4deg;
+  --seat-hand-scale: .84;
+  --seat-hand-shadow-x: 6px;
 }
 .card-table-scene .table-seat-north-east {
-  left: 71%;
-  top: 9%;
-  --seat-hand-rotate-z: -4deg;
-  --seat-hand-rotate-y: 20deg;
-  --seat-hand-scale-x: .76;
-  --seat-hand-scale-y: .78;
+  left: 73%;
+  top: 10%;
+  --seat-hand-shift-x: -6px;
+  --seat-hand-depth: 46px;
+  --seat-hand-yaw: -30deg;
+  --seat-hand-pitch: -10deg;
+  --seat-hand-roll: -4deg;
+  --seat-hand-scale: .84;
+  --seat-hand-shadow-x: -6px;
+}
+.card-table-scene :is(.table-seat-west, .table-seat-east, .table-seat-west-near, .table-seat-east-near) {
+  width: clamp(160px, 19%, 250px);
 }
 .card-table-scene .table-seat-west {
-  left: 10%;
-  top: 28%;
-  --seat-hand-shift-x: 14px;
-  --seat-hand-depth: 34px;
-  --seat-hand-rotate-z: 8deg;
-  --seat-hand-rotate-x: -6deg;
-  --seat-hand-rotate-y: -24deg;
-  --seat-hand-scale-x: .72;
-  --seat-hand-scale-y: .86;
-  --seat-hand-origin-x: 44%;
-  --seat-hand-shadow-x: 5px;
+  left: 15%;
+  top: 26%;
+  --seat-hand-shift-x: 10px;
+  --seat-hand-depth: 74px;
+  --seat-hand-yaw: 52deg;
+  --seat-hand-pitch: -13deg;
+  --seat-hand-roll: 7deg;
+  --seat-hand-scale: .86;
+  --seat-hand-origin-x: 42%;
+  --seat-hand-shadow-x: 7px;
 }
 .card-table-scene .table-seat-east {
-  left: 90%;
-  top: 28%;
-  --seat-hand-shift-x: -14px;
-  --seat-hand-depth: 34px;
-  --seat-hand-rotate-z: -8deg;
-  --seat-hand-rotate-x: -6deg;
-  --seat-hand-rotate-y: 24deg;
-  --seat-hand-scale-x: .72;
-  --seat-hand-scale-y: .86;
-  --seat-hand-origin-x: 56%;
-  --seat-hand-shadow-x: -5px;
+  left: 85%;
+  top: 26%;
+  --seat-hand-shift-x: -10px;
+  --seat-hand-depth: 74px;
+  --seat-hand-yaw: -52deg;
+  --seat-hand-pitch: -13deg;
+  --seat-hand-roll: -7deg;
+  --seat-hand-scale: .86;
+  --seat-hand-origin-x: 58%;
+  --seat-hand-shadow-x: -7px;
 }
 .card-table-scene .table-seat-west-near {
-  left: 8%;
-  top: 49%;
-  --seat-hand-shift-x: 20px;
-  --seat-hand-depth: 30px;
-  --seat-hand-rotate-z: 9deg;
-  --seat-hand-rotate-y: -30deg;
-  --seat-hand-scale-x: .64;
-  --seat-hand-scale-y: .72;
+  left: 12%;
+  top: 46%;
+  --seat-hand-shift-x: 16px;
+  --seat-hand-depth: 104px;
+  --seat-hand-yaw: 62deg;
+  --seat-hand-pitch: -15deg;
+  --seat-hand-roll: 9deg;
+  --seat-hand-scale: .8;
   --seat-hand-origin-x: 38%;
+  --seat-hand-shadow-x: 8px;
 }
 .card-table-scene .table-seat-east-near {
-  left: 92%;
-  top: 49%;
-  --seat-hand-shift-x: -20px;
-  --seat-hand-depth: 30px;
-  --seat-hand-rotate-z: -9deg;
-  --seat-hand-rotate-y: 30deg;
-  --seat-hand-scale-x: .64;
-  --seat-hand-scale-y: .72;
+  left: 88%;
+  top: 46%;
+  --seat-hand-shift-x: -16px;
+  --seat-hand-depth: 104px;
+  --seat-hand-yaw: -62deg;
+  --seat-hand-pitch: -15deg;
+  --seat-hand-roll: -9deg;
+  --seat-hand-scale: .8;
   --seat-hand-origin-x: 62%;
+  --seat-hand-shadow-x: -8px;
 }
 
 .card-table-scene .player-hud {
@@ -4937,25 +4948,19 @@ body.reduced-motion #app.shell-transition-back { animation: none !important; }
   height: 104px;
   transform:
     translate3d(var(--seat-hand-shift-x), var(--seat-hand-shift-y), var(--seat-hand-depth))
-    rotateZ(var(--seat-hand-rotate-z))
-    rotateX(var(--seat-hand-rotate-x))
-    rotateY(var(--seat-hand-rotate-y))
-    scale(var(--seat-hand-scale-x), var(--seat-hand-scale-y));
+    rotateY(var(--seat-hand-yaw))
+    rotateX(var(--seat-hand-pitch))
+    rotateZ(var(--seat-hand-roll))
+    scale(var(--seat-hand-scale));
   transform-origin: var(--seat-hand-origin-x) var(--seat-hand-origin-y);
   transform-style: preserve-3d;
-  filter: drop-shadow(var(--seat-hand-shadow-x) var(--seat-hand-shadow-y) 7px rgba(0, 0, 0, .44));
-  transition: transform 180ms ease, filter 180ms ease;
-}
-
-.table-seat.active .opponent-hand {
-  filter:
-    drop-shadow(var(--seat-hand-shadow-x) var(--seat-hand-shadow-y) 7px rgba(0, 0, 0, .44))
-    drop-shadow(0 0 9px rgba(84, 223, 177, .35));
+  transition: transform 180ms ease;
 }
 
 .opponent-card {
   --opponent-x: 0px;
   --opponent-y: 0px;
+  --opponent-z: 0px;
   --opponent-rotation: 0deg;
   position: absolute !important;
   left: 50% !important;
@@ -4968,27 +4973,23 @@ body.reduced-motion #app.shell-transition-back { animation: none !important; }
   margin: 0 !important;
   border-width: 2px;
   border-radius: clamp(4px, .6vw, 7px);
-  box-shadow: 3px 4px 0 rgba(0, 0, 0, .42), inset 0 0 0 1px rgba(255, 255, 255, .1);
-  transform: translate3d(calc(-50% + var(--opponent-x)), var(--opponent-y), 0) rotate(var(--opponent-rotation)) !important;
+  box-shadow:
+    var(--seat-hand-shadow-x, 0px) var(--seat-hand-shadow-y, 12px) 9px rgba(0, 0, 0, .34),
+    3px 4px 0 rgba(0, 0, 0, .42),
+    inset 0 0 0 1px rgba(255, 255, 255, .1);
+  transform: translate3d(calc(-50% + var(--opponent-x)), var(--opponent-y), var(--opponent-z)) rotate(var(--opponent-rotation)) !important;
   transform-origin: 50% 120%;
   transition: none !important;
   pointer-events: none;
-  contain: layout paint;
+  contain: layout;
 }
 
-.card-table-scene :is(.table-seat-west, .table-seat-east) .opponent-card {
-  --opponent-perspective-x: 0px;
-  --opponent-perspective-y: 0px;
-  --opponent-perspective-z: 0px;
-  --opponent-perspective-scale: 1;
-  transform:
-    translate3d(
-      calc(-50% + var(--opponent-x) + var(--opponent-perspective-x)),
-      calc(var(--opponent-y) + var(--opponent-perspective-y)),
-      var(--opponent-perspective-z)
-    )
-    rotate(var(--opponent-rotation))
-    scale(var(--opponent-perspective-scale)) !important;
+.table-seat.active .opponent-card {
+  box-shadow:
+    var(--seat-hand-shadow-x, 0px) var(--seat-hand-shadow-y, 12px) 9px rgba(0, 0, 0, .34),
+    3px 4px 0 rgba(0, 0, 0, .42),
+    0 0 10px rgba(84, 223, 177, .38),
+    inset 0 0 0 1px rgba(255, 255, 255, .1);
 }
 
 .opponent-card.playing-card .card-corner strong { font-size: 18cqh; }
@@ -5104,8 +5105,13 @@ body.reduced-motion #app.shell-transition-back { animation: none !important; }
   .card-table-scene .table-seat-north { top: 3%; width: min(62%, 340px) !important; }
   .card-table-scene .table-seat-north-west { left: 28%; top: 6%; }
   .card-table-scene .table-seat-north-east { left: 72%; top: 6%; }
-  .card-table-scene .table-seat-west { left: 5%; top: 28%; --seat-hand-rotate-z: 7deg; --seat-hand-rotate-y: -22deg; --seat-hand-scale-x: .6; --seat-hand-scale-y: .82; }
-  .card-table-scene .table-seat-east { left: 95%; top: 28%; --seat-hand-rotate-z: -7deg; --seat-hand-rotate-y: 22deg; --seat-hand-scale-x: .6; --seat-hand-scale-y: .82; }
+  .card-table-scene :is(.table-seat-west, .table-seat-east, .table-seat-west-near, .table-seat-east-near) { width: clamp(118px, 30%, 175px); }
+  .card-table-scene .table-seat-west { left: 14%; top: 26%; --seat-hand-depth: 52px; --seat-hand-yaw: 46deg; --seat-hand-roll: 7deg; --seat-hand-scale: .78; }
+  .card-table-scene .table-seat-east { left: 86%; top: 26%; --seat-hand-depth: 52px; --seat-hand-yaw: -46deg; --seat-hand-roll: -7deg; --seat-hand-scale: .78; }
+  .card-table-scene .table-seat-north-west { --seat-hand-depth: 34px; --seat-hand-yaw: 26deg; --seat-hand-scale: .72; }
+  .card-table-scene .table-seat-north-east { --seat-hand-depth: 34px; --seat-hand-yaw: -26deg; --seat-hand-scale: .72; }
+  .card-table-scene .table-seat-west-near { --seat-hand-depth: 72px; --seat-hand-yaw: 56deg; --seat-hand-scale: .64; }
+  .card-table-scene .table-seat-east-near { --seat-hand-depth: 72px; --seat-hand-yaw: -56deg; --seat-hand-scale: .64; }
   .card-table-scene .table-seat-west-near { left: 5%; top: 47%; }
   .card-table-scene .table-seat-east-near { left: 95%; top: 47%; }
   .card-table-scene .player-hud { min-height: 24px; padding: 3px 5px; gap: 3px; }
@@ -5136,8 +5142,9 @@ body.reduced-motion #app.shell-transition-back { animation: none !important; }
   .card-table-depth { inset-inline: -8%; }
   .card-table-surface { transform: rotateX(44deg) translateZ(-10px); }
   .card-table-scene .table-seat-north { top: 7%; }
-  .card-table-scene .table-seat-west { left: 2%; top: 29%; --seat-hand-shift-x: 22px; --seat-hand-rotate-z: 6deg; --seat-hand-rotate-y: -18deg; --seat-hand-scale-x: .5; --seat-hand-scale-y: .78; }
-  .card-table-scene .table-seat-east { left: 98%; top: 29%; --seat-hand-shift-x: -22px; --seat-hand-rotate-z: -6deg; --seat-hand-rotate-y: 18deg; --seat-hand-scale-x: .5; --seat-hand-scale-y: .78; }
+  .card-table-scene :is(.table-seat-west, .table-seat-east, .table-seat-west-near, .table-seat-east-near) { width: clamp(96px, 30%, 130px); }
+  .card-table-scene .table-seat-west { left: 16%; top: 27%; --seat-hand-shift-x: 4px; --seat-hand-depth: 40px; --seat-hand-yaw: 40deg; --seat-hand-roll: 6deg; --seat-hand-scale: .74; }
+  .card-table-scene .table-seat-east { left: 84%; top: 27%; --seat-hand-shift-x: -4px; --seat-hand-depth: 40px; --seat-hand-yaw: -40deg; --seat-hand-roll: -6deg; --seat-hand-scale: .74; }
   .card-table-scene .table-seat-west-near { left: 1%; --seat-hand-shift-x: 24px; }
   .card-table-scene .table-seat-east-near { left: 99%; --seat-hand-shift-x: -24px; }
   .center-play-area { top: 25%; height: 28%; }
@@ -5244,11 +5251,11 @@ body.reduced-motion .card-table-scene .table-seat.active { translate: 0; }
 .snap-table-scene .snap-center-board .playing-card,
 .snap-table-scene .snap-empty-card { width: clamp(78px, 11vw, 128px); height: auto; aspect-ratio: 5 / 7; }
 .snap-table-scene .physical-hand.snap-local-pile {
-  --seat-hand-rotate-z: 0deg;
-  --seat-hand-rotate-x: 0deg;
-  --seat-hand-rotate-y: 0deg;
-  --seat-hand-scale-x: 1;
-  --seat-hand-scale-y: 1;
+  --seat-hand-depth: 0px;
+  --seat-hand-yaw: 0deg;
+  --seat-hand-pitch: 0deg;
+  --seat-hand-roll: 0deg;
+  --seat-hand-scale: 1;
   left: 18%;
   right: 18%;
   min-height: 132px;
