@@ -28,7 +28,7 @@ test("catalog groups games under ordered deck families", () => {
   assert.equal(snap.supportsBots, true);
   assert.equal(catalog.families[1].games[0].id, "juan");
   assert.equal(catalog.families[1].games[0].status, "available");
-  assert.deepEqual(catalog.families[1].games[0].players, { min: 2, max: 8, recommended: 4 });
+  assert.deepEqual(catalog.families[1].games[0].players, { min: 2, max: 4, recommended: 4 });
   assert.equal(catalog.families[2].id, "rotating-rummy");
   assert.equal(catalog.families[2].games[0].id, "rotating-rummy");
   assert.equal(catalog.families[2].games[0].status, "available");

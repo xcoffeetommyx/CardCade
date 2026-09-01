@@ -116,7 +116,7 @@ export const games = [
     deckFamilyId: "color-action",
     genres: ["shedding"],
     modes: ["solo", "multiplayer", "hot-seat"],
-    players: { min: 2, max: 8, recommended: 4 },
+    players: { min: 2, max: 4, recommended: 4 },
     supportsBots: true,
     status: "available",
     accent: "spectrum"

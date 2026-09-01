@@ -16,7 +16,7 @@
   const TABLE_SEAT_SLOTS = Object.freeze({
     0: Object.freeze([]),
     1: Object.freeze(['north']),
-    2: Object.freeze(['north-west', 'north-east']),
+    2: Object.freeze(['west', 'north']),
     3: Object.freeze(['west', 'north', 'east']),
     4: Object.freeze(['west', 'north-west', 'north-east', 'east']),
     5: Object.freeze(['west', 'north-west', 'north', 'north-east', 'east']),

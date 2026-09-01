@@ -49,15 +49,15 @@ test('produces a shallow symmetric curve and outward rotations', () => {
 
 test('resolves two, three, and four-player tables around a consistent south viewer seat', () => {
   assert.deepEqual(tableSeatSlots(1), ['north']);
-  assert.deepEqual(tableSeatSlots(2), ['north-west', 'north-east']);
+  assert.deepEqual(tableSeatSlots(2), ['west', 'north']);
   assert.deepEqual(tableSeatSlots(3), ['west', 'north', 'east']);
 
   assert.deepEqual(resolveTableSeats([0, 1], 0), [
     { seat: 1, slot: 'north', order: 0 }
   ]);
   assert.deepEqual(resolveTableSeats([0, 1, 2], 0), [
-    { seat: 1, slot: 'north-west', order: 0 },
-    { seat: 2, slot: 'north-east', order: 1 }
+    { seat: 1, slot: 'west', order: 0 },
+    { seat: 2, slot: 'north', order: 1 }
   ]);
   assert.deepEqual(resolveTableSeats([0, 1, 2, 3], 0), [
     { seat: 1, slot: 'west', order: 0 },
@@ -66,7 +66,7 @@ test('resolves two, three, and four-player tables around a consistent south view
   ]);
 });
 
-test('rotates seat order around the viewer and supports a full eight-player JUAN table', () => {
+test('rotates seat order around the viewer and retains extended generic table slots', () => {
   assert.deepEqual(resolveTableSeats([0, 1, 2, 3], 2), [
     { seat: 3, slot: 'west', order: 0 },
     { seat: 0, slot: 'north', order: 1 },

@@ -71,8 +71,8 @@ test("opponent seats preserve one fan and orient its wrapper toward the table", 
   assert.match(css, /\.opponent-hand \{[\s\S]*?rotateZ\(var\(--seat-hand-rotate-z\)\)[\s\S]*?rotateY\(var\(--seat-hand-rotate-y\)\)/);
   assert.match(css, /\.table-seat-north \{[\s\S]*?width: clamp\(280px, 36%, 460px\)/);
   assert.match(css, /\.table-seat-north \{[\s\S]*?--seat-hand-depth: 38px[\s\S]*?--seat-hand-rotate-x: -8deg/);
-  assert.match(css, /\.table-seat-west \{[\s\S]*?--seat-hand-rotate-z: 6deg[\s\S]*?--seat-hand-rotate-y: -34deg[\s\S]*?--seat-hand-scale-x: \.74/);
-  assert.match(css, /\.table-seat-east \{[\s\S]*?--seat-hand-rotate-z: -6deg[\s\S]*?--seat-hand-rotate-y: 34deg[\s\S]*?--seat-hand-scale-x: \.74/);
+  assert.match(css, /\.table-seat-west \{[\s\S]*?--seat-hand-rotate-z: 0deg[\s\S]*?--seat-hand-rotate-y: -62deg[\s\S]*?--seat-hand-scale-x: 1\.04/);
+  assert.match(css, /\.table-seat-east \{[\s\S]*?--seat-hand-rotate-z: 0deg[\s\S]*?--seat-hand-rotate-y: 62deg[\s\S]*?--seat-hand-scale-x: 1\.04/);
   assert.doesNotMatch(css, /--seat-hand-angle:\s*-?92deg/);
   assert.doesNotMatch(css, /--seat-hand-rotate-z:\s*-?(?:3[2-9]|[4-9]\d)deg/);
   assert.match(css, /filter: drop-shadow\(var\(--seat-hand-shadow-x\) var\(--seat-hand-shadow-y\) 7px/);
