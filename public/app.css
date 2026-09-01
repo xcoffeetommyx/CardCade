@@ -5044,6 +5044,20 @@ body.reduced-motion #app.shell-transition-back { animation: none !important; }
   background: transparent;
   box-shadow: none;
 }
+/* Played cards belong to the felt, so they lie in the table's plane instead of
+   standing up square to the camera. The tilt matches the felt's own rotateX, so
+   the pile reads as resting on the surface rather than hovering in front of it.
+   Only the pile is laid down: the status line and the empty-pile prompt stay
+   screen-facing, because that is dense text the player has to read. */
+.card-table-scene .center-play-area,
+.card-table-scene .game-table {
+  transform-style: preserve-3d;
+}
+.card-table-scene .active-pile.cards-pile {
+  transform: rotateX(var(--table-card-lay, 40deg));
+  transform-origin: 50% 64%;
+}
+
 .card-table-scene .game-status {
   position: relative;
   z-index: 4;
