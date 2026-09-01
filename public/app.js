@@ -3325,12 +3325,6 @@ function layoutOpponentHands() {
         leadsWithFirstCard
       });
       hand.dataset.density = sideLayout.density;
-      // The seat's yaw plus a card's own bow is how far that card has actually
-      // turned. Past 90deg it is being viewed from its owner's side, so it shows
-      // a blank leaf rather than a mirrored copy of the printed back.
-      const seatYaw = Number.parseFloat(
-        getComputedStyle(hand).getPropertyValue("--seat-hand-yaw")
-      ) || 0;
       cards.forEach((card, index) => {
         const position = sideLayout.cards[index];
         card.style.setProperty("--opponent-x", `${position.x}px`);
@@ -3339,7 +3333,6 @@ function layoutOpponentHands() {
         card.style.setProperty("--opponent-rotation", `${position.rotation}deg`);
         card.style.setProperty("--opponent-bow", `${position.bow}deg`);
         card.style.zIndex = String(position.zIndex);
-        card.classList.toggle("showing-leaf", Math.abs(seatYaw + position.bow) > 90);
       });
       return;
     }

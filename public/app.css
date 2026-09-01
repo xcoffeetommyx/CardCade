@@ -4773,9 +4773,10 @@ body.reduced-motion #app.shell-transition-back { animation: none !important; }
      whoever sits opposite -- west's backs are for east to see, not for the
      viewer. --seat-hand-yaw is that angle, and for the side seats it is a right
      angle: their fans sit edge-on to the viewer, giving nothing away. The
-     per-card bow then rocks only the ends off that line, symmetrically, so one
-     end shows a sliver of printed back and the other has tipped past edge-on and
-     shows a blank leaf. North needs no yaw at all -- the viewer IS the player
+     per-card bow then rocks only the ends off that line so the stack has some
+     life, but every card stays a printed back: at these angles a card is read by
+     its edge, and nothing of a hand is ever shown to anyone but its owner.
+     North needs no yaw at all -- the viewer IS the player
      opposite it, which is why north alone shows its backs square to the camera.
      --seat-hand-roll tips the fan so the end nearest the camera drops, which is
      what makes it read as held rather than laid flat on the felt. */
@@ -5004,36 +5005,6 @@ body.reduced-motion #app.shell-transition-back { animation: none !important; }
   pointer-events: none;
   contain: layout;
 }
-
-/* A bowed card that has turned past edge-on is being seen from its owner's own
-   side, so it must not keep painting the printed back -- that reads as a
-   mirrored back and breaks the illusion. Show a blank leaf instead. Nothing
-   private is at stake either way: opponent hands only ever contain card-back
-   elements, so there is no rank or suit anywhere in this markup to expose. The
-   turned cards are tagged by layoutOpponentHands, which knows each card's bow
-   and its seat's yaw. */
-.card-table-scene :is(.table-seat-west, .table-seat-east, .table-seat-west-near, .table-seat-east-near) .opponent-card {
-  border-color: #e8ddc6;
-  box-shadow:
-    var(--seat-hand-shadow-x, 0px) var(--seat-hand-shadow-y, 12px) 9px rgba(0, 0, 0, .34),
-    2px 3px 0 rgba(0, 0, 0, .38),
-    inset 0 0 0 1px rgba(255, 255, 255, .18);
-}
-
-.card-table-scene .opponent-card.showing-leaf {
-  border-color: #ddd2bb;
-  background:
-    linear-gradient(rgba(83, 64, 35, .05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(83, 64, 35, .05) 1px, transparent 1px),
-    linear-gradient(150deg, #cfc6b1, #a99f8b);
-  background-size: 4px 4px, 4px 4px, auto;
-  box-shadow:
-    var(--seat-hand-shadow-x, 0px) var(--seat-hand-shadow-y, 12px) 9px rgba(0, 0, 0, .34),
-    3px 4px 0 rgba(0, 0, 0, .32),
-    inset 0 0 0 1px rgba(255, 255, 255, .4),
-    inset 0 0 14px rgba(120, 96, 58, .18);
-}
-.card-table-scene .opponent-card.showing-leaf::before { content: none; }
 
 .table-seat.active .opponent-card {
   box-shadow:

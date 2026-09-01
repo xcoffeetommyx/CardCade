@@ -149,12 +149,11 @@ test("side seats sit edge-on and split into back-showing and leaf-showing cards"
   const northBlock = css.slice(css.indexOf(".card-table-scene .table-seat-north {"));
   assert.doesNotMatch(northBlock.slice(0, northBlock.indexOf("}")), /--seat-hand-yaw/, "north keeps the default 0deg yaw");
 
-  // Cards that have tipped past edge-on are being seen from their owner's side
-  // and must present a blank leaf, never the printed back mirrored back at the
-  // viewer. Nothing private is at stake -- the DOM only ever holds card backs.
-  assert.match(app, /classList\.toggle\("showing-leaf", Math\.abs\(seatYaw \+ position\.bow\) > 90\)/);
-  assert.match(css, /\.opponent-card\.showing-leaf \{/);
-  assert.doesNotMatch(app, /renderPlayingCard[\s\S]{0,200}showing-leaf/);
+  // Side hands show nothing but printed backs. At these angles a card is read by
+  // its edge, so there is no second surface to render and nothing of an opponent
+  // hand is ever shown to anyone but its owner.
+  assert.doesNotMatch(app, /showing-leaf/);
+  assert.doesNotMatch(css, /showing-leaf/);
 });
 
 test("the side fan keeps its middle edge-on and cannot slice through itself", async () => {
@@ -218,15 +217,15 @@ test("the side fan keeps its middle edge-on and cannot slice through itself", as
     "west and east must mirror when read from the nearest card outward"
   );
 
-  // A real hand splits: some cards still show their printed back at an angle,
-  // some have tipped past edge-on to a blank leaf. Losing either side is what
-  // makes the fan read as one flat sheet.
+  // The rock is small on purpose. Opening it wider does not reveal more of a
+  // hand, it just scatters the slivers to conflicting angles until the fan stops
+  // reading as one object.
   const hand = cardPresentation.calculateSideFanLayout({
     count: 13, cardWidth, cardHeight: 82, leadsWithFirstCard: true
   });
-  const turned = hand.cards.map((card) => 90 + card.bow);
-  assert.ok(turned.some((angle) => angle < 88), "some cards still show their back");
-  assert.ok(turned.some((angle) => angle > 92), "some cards have tipped past edge-on");
+  const turned = hand.cards.map((card) => Math.abs(90 + card.bow));
+  assert.ok(Math.max(...turned.map((a) => Math.abs(a - 90))) < 20, "the fan stays near edge-on");
+  assert.ok(turned.some((angle) => Math.abs(angle - 90) > 5), "the ends still rock off edge-on");
 });
 
 test("Finders Makers keeps its board top-down inside the shared table shell", () => {
