@@ -36,6 +36,15 @@
       capabilities: Object.freeze({ faces: true, backs: true, courts: true })
     }),
     Object.freeze({
+      id: "crimson-arcade",
+      deckFamilyId: "standard-52",
+      name: "Crimson Arcade",
+      description: "Warm ivory faces with burgundy ink and a red-and-gold Cardcade back without a suit mark.",
+      className: "card-skin-crimson-arcade",
+      renderer: "standard-52",
+      capabilities: Object.freeze({ faces: true, backs: true, courts: true })
+    }),
+    Object.freeze({
       id: "juan-minimal",
       deckFamilyId: "color-action",
       name: "JUAN Minimal",
@@ -105,6 +114,12 @@
       name: "Burgundy Velvet",
       description: "A warm burgundy felt with a rich wine-colored rail.",
       className: "table-skin-burgundy-velvet"
+    }),
+    Object.freeze({
+      id: "plum-purple",
+      name: "Plum Purple",
+      description: "A deep plum-purple felt with a muted violet rail.",
+      className: "table-skin-plum-purple"
     })
   ]);
   const DEFAULT_TABLE_SKIN_ID = "classic-green";

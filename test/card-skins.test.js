@@ -15,15 +15,16 @@ test("card skins are registered by deck family with stable defaults", () => {
   assert.equal(rotatingRummy.id, "rotating-rummy-blackout");
   assert.equal(rotatingRummy.deckFamilyId, "rotating-rummy");
   assert.equal(table.id, "classic-green");
-  assert.deepEqual(cardSkins.skinsForFamily("standard-52").map((skin) => skin.id), ["cardcade-pixel", "casino-gold", "royal-violet"]);
+  assert.deepEqual(cardSkins.skinsForFamily("standard-52").map((skin) => skin.id), ["cardcade-pixel", "casino-gold", "royal-violet", "crimson-arcade"]);
   assert.deepEqual(cardSkins.skinsForFamily("color-action").map((skin) => skin.id), ["juan-minimal", "juan-night-shift", "juan-paper-pop"]);
   assert.deepEqual(cardSkins.skinsForFamily("rotating-rummy").map((skin) => skin.id), ["rotating-rummy-blackout", "rotating-rummy-light"]);
-  assert.deepEqual(cardSkins.tableSkins().map((skin) => skin.id), ["classic-green", "midnight-blue", "burgundy-velvet"]);
+  assert.deepEqual(cardSkins.tableSkins().map((skin) => skin.id), ["classic-green", "midnight-blue", "burgundy-velvet", "plum-purple"]);
 });
 
 test("a skin can never resolve across deck-family boundaries", () => {
   assert.equal(cardSkins.resolveSkin("standard-52", "casino-gold").id, "casino-gold");
   assert.equal(cardSkins.resolveSkin("standard-52", "royal-violet").id, "royal-violet");
+  assert.equal(cardSkins.resolveSkin("standard-52", "crimson-arcade").id, "crimson-arcade");
   assert.equal(cardSkins.resolveSkin("standard-52", "juan-minimal").id, "cardcade-pixel");
   assert.equal(cardSkins.resolveSkin("color-action", "cardcade-pixel").id, "juan-minimal");
   assert.equal(cardSkins.resolveSkin("rotating-rummy", "cardcade-pixel").id, "rotating-rummy-blackout");
@@ -79,6 +80,7 @@ test("table skins normalize independently from every deck family", () => {
     "rotating-rummy": "rotating-rummy-blackout"
   });
   assert.equal(cardSkins.resolveTableSkin("burgundy-velvet").id, "burgundy-velvet");
+  assert.equal(cardSkins.resolveTableSkin("plum-purple").id, "plum-purple");
   assert.equal(cardSkins.resolveTableSkin("missing-table").id, "classic-green");
   assert.equal(cardSkins.tableSkinById("midnight-blue").className, "table-skin-midnight-blue");
 });

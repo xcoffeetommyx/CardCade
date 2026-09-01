@@ -111,7 +111,7 @@ test("table skins are independently previewed and applied to every game table", 
     assert.match(app, new RegExp("standard-card-game \\$\\{activeTableAppearanceClass\\(\\)\\} " + gameClass));
   }
   assert.match(app, /standard-card-game \$\{activeTableAppearanceClass\(\)\}" data-game-id="\$\{escapeHtml\(game\.gameId\)\}"/);
-  for (const className of ["table-skin-classic-green", "table-skin-midnight-blue", "table-skin-burgundy-velvet"]) {
+  for (const className of ["table-skin-classic-green", "table-skin-midnight-blue", "table-skin-burgundy-velvet", "table-skin-plum-purple"]) {
     assert.match(css, new RegExp(`\\.${className} \\{[\\s\\S]*?--table-green:`));
   }
   assert.match(css, /\.table-skin-preview \{[\s\S]*?var\(--table-green-light\)[\s\S]*?var\(--table-green-deep\)/);
@@ -153,14 +153,14 @@ test("the Standard 52 settings preview leaves clear space around its corner mark
 test("alternate standard skins cover faces, backs, stacks, and previews without leaking into JUAN", () => {
   const css = read("public/app.css");
 
-  for (const skinClass of ["card-skin-casino-gold", "card-skin-royal-violet"]) {
+  for (const skinClass of ["card-skin-casino-gold", "card-skin-royal-violet", "card-skin-crimson-arcade"]) {
     assert.match(css, new RegExp(`\\.playing-card\\.${skinClass}`));
     assert.match(css, new RegExp(`\\.standard-seat-card\\.${skinClass}`));
     assert.match(css, new RegExp(`\\.card-back\\.${skinClass}`));
     assert.match(css, new RegExp(`\\.draw-stack\\.${skinClass}`));
     assert.match(css, new RegExp(`\\.skin-preview\\.${skinClass}`));
   }
-  assert.doesNotMatch(css, /\.juan-card\.card-skin-(?:casino-gold|royal-violet)/);
+  assert.doesNotMatch(css, /\.juan-card\.card-skin-(?:casino-gold|royal-violet|crimson-arcade)/);
 });
 
 test("JUAN skins cover number, action, Prism, backs, piles, opponent minis, and previews without leaking into Standard 52", () => {
