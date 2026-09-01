@@ -156,6 +156,110 @@
     });
   }
 
+  // A hand seen almost edge-on cannot reuse the head-on fan. Translating cards
+  // along a line and leaning them slightly works while the viewer faces the fan,
+  // but once a seat yaws toward its opposite that line collapses into a slab:
+  // the spacing foreshortens away and the shallow curve flattens out. Side seats
+  // splay radially about the grip below the cards, the way a held fan actually
+  // works, so the arc survives the projection and still reads as separate cards
+  // from across the table.
+  function calculateSideFanLayout({
+    count,
+    cardWidth,
+    cardHeight = Number(cardWidth) * 1.42,
+    degreesPerCard = 4.6,
+    maximumSpread = 44,
+    radiusRatio = 1.5,
+    stackThickness = 1.1,
+    // The seat's yaw already points the whole fan across the table, so from the
+    // viewer's side the hand is a stack of card EDGES, not card faces. The bow
+    // is deliberately small: it rocks the ends a few degrees either side of
+    // edge-on so the stack has some life and the outermost cards catch a sliver
+    // of their back or their blank leaf. Opening it wider does not reveal more
+    // of the hand, it just scatters the slivers to conflicting angles and the
+    // fan stops reading as one object. bowEasing keeps the middle square.
+    bowDegrees = 13,
+    bowPerCard = 2.4,
+    bowEasing = 2.2,
+    leadsWithFirstCard = false
+  }) {
+    const safeCount = Math.max(0, Math.floor(Number(count) || 0));
+    const safeCardWidth = positiveNumber(cardWidth, 1);
+    const safeCardHeight = positiveNumber(cardHeight, safeCardWidth * 1.42);
+    const radius = safeCardHeight * positiveNumber(radiusRatio, 1.5);
+    const density = fanDensity(safeCount);
+    const spread = safeCount <= 1
+      ? 0
+      : Math.min(positiveNumber(maximumSpread, 44), positiveNumber(degreesPerCard, 4.6) * (safeCount - 1));
+    // Two cards are all ends and no middle, so a short hand rocks less than a
+    // full one -- otherwise a two-card hold'em hand splays like a full fan.
+    const bowLimit = safeCount <= 1
+      ? 0
+      : Math.min(Math.max(0, Number(bowDegrees) || 0), Math.max(0, Number(bowPerCard) || 0) * (safeCount - 1));
+    const easing = positiveNumber(bowEasing, 3.2);
+    const baseThickness = Math.max(0, Number(stackThickness) || 0);
+    // Mirrored seats rock their fans in opposite directions so the pair reads as
+    // two players facing each other rather than two copies of one hand.
+    const bowSign = leadsWithFirstCard ? 1 : -1;
+
+    const geometry = Array.from({ length: safeCount }, (_, index) => {
+      const normalized = safeCount === 1 ? 0 : (index - (safeCount - 1) / 2) / ((safeCount - 1) / 2);
+      const angle = normalized * (spread / 2);
+      const radians = angle * Math.PI / 180;
+      const stackOrder = leadsWithFirstCard ? safeCount - index : index + 1;
+      return {
+        index,
+        angle,
+        rotation: angle,
+        bow: bowSign * Math.sign(normalized) * bowLimit * Math.pow(Math.abs(normalized), easing),
+        x: radius * Math.sin(radians),
+        y: radius * (1 - Math.cos(radians)),
+        zIndex: stackOrder,
+        stackOrder
+      };
+    });
+
+    // Neighbouring cards now differ in bow by wildly different amounts -- almost
+    // nothing across the flat middle, a lot at the curled end -- so a single
+    // spacing cannot serve the whole fan. Walk the stack instead and give each
+    // pair just enough room that their planes cannot pinch together and let the
+    // compositor slice one card through the next.
+    const byStack = [...geometry].sort((a, b) => a.stackOrder - b.stackOrder);
+    let depth = 0;
+    byStack.forEach((card, order) => {
+      if (order > 0) {
+        const previous = byStack[order - 1];
+        const turn = Math.abs(card.bow - previous.bow) * Math.PI / 180;
+        depth += baseThickness + (safeCardWidth / 2) * Math.sin(Math.min(turn, Math.PI / 2)) * 1.35;
+      }
+      card.z = depth;
+    });
+
+    const cards = Object.freeze(geometry.map((card) => Object.freeze({
+      index: card.index,
+      angle: card.angle,
+      bow: card.bow,
+      x: card.x,
+      y: card.y,
+      z: card.z,
+      rotation: card.rotation,
+      zIndex: card.zIndex
+    })));
+
+    return Object.freeze({
+      count: safeCount,
+      density: density.name,
+      spread,
+      radius,
+      bowLimit,
+      depth,
+      cardWidth: safeCardWidth,
+      cardHeight: safeCardHeight,
+      span: safeCount <= 1 ? safeCardWidth : 2 * radius * Math.sin((spread / 2) * Math.PI / 180) + safeCardWidth,
+      cards
+    });
+  }
+
   function fanIndexAtX(layout, localX) {
     if (!layout || !Array.isArray(layout.cards) || !layout.cards.length) return -1;
     const pointerX = Number(localX);
@@ -250,6 +354,7 @@
     tableSeatSlots,
     resolveTableSeats,
     calculateFanLayout,
+    calculateSideFanLayout,
     fanIndexAtX,
     fanIndexAtPoint
   });

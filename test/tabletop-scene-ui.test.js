@@ -119,6 +119,97 @@ test("opponent seats share one camera instead of a flattened fake perspective", 
   assert.equal((app.match(/cardPresentation\.calculateFanLayout\(\{/g) || []).length, 3);
 });
 
+test("side seats sit edge-on and split into back-showing and leaf-showing cards", () => {
+  const app = read("public/app.js");
+  const css = read("public/app.css");
+  const presentation = read("shared/card-presentation.js");
+
+  // A grazing seat cannot reuse the head-on fan: translating along a line and
+  // leaning slightly collapses into a slab once the seat yaws.
+  assert.match(presentation, /function calculateSideFanLayout/);
+  assert.match(app, /GRAZING_SEAT_SLOTS = new Set\(\["west", "east", "west-near", "east-near"\]\)/);
+  assert.match(app, /cardPresentation\.calculateSideFanLayout\(\{/);
+  assert.match(css, /rotateY\(var\(--opponent-bow\)\)/);
+
+  const seatYaw = (slot) => {
+    const at = css.indexOf(`.card-table-scene .table-seat-${slot} {`);
+    assert.notEqual(at, -1, `${slot} exists`);
+    return Number(css.slice(at, css.indexOf("}", at)).match(/--seat-hand-yaw: (-?[\d.]+)deg/)[1]);
+  };
+
+  // Backs belong to the player sitting opposite. West's opposite is east, so its
+  // fan turns a right angle and sits edge-on to the viewer; only north, whose
+  // opposite IS the viewer, shows its backs square to the camera.
+  for (const slot of ["west", "west-near"]) {
+    assert.ok(seatYaw(slot) >= 85, `${slot} points its backs across the table, not at the viewer`);
+  }
+  for (const [west, east] of [["west", "east"], ["west-near", "east-near"], ["north-west", "north-east"]]) {
+    assert.equal(seatYaw(east), -seatYaw(west), `${east} mirrors ${west}`);
+  }
+  const northBlock = css.slice(css.indexOf(".card-table-scene .table-seat-north {"));
+  assert.doesNotMatch(northBlock.slice(0, northBlock.indexOf("}")), /--seat-hand-yaw/, "north keeps the default 0deg yaw");
+
+  // Cards that have tipped past edge-on are being seen from their owner's side
+  // and must present a blank leaf, never the printed back mirrored back at the
+  // viewer. Nothing private is at stake -- the DOM only ever holds card backs.
+  assert.match(app, /classList\.toggle\("showing-leaf", Math\.abs\(seatYaw \+ position\.bow\) > 90\)/);
+  assert.match(css, /\.opponent-card\.showing-leaf \{/);
+  assert.doesNotMatch(app, /renderPlayingCard[\s\S]{0,200}showing-leaf/);
+});
+
+test("the side fan keeps its middle edge-on and cannot slice through itself", async () => {
+  const { createRequire } = await import("node:module");
+  const cardPresentation = createRequire(import.meta.url)("../shared/card-presentation.js");
+  const cardWidth = 47;
+
+  for (const count of [2, 3, 4, 5, 7, 10, 13, 20, 52]) {
+    for (const leadsWithFirstCard of [true, false]) {
+      const layout = cardPresentation.calculateSideFanLayout({
+        count, cardWidth, cardHeight: 82, leadsWithFirstCard
+      });
+      const yaw = leadsWithFirstCard ? 90 : -90;
+      const turned = layout.cards.map((card) => Math.abs(yaw + card.bow));
+
+      // The middle of the fan stays square to its owner. If easing ever flattens
+      // out, every card picks up the same lean and the hand turns to face the
+      // viewer -- which is the bug this whole seat model exists to avoid.
+      if (count >= 5) {
+        const middle = turned[Math.floor((count - 1) / 2)];
+        assert.ok(Math.abs(middle - 90) < 12, `count ${count}: middle stays edge-on (was ${middle.toFixed(1)})`);
+      }
+
+      // Neighbouring cards differ in bow, so their planes pinch toward the card
+      // edges. Anything closer than that pinch lets one card slice through the
+      // next.
+      const byStack = [...layout.cards].sort((a, b) => a.zIndex - b.zIndex);
+      for (let i = 1; i < byStack.length; i += 1) {
+        const turn = Math.abs(byStack[i].bow - byStack[i - 1].bow) * Math.PI / 180;
+        const pinch = (cardWidth / 2) * Math.sin(Math.min(turn, Math.PI / 2));
+        assert.ok(
+          Math.abs(byStack[i].z - byStack[i - 1].z) > pinch,
+          `count ${count}: cards ${i - 1}/${i} must not intersect`
+        );
+      }
+
+      // zIndex has to be a clean permutation or the stacking fights the depth.
+      assert.deepEqual(
+        [...layout.cards.map((card) => card.zIndex)].sort((a, b) => a - b),
+        Array.from({ length: count }, (_, i) => i + 1)
+      );
+    }
+  }
+
+  // A real hand splits: some cards still show their printed back at an angle,
+  // some have tipped past edge-on to a blank leaf. Losing either side is what
+  // makes the fan read as one flat sheet.
+  const hand = cardPresentation.calculateSideFanLayout({
+    count: 13, cardWidth, cardHeight: 82, leadsWithFirstCard: true
+  });
+  const turned = hand.cards.map((card) => 90 + card.bow);
+  assert.ok(turned.some((angle) => angle < 88), "some cards still show their back");
+  assert.ok(turned.some((angle) => angle > 92), "some cards have tipped past edge-on");
+});
+
 test("Finders Makers keeps its board top-down inside the shared table shell", () => {
   const app = read("public/app.js");
   const css = read("public/app.css");

@@ -1,15 +1,15 @@
-const CACHE_NAME = "cardcade-shell-v112";
+const CACHE_NAME = "cardcade-shell-v128";
 const APP_ROOT = self.registration.scope;
 const APP_SHELL = [
   "",
   "api/catalog",
-  "app.css?v=93",
-  "app.js?v=87",
+  "app.css?v=109",
+  "app.js?v=90",
   "icon.svg",
   "manifest.webmanifest",
   "shared/three-seven-rules.js?v=3",
   "shared/thirteen-rules.js?v=2",
-  "shared/card-presentation.js?v=6",
+  "shared/card-presentation.js?v=18",
   "shared/controller-input.js?v=3",
   "shared/card-skins.js?v=8",
   "shared/standard-52.js?v=3",

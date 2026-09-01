@@ -3297,17 +3297,53 @@ function layoutActivePiles() {
 // as a physical fan without opening a visible gap between neighbours.
 const CARD_STACK_THICKNESS = 0.55;
 
+// Seats yawed far enough to be seen edge-on need the radial fan; the head-on
+// calculator flattens into a slab at that angle.
+const GRAZING_SEAT_SLOTS = new Set(["west", "east", "west-near", "east-near"]);
+// Seats to the viewer's left lead with their first card, because their yaw
+// swings the start of the fan toward the camera.
+const LEFT_HAND_SEAT_SLOTS = new Set(["west", "west-near", "north-west"]);
+
 function layoutOpponentHands() {
   if (!cardPresentation) return;
   app.querySelectorAll("[data-opponent-hand]").forEach((hand) => {
     const cards = [...hand.querySelectorAll(".opponent-card")];
     if (!cards.length) return;
     const seatSlot = hand.closest("[data-table-seat]")?.dataset.tableSeat || "";
-    const leadsWithFirstCard = seatSlot === "west" || seatSlot === "west-near" || seatSlot === "north-west";
+    const leadsWithFirstCard = LEFT_HAND_SEAT_SLOTS.has(seatSlot);
     const containerWidth = hand.clientWidth;
     const cardWidth = cards[0].offsetWidth;
     const cardHeight = cards[0].offsetHeight || cardWidth * 1.42;
     if (!containerWidth || !cardWidth) return;
+
+    if (GRAZING_SEAT_SLOTS.has(seatSlot)) {
+      const sideLayout = cardPresentation.calculateSideFanLayout({
+        count: cards.length,
+        cardWidth,
+        cardHeight,
+        stackThickness: CARD_STACK_THICKNESS,
+        leadsWithFirstCard
+      });
+      hand.dataset.density = sideLayout.density;
+      // The seat's yaw plus a card's own bow is how far that card has actually
+      // turned. Past 90deg it is being viewed from its owner's side, so it shows
+      // a blank leaf rather than a mirrored copy of the printed back.
+      const seatYaw = Number.parseFloat(
+        getComputedStyle(hand).getPropertyValue("--seat-hand-yaw")
+      ) || 0;
+      cards.forEach((card, index) => {
+        const position = sideLayout.cards[index];
+        card.style.setProperty("--opponent-x", `${position.x}px`);
+        card.style.setProperty("--opponent-y", `${position.y}px`);
+        card.style.setProperty("--opponent-z", `${position.z}px`);
+        card.style.setProperty("--opponent-rotation", `${position.rotation}deg`);
+        card.style.setProperty("--opponent-bow", `${position.bow}deg`);
+        card.style.zIndex = String(position.zIndex);
+        card.classList.toggle("showing-leaf", Math.abs(seatYaw + position.bow) > 90);
+      });
+      return;
+    }
+
     const layout = cardPresentation.calculateFanLayout({
       count: cards.length,
       containerWidth,
@@ -3323,9 +3359,6 @@ function layoutOpponentHands() {
     hand.dataset.density = layout.density;
     cards.forEach((card, index) => {
       const position = layout.cards[index];
-      // The seat's yaw turns its hand toward the table, so whichever end of the
-      // fan swung toward the camera is the end that sits on top. Left-hand seats
-      // lead with their first card, everyone else with their last.
       const stackOrder = leadsWithFirstCard ? cards.length - index : index + 1;
       card.style.setProperty("--opponent-x", `${position.x}px`);
       card.style.setProperty("--opponent-y", `${position.y}px`);
