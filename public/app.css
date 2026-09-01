@@ -5091,16 +5091,27 @@ body.reduced-motion #app.shell-transition-back { animation: none !important; }
   transform-origin: 50% 64%;
 }
 
-/* Five Card Draw's stock and discard, and Snap's revealed board, are cards on
-   the same felt, so they lie in the same plane as every other pile. Only the
-   card objects tilt -- their labels stay screen-facing and readable. */
+/* Five Card Draw's stock and discard, Snap's revealed board, and JUAN's and
+   Rotating Rummy's stock cards are all cards on the same felt, so they lie in
+   the same plane as every other pile. A stock sitting upright beside a pile
+   that lies flat is the tell that gives a fake table away. Only the card objects
+   tilt -- their labels stay screen-facing and readable. */
 .casino-table-scene .five-card-draw-piles,
-.snap-table-scene .snap-center-board {
+.snap-table-scene .snap-center-board,
+.juan-table-scene .juan-pile-zone,
+.rummy-table-scene .rummy-pile-zone {
   transform-style: preserve-3d;
 }
 .casino-table-scene :is(.draw-stack, .draw-discard-pile) .draw-card-back,
 .snap-table-scene .snap-center-board :is(.playing-card, .snap-empty-card) {
   transform: rotateX(var(--table-card-lay, 40deg));
+  transform-origin: 50% 64%;
+}
+/* These two keep the jaunty rotation that marks them as a loose stack; the lay
+   is applied on top of it rather than replacing it. */
+.juan-table-scene .juan-stock,
+.rummy-table-scene .rummy-stock {
+  transform: rotateX(var(--table-card-lay, 40deg)) rotate(-4deg);
   transform-origin: 50% 64%;
 }
 
@@ -5331,6 +5342,16 @@ body.reduced-motion .card-table-scene .table-seat.active { translate: 0; }
   overflow: auto;
   overscroll-behavior: contain;
   background: rgba(4, 13, 24, .68);
+}
+
+/* Rotating Rummy's action dock carries seven controls, so it is tall enough that
+   sticking it to the viewport floor parks it on top of the player's own hand --
+   at 670px it covered 132px of a 174px card. The wide layout already opts this
+   dock out of sticky; do it at every width, because the narrow layouts are the
+   ones with the least room to spare. The dock then follows the hand in flow. */
+.rotating-rummy-game .game-actions {
+  position: static;
+  bottom: auto;
 }
 
 .playing-game .rotating-rummy-game {
