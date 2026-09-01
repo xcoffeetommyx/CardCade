@@ -14,9 +14,9 @@ test("the launcher is a controller-friendly title menu instead of a landing page
   assert.match(home, /class="game-shell-screen title-screen"/);
   assert.match(home, /class="main-menu"/);
   assert.match(home, />Solo</);
-  assert.match(home, />Hot Seat</);
   assert.match(home, />Multiplayer</);
   assert.match(home, />Options</);
+  assert.doesNotMatch(home, /data-action="open-hot-seat"/);
   assert.doesNotMatch(home, /Every table starts here/);
   assert.doesNotMatch(home, /button-copy/);
   assert.doesNotMatch(home, /title-atmosphere/);
@@ -48,6 +48,7 @@ test("Options uses the shared shell while preserving readable utility controls",
   assert.match(app, /function handleAppearanceKeydown/);
   assert.match(css, /\.game-command-option \{/);
   assert.match(css, /\.game-command-menu \{[\s\S]*?width: min\(360px, 88vw\)/);
+  assert.match(css, /\.game-menu-title-block h1 \{[^}]*font-family: var\(--font-display\)/);
   assert.match(css, /\.game-command-option strong \{ font: 900 clamp\(1\.18rem, 3vw, 1\.55rem\)/);
   assert.match(css, /\.game-command-option small \{[^}]*text-align: left;/);
   assert.match(css, /\.panel-open \.menu-depth-background/);

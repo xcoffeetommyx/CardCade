@@ -4102,6 +4102,11 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   user-select: none;
 }
 .game-menu-title-block { margin: 0 auto clamp(20px, 5vh, 42px); }
+.game-menu-title-block h1 {
+  font-family: var(--font-display);
+  font-weight: 900;
+  text-transform: uppercase;
+}
 .game-command-menu {
   width: min(360px, 88vw);
   margin: 0 auto;

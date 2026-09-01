@@ -714,7 +714,6 @@ function renderHome() {
       </div>
       <nav class="main-menu" aria-label="Cardcade main menu">
         <button class="main-menu-option" type="button" data-action="open-solo"><span aria-hidden="true">›</span><strong>Solo</strong></button>
-        <button class="main-menu-option" type="button" data-action="open-hot-seat"><span aria-hidden="true">›</span><strong>Hot Seat</strong></button>
         <button class="main-menu-option" type="button" data-action="open-multiplayer"><span aria-hidden="true">›</span><strong>Multiplayer</strong></button>
         <button class="main-menu-option" type="button" data-action="open-settings"><span aria-hidden="true">›</span><strong>Options</strong></button>
       </nav>
