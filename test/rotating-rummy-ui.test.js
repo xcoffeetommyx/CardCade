@@ -45,7 +45,7 @@ test("Rotating Rummy has its own Route UI, controls, and fanned-card renderer", 
   assert.match(app, /discardOk: selected\.length === 1/);
   assert.match(app, /evaluateRoute\(selected, route\)/);
   assert.match(app, /Lay the exact \$\{routeCardCount\}-card Route first, then link extra cards before your discard/);
-  assert.match(app, /Choose your Route or another completed group, then link compatible cards before your discard/);
+  assert.match(app, /Choose a group to link/);
   assert.doesNotMatch(app, /evaluateRoute\(selected, match\.yourRoute\)/);
   assert.doesNotMatch(app, /findRouteCompletion\(state\.gameView\.hand, match\.yourRoute\)/);
   assert.doesNotMatch(app, /recommendedDiscard\(state\.gameView\.hand, match\.yourRoute\)/);
@@ -58,7 +58,7 @@ test("Rotating Rummy has its own Route UI, controls, and fanned-card renderer", 
   assert.doesNotMatch(app, /Your current Route/);
   assert.doesNotMatch(app, /class="rummy-route-stage"/);
   assert.doesNotMatch(app, /class="rummy-meld-zone/);
-  assert.match(app, /desktopRummyFit/);
+  assert.match(app, /rummyViewportFit/);
   assert.match(app, /rummy-action-wild/);
   assert.match(app, /rummy-action-pass/);
   assert.match(app, /rummy-action-pass" aria-hidden="true"><i><\/i><i><\/i>/);
@@ -87,8 +87,8 @@ test("Rotating Rummy has its own Route UI, controls, and fanned-card renderer", 
   assert.match(css, /@media \(max-width: 720px\)[\s\S]*?\.rummy-actions \{ grid-template-columns: repeat\(3/);
   assert.match(css, /\.rummy-table-stage \{ display: contents; \}/);
   assert.match(css, /\.playing-game \.rotating-rummy-game \{[\s\S]*?height: calc\(var\(--game-viewport-height\)[\s\S]*?grid-template-rows:/);
-  assert.match(css, /\.rummy-table-stage \{ min-height: 0; display: grid; grid-template-rows: minmax\(0, 1fr\) auto;/);
-  assert.match(css, /\.rotating-rummy-game \.rummy-table-stage \.rummy-link-board \{ min-height: 0; max-height: 116px;[\s\S]*?overflow: auto;/);
+  assert.match(css, /\.rummy-table-scene \.rummy-table-stage \{[\s\S]*?grid-template-rows: minmax\(0, 1fr\);/);
+  assert.match(css, /\.rotating-rummy-game \.tabletop-status-area \{[^}]*height: var\(--rummy-links-height\);/);
 });
 
 test("Rotating Rummy's blackout and light skins remain deck-family-scoped visual preferences", () => {

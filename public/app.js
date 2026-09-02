@@ -2192,6 +2192,21 @@ function renderRummyPatternHelp() {
   </section>`;
 }
 
+function renderRummyLinkBoard({ linkTargets, viewerSeat, selection, canSelectLinkTarget, routeComplete, tableStatus }) {
+  return `<section class="rummy-link-board" aria-label="Completed Route groups">
+    <p class="sr-only" role="status">${escapeHtml(tableStatus)}</p>
+    <div class="rummy-link-board-heading"><span class="family-kicker">Route links</span><small>${linkTargets.length > 2 ? "Swipe for more groups" : routeComplete ? "Choose a group to link" : "Complete your Route to link"}</small></div>
+    ${linkTargets.length ? `<div class="rummy-link-targets" role="group" tabindex="0" aria-label="Route groups; scroll for more">${linkTargets.map((target) => {
+      const selectedTarget = selection.linkTarget?.player.seat === target.player.seat && selection.linkTarget.groupIndex === target.groupIndex;
+      const targetName = target.player.seat === viewerSeat ? "Your Route" : `${target.player.name}'s Route`;
+      return `<article class="rummy-link-group-card ${selectedTarget ? "selected" : ""}">
+        <div class="rummy-link-group-cards" aria-label="${escapeHtml(targetName)} group ${target.groupIndex + 1}">${target.group.map((card, index) => renderRotatingRummyCard(card, index, { played: true })).join("")}</div>
+        <button type="button" data-action="rummy-select-link-target" data-rummy-link-seat="${target.player.seat}" data-rummy-link-group="${target.groupIndex}" aria-pressed="${selectedTarget}" ${canSelectLinkTarget ? "" : "disabled"}>${selectedTarget ? "Link target ✓" : `Link to ${escapeHtml(targetName)}`}</button>
+      </article>`;
+    }).join("")}</div>` : `<p class="rummy-link-empty">Completed Route groups will appear here.</p>`}
+  </section>`;
+}
+
 function renderRotatingRummyGame() {
   const view = state.gameView;
   if (!view || !rotatingRummyRules || !rotatingRummyDeck) return `<div class="empty-state">Shuffling the Route Deck…</div>`;
@@ -2248,7 +2263,7 @@ function renderRotatingRummyGame() {
           gameId: "rotating-rummy",
           showLastPlay: true
         })).join(""),
-        tableStatusMarkup: `<div class="game-status"><span><strong>${escapeHtml(tableStatus)}</strong><small>${escapeHtml(match.routeDeck.description)} · ${match.roundOver ? match.matchOver ? "the Route circuit is complete" : "review progress, then deal the next Route round" : match.turnStage === "draw" ? "draw from either pile" : yourPlayer?.routeComplete ? "Route is down — link cards or discard" : "lay down your Route or discard"}</small></span><span class="badge">${match.stockCount} stock</span></div>`,
+        tableStatusMarkup: renderRummyLinkBoard({ linkTargets, viewerSeat, selection, canSelectLinkTarget, routeComplete: yourPlayer?.routeComplete, tableStatus }),
         centerMarkup: `
           <div class="rummy-table-stage">
             <section class="game-table status-separated-table rummy-table">
@@ -2257,17 +2272,6 @@ function renderRotatingRummyGame() {
                 <div class="active-pile cards-pile">${match.topCard ? renderRotatingRummyCard(match.topCard, 0, { played: true, enter: pileIsNew }) : ""}</div>
               </div>
             </section>
-            ${linkTargets.length ? `<section class="rummy-link-board" aria-label="Completed Route groups">
-              <div class="rummy-link-board-heading"><span class="family-kicker">Route links</span><small>${yourPlayer?.routeComplete ? "Choose your Route or another completed group, then link compatible cards before your discard." : "Complete your Route before linking cards."}</small></div>
-              <div class="rummy-link-targets">${linkTargets.map((target) => {
-                const selectedTarget = selection.linkTarget?.player.seat === target.player.seat && selection.linkTarget.groupIndex === target.groupIndex;
-                const targetName = target.player.seat === viewerSeat ? "Your Route" : `${target.player.name}'s Route`;
-                return `<article class="rummy-link-group-card ${selectedTarget ? "selected" : ""}">
-                  <div class="rummy-link-group-cards" aria-label="${escapeHtml(targetName)} group ${target.groupIndex + 1}">${target.group.map((card, index) => renderRotatingRummyCard(card, index, { played: true })).join("")}</div>
-                  <button type="button" data-action="rummy-select-link-target" data-rummy-link-seat="${target.player.seat}" data-rummy-link-group="${target.groupIndex}" ${canSelectLinkTarget ? "" : "disabled"}>${selectedTarget ? "Link target ✓" : `Link to ${escapeHtml(targetName)}`}</button>
-                </article>`;
-              }).join("")}</div>
-            </section>` : ""}
           </div>`,
         handMarkup: `
           <section class="physical-hand ${isYourTurn ? "your-turn" : ""}">
@@ -3180,9 +3184,11 @@ let gameScrollRestoreFrame = null;
 
 function captureGameScrollPosition() {
   const scrollRoot = document.scrollingElement;
+  const rummyLinks = app.querySelector(".rummy-link-targets");
   return {
     left: scrollRoot?.scrollLeft ?? window.scrollX ?? 0,
-    top: scrollRoot?.scrollTop ?? window.scrollY ?? 0
+    top: scrollRoot?.scrollTop ?? window.scrollY ?? 0,
+    rummyLinks: rummyLinks ? { left: rummyLinks.scrollLeft, top: rummyLinks.scrollTop } : null
   };
 }
 
@@ -3193,7 +3199,12 @@ function restoreGameScrollPosition(position) {
   }
   if (!position) return;
 
-  const restore = () => window.scrollTo(position.left, position.top);
+  const restore = () => {
+    window.scrollTo(position.left, position.top);
+    if (position.rummyLinks) {
+      app.querySelector(".rummy-link-targets")?.scrollTo(position.rummyLinks.left, position.rummyLinks.top);
+    }
+  };
   // Replacing the complete game tree can briefly make the page shorter than
   // its current offset. Mobile browsers then clamp to the top. Restore once
   // after the new tree exists and once after its layout settles.
@@ -3474,7 +3485,7 @@ function layoutStandardHand() {
   const viewportHeight = window.visualViewport?.height || innerHeight;
   const compactLandscape = viewportWidth > viewportHeight && viewportHeight <= 640;
   const portraitPhone = viewportWidth <= 520 && viewportHeight > viewportWidth;
-  const desktopRummyFit = state.room?.gameId === "rotating-rummy" && viewportWidth >= 900;
+  const rummyViewportFit = state.room?.gameId === "rotating-rummy";
   const layout = cardPresentation.calculateFanLayout({
     count: cards.length,
     containerWidth,
@@ -3482,10 +3493,10 @@ function layoutStandardHand() {
     cardHeight,
     sidePadding: portraitPhone ? 12 : 8,
     minimumVisibleIndex: Math.max(16, cardWidth * 0.2),
-    maximumRotation: compactLandscape ? 8 : desktopRummyFit ? 9 : 11,
-    curveRatio: compactLandscape ? 0.06 : desktopRummyFit ? 0.08 : portraitPhone ? 0.09 : 0.12,
-    focusLiftRatio: compactLandscape ? 0.22 : desktopRummyFit ? 0.32 : portraitPhone ? 0.24 : 0.48,
-    selectedLiftRatio: compactLandscape ? 0.14 : desktopRummyFit ? 0.2 : portraitPhone ? 0.18 : 0.28
+    maximumRotation: compactLandscape ? 8 : rummyViewportFit ? 9 : 11,
+    curveRatio: compactLandscape ? 0.06 : rummyViewportFit ? 0.08 : portraitPhone ? 0.09 : 0.12,
+    focusLiftRatio: compactLandscape ? 0.22 : portraitPhone ? 0.24 : rummyViewportFit ? 0.32 : 0.48,
+    selectedLiftRatio: compactLandscape ? 0.14 : portraitPhone ? 0.18 : rummyViewportFit ? 0.2 : 0.28
   });
   hand.style.height = `${layout.rowHeight}px`;
   hand.dataset.density = layout.density;

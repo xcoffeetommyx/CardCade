@@ -68,7 +68,8 @@ test("hand-based turn banners occupy the sky above lowered opponents", () => {
 
   assert.match(app, /tableStatusMarkup = ""/);
   assert.match(app, /class="tabletop-status-area"/);
-  assert.equal((app.match(/tableStatusMarkup: `<div class="game-status">/g) || []).length, 6);
+  assert.equal((app.match(/tableStatusMarkup: `<div class="game-status">/g) || []).length, 5);
+  assert.match(app, /tableStatusMarkup: renderRummyLinkBoard/);
   assert.match(app, /class="game-table shedding-game-table"/);
   assert.equal((app.match(/class="game-table status-separated-table/g) || []).length, 5);
   assert.match(css, /\.tabletop-status-area \{[\s\S]*?position: absolute;[\s\S]*?top: 2%;/);
@@ -105,7 +106,7 @@ test("desktop held-hand tables reserve separate north, center, and local HUD ban
   assert.match(desktop, /\.local-player-hud \{\s*bottom: 242px;/);
   assert.match(desktop, /\.physical-hand \{\s*background: transparent;\s*border-color: transparent;\s*box-shadow: none;\s*pointer-events: none;/);
   assert.match(desktop, /\.physical-hand :is\(\.game-hand, \.blackjack-hand-summaries\) \{\s*pointer-events: auto;/);
-  assert.match(desktop, /\.card-table-scene\.rummy-table-scene:has\(\.rummy-link-board\) \{\s*min-height: clamp\(820px, 80vh, 920px\);/);
+  assert.doesNotMatch(desktop, /\.rummy-table-scene:has\(\.rummy-link-board\)/);
 });
 
 test("narrow casino copy stays below the north fan without moving JUAN or Five Card Draw", () => {
