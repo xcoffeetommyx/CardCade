@@ -121,7 +121,7 @@ test("showdowns reveal full Five Card Draw hands and Blackjack insurance stays i
   assert.match(app, /renderFiveCardDrawShowdown\(match\)/);
   assert.match(css, /\.five-card-draw-showdown-hand\.winner/);
   assert.match(app, /function renderBlackjackInsurancePrompt/);
-  assert.match(app, /blackjack-table \$\{isInsuranceTurn \? "insurance-pending"/);
-  assert.match(css, /\.blackjack-table\.insurance-pending/);
+  assert.match(app, /isInsuranceTurn \? renderBlackjackInsurancePrompt\(state\.gameActionLock\) : ""\}[\s\S]*?\$\{renderTableScene\(\{/);
+  assert.doesNotMatch(app, /blackjack-table \$\{isInsuranceTurn/);
   assert.match(css, /\.playing-game \.blackjack-insurance-prompt \{[\s\S]*?position: fixed;/);
 });

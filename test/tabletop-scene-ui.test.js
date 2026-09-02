@@ -94,6 +94,28 @@ test("Five Card Draw centers a single laid-down stock beside its discard", () =>
   assert.match(css, /\.five-card-draw-table-scene \.draw-stack::before,[\s\S]*?\.five-card-draw-table-scene \.draw-stack::after \{[\s\S]*?display: none;/);
 });
 
+test("desktop held-hand tables reserve separate north, center, and local HUD bands", () => {
+  const css = read("public/app.css");
+  const desktop = css.slice(css.indexOf("@media (min-width: 821px) and (min-height: 641px)"));
+
+  assert.match(desktop, /\.card-table-scene:not\(\.snap-table-scene\):not\(\.finders-table-scene\) \{\s*min-height: clamp\(660px, 72vh, 820px\);/);
+  assert.match(desktop, /\.table-seat-north \{\s*--seat-hand-shift-y: 0px;/);
+  assert.match(desktop, /\.center-play-area \{\s*top: 25%;\s*height: 36%;/);
+  assert.match(desktop, /\.card-table-scene\.casino-table-scene\.blackjack-table-scene \.center-play-area,\s*\.card-table-scene\.casino-table-scene\.holdem-table-scene \.center-play-area \{ top: 28%; \}/);
+  assert.match(desktop, /\.local-player-hud \{\s*bottom: 242px;/);
+  assert.match(desktop, /\.physical-hand \{\s*background: transparent;\s*border-color: transparent;\s*box-shadow: none;\s*pointer-events: none;/);
+  assert.match(desktop, /\.physical-hand :is\(\.game-hand, \.blackjack-hand-summaries\) \{\s*pointer-events: auto;/);
+  assert.match(desktop, /\.card-table-scene\.rummy-table-scene:has\(\.rummy-link-board\) \{\s*min-height: clamp\(820px, 80vh, 920px\);/);
+});
+
+test("narrow casino copy stays below the north fan without moving JUAN or Five Card Draw", () => {
+  const css = read("public/app.css");
+  const narrow = css.slice(css.indexOf("@media (max-width: 820px) and (min-height: 641px)"));
+
+  assert.match(narrow, /\.blackjack-table-scene \.center-play-area,\s*\.holdem-table-scene \.center-play-area \{\s*top: 26%;\s*height: 33%;/);
+  assert.doesNotMatch(narrow, /\.juan-table-scene|\.five-card-draw-table-scene/);
+});
+
 test("opponent seats share one camera instead of a flattened fake perspective", () => {
   const app = read("public/app.js");
   const css = read("public/app.css");

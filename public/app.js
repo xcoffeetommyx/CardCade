@@ -1550,6 +1550,7 @@ function renderBlackjackGame() {
         <button class="game-score" type="button" disabled><span>Points</span><strong>${formatPoints(yourPlayer?.score)}</strong></button>
       </header>
       <div class="blackjack-rule-bar"><span>Dealer stands on soft 17</span><i>•</i><span>Split, double, surrender, insurance</span><i>•</i><strong>${match.stockCount} in shoe</strong></div>
+      ${isInsuranceTurn ? renderBlackjackInsurancePrompt(state.gameActionLock) : ""}
       ${renderTableScene({
         match,
         viewerSeat,
@@ -1563,8 +1564,7 @@ function renderBlackjackGame() {
         })).join(""),
         tableStatusMarkup: `<div class="game-status"><span><strong>${escapeHtml(playerStatus)}</strong><small>${escapeHtml(match.lastMoveText)}</small></span><span class="badge">${match.dealer?.revealed ? escapeHtml(match.dealer.label || "Dealer") : "Dealer upcard"}</span></div>`,
         centerMarkup: `
-          <section class="game-table status-separated-table blackjack-table ${isInsuranceTurn ? "insurance-pending" : ""}">
-            ${isInsuranceTurn ? renderBlackjackInsurancePrompt(state.gameActionLock) : ""}
+          <section class="game-table status-separated-table blackjack-table">
             <div class="blackjack-dealer-zone">
               <div class="blackjack-dealer-copy"><span>Dealer</span><strong>${escapeHtml(dealerLabel)}</strong></div>
               <div class="active-pile cards-pile blackjack-dealer-pile" aria-label="Dealer cards">${dealerCards.map((card, index) => renderPlayingCard(card, index, { played: true, enter: dealerIsNew })).join("")}${Array.from({ length: dealerHiddenCount }, (_, index) => renderBlackjackCardBack(dealerCards.length + index, { enter: dealerIsNew })).join("")}</div>
