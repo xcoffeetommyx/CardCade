@@ -2923,7 +2923,7 @@ function appearanceFamilyName(deckFamilyId) {
   if (family) return { name: family.name, shortName: family.shortName };
   if (deckFamilyId === "standard-52") return { name: "Standard playing cards", shortName: "52-card deck" };
   if (deckFamilyId === "color-action") return { name: "Color & action cards", shortName: "Custom shedding deck" };
-  if (deckFamilyId === "rotating-rummy") return { name: "Rotating Rummy Routes", shortName: "108-card Route deck" };
+  if (deckFamilyId === "rotating-rummy") return { name: "Rotating Rummy", shortName: "108-card Route deck" };
   return { name: deckFamilyId, shortName: "Card deck" };
 }
 

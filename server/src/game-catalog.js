@@ -15,7 +15,7 @@ export const deckFamilies = [
   },
   {
     id: "rotating-rummy",
-    name: "Rotating Rummy Routes",
+    name: "Rotating Rummy",
     shortName: "108-card Route deck",
     description: "Blackout number cards, shifting Route Decks, and original rummy objectives.",
     order: 30

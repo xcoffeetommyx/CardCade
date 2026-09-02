@@ -30,7 +30,9 @@ test("catalog groups games under ordered deck families", () => {
   assert.equal(catalog.families[1].games[0].status, "available");
   assert.deepEqual(catalog.families[1].games[0].players, { min: 2, max: 4, recommended: 4 });
   assert.equal(catalog.families[2].id, "rotating-rummy");
+  assert.equal(catalog.families[2].name, "Rotating Rummy");
   assert.equal(catalog.families[2].games[0].id, "rotating-rummy");
+  assert.equal(catalog.families[2].games[0].name, catalog.families[2].name);
   assert.equal(catalog.families[2].games[0].status, "available");
   assert.deepEqual(catalog.families[2].games[0].players, { min: 2, max: 4, recommended: 4 });
   assert.equal(catalog.families[3].id, "finders-makers");

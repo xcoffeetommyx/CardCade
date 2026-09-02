@@ -7,6 +7,15 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const read = (file) => readFileSync(path.join(root, file), "utf8");
 
+test("deck boxes use catalog titles and the Rotating Rummy fallback has no Routes suffix", () => {
+  const app = read("public/app.js");
+  const deckRenderer = app.slice(app.indexOf("function renderOrbitalDeck"), app.indexOf("function renderSpatialGameOptions"));
+
+  assert.match(deckRenderer, /<strong>\$\{escapeHtml\(family\.name\)\}<\/strong>/);
+  assert.match(app, /if \(deckFamilyId === "rotating-rummy"\) return \{ name: "Rotating Rummy",/);
+  assert.doesNotMatch(app, /Rotating Rummy Routes/);
+});
+
 test("the launcher keeps catalog and launch behavior behind one spatial deck-to-game scene", () => {
   const app = read("public/app.js");
 
