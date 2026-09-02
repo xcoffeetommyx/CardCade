@@ -34,7 +34,9 @@ test("the launcher keeps catalog and launch behavior behind one spatial deck-to-
   assert.match(app, /librarySwipeGesture/);
   assert.match(app, /familyId: event\.target\.closest\?\.\("\.orbital-deck"\)\?\.dataset\.familyId \|\| null/);
   assert.match(app, /selectLibraryDeck\(gesture\.familyId, \{ focus: false \}\)/);
-  assert.match(app, /librarySuppressDeckClickUntil = performance\.now\(\) \+ 160/);
+  assert.match(app, /libraryClickGuard\.markHandled\(\)/);
+  assert.match(app, /libraryClickGuard\.consumeClick\(event\)[\s\S]*?const button = event\.target\.closest\("\[data-action\]"\)/);
+  assert.match(app, /document\.addEventListener\("pointerdown", \(event\) => \{\s*libraryClickGuard\.startGesture\(\);/);
   assert.match(app, /document\.addEventListener\("wheel"/);
 });
 

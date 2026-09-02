@@ -1,3 +1,5 @@
+import { createPointerClickGuard } from "./pointer-click-guard.js?v=1";
+
 const app = document.querySelector("#app");
 const toast = document.querySelector("#toast");
 const installButton = document.querySelector("#install-button");
@@ -126,7 +128,7 @@ const controllerTextState = {
 };
 
 let librarySwipeGesture = null;
-let librarySuppressDeckClickUntil = 0;
+const libraryClickGuard = createPointerClickGuard();
 
 const standardGameAdapters = {
   "three-seven": {
@@ -4074,12 +4076,14 @@ async function resumeRoom() {
 }
 
 document.addEventListener("click", async (event) => {
-  const button = event.target.closest("[data-action]");
-  if (!button) return;
-  if (performance.now() < librarySuppressDeckClickUntil && button.closest(".orbital-deck-stage")) {
+  // Opening the list on pointerup may retarget this same gesture's click to a
+  // newly exposed game option, so consume it before looking up any action.
+  if (libraryClickGuard.consumeClick(event)) {
     event.preventDefault();
     return;
   }
+  const button = event.target.closest("[data-action]");
+  if (!button) return;
   const action = button.dataset.action;
 
   if (action.startsWith("controller-key")) {
@@ -4962,6 +4966,8 @@ document.addEventListener("focusin", (event) => {
 });
 
 document.addEventListener("pointerdown", (event) => {
+  libraryClickGuard.startGesture();
+  librarySwipeGesture = null;
   if (state.screen !== "library" || state.libraryStage !== "decks") return;
   if (!event.target.closest?.(".deck-orbit-viewport")) return;
   librarySwipeGesture = {
@@ -4982,7 +4988,7 @@ document.addEventListener("pointerup", (event) => {
   const elapsed = performance.now() - gesture.time;
   if (elapsed > 900) return;
   if (Math.abs(deltaX) >= 42 && Math.abs(deltaX) >= Math.abs(deltaY) * 1.2) {
-    librarySuppressDeckClickUntil = performance.now() + 160;
+    libraryClickGuard.markHandled();
     rotateLibraryDeck(deltaX < 0 ? 1 : -1, { focus: false });
     return;
   }
@@ -4990,13 +4996,14 @@ document.addEventListener("pointerup", (event) => {
     // Resolve taps from the stable pointer-down deck. Mobile :hover and the 3D
     // transform can otherwise move a child face between down and up, causing
     // the browser to omit the synthetic click entirely.
-    librarySuppressDeckClickUntil = performance.now() + 160;
+    libraryClickGuard.markHandled();
     selectLibraryDeck(gesture.familyId, { focus: false });
   }
 });
 
 document.addEventListener("pointercancel", () => {
   librarySwipeGesture = null;
+  libraryClickGuard.startGesture();
 });
 
 document.addEventListener("wheel", (event) => {

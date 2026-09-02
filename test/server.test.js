@@ -106,8 +106,12 @@ test("health, catalog, and launcher are served from one process", async (t) => {
 
   const localStyles = await fetch(`${origin}/cardcade/app.css?v=141`);
   assert.match(localStyles.headers.get("content-type"), /text\/css/);
-  const localApp = await fetch(`${origin}/cardcade/app.js?v=100`);
+  const localApp = await fetch(`${origin}/cardcade/app.js?v=101`);
   assert.match(localApp.headers.get("content-type"), /text\/javascript/);
+  const pointerGuard = await fetch(`${origin}/cardcade/pointer-click-guard.js?v=1`);
+  assert.equal(pointerGuard.status, 200);
+  assert.match(pointerGuard.headers.get("content-type"), /text\/javascript/);
+  assert.match(await pointerGuard.text(), /export function createPointerClickGuard/);
 
   const thirteenRules = await fetch(`${origin}/shared/thirteen-rules.js`);
   assert.equal(thirteenRules.status, 200);
