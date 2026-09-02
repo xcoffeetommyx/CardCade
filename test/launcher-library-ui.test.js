@@ -54,7 +54,9 @@ test("the orbital launcher uses CSS depth, fixed-scene mode scrolling, and respo
   assert.match(css, /\.orbital-deck \{[^}]*touch-action: manipulation;/);
   assert.match(css, /\.orbital-deck-hit-target \{[^}]*translateZ\(100px\)/);
   assert.doesNotMatch(css, /\.orbital-deck \{[^}]*will-change:/);
-  assert.doesNotMatch(css, /orbitalDeckIdle/);
+  assert.match(css, /\.orbital-deck\.active \.orbital-deck-box \{[^}]*animation: orbitalDeckIdle 2\.8s ease-in-out infinite;/);
+  assert.match(css, /@keyframes orbitalDeckIdle/);
+  assert.match(css, /\.show-games \.orbital-deck\.active \.orbital-deck-box \{ animation-play-state: paused; \}/);
   assert.match(css, /\.deck-box-front,[\s\S]*?brightness\(var\(--orbit-face-brightness\)\)/);
   assert.match(css, /\.orbital-deck:focus-visible \{ outline: 0 !important; \}/);
   assert.match(css, /\.controller-hover\.orbital-deck,[\s\S]*?outline: 0 !important;[\s\S]*?filter: none !important;/);

@@ -694,6 +694,12 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 .orbital-deck.controller-hover { --orbit-face-brightness: 1.08; }
 .orbital-deck.active .orbital-deck-box {
   transform: rotateX(-12deg) rotateY(-20deg);
+  animation: orbitalDeckIdle 2.8s ease-in-out infinite;
+}
+.show-games .orbital-deck.active .orbital-deck-box { animation-play-state: paused; }
+@keyframes orbitalDeckIdle {
+  0%, 100% { transform: translateY(0) rotateX(-12deg) rotateY(-20deg); }
+  50% { transform: translateY(-4px) rotateX(-12deg) rotateY(-20deg); }
 }
 
 .deck-box-front,
