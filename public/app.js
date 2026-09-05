@@ -1,4 +1,5 @@
 import { createPointerClickGuard } from "./pointer-click-guard.js?v=1";
+import { createTurnAlertTracker, createTurnFeedback } from "./turn-alerts.js?v=1";
 
 const app = document.querySelector("#app");
 const toast = document.querySelector("#toast");
@@ -26,6 +27,7 @@ const storageKeys = {
   name: "cardcade.playerName.v1",
   room: "cardcade.roomSession.v1",
   reducedMotion: "cardcade.reducedMotion.v1",
+  turnAlerts: "cardcade.turnAlerts.v1",
   appearance: "cardcade.appearance.v1"
 };
 
@@ -91,6 +93,29 @@ const pwaState = {
   updateRequested: false,
   updateReloading: false
 };
+
+const turnAlertTracker = createTurnAlertTracker();
+const turnFeedback = createTurnFeedback({ notify: showToast, enabled: turnAlertsEnabled });
+
+function turnAlertsEnabled() {
+  return localStorage.getItem(storageKeys.turnAlerts) !== "false";
+}
+
+function syncTurnAlert() {
+  if (!["game", "hot-seat-handoff"].includes(state.screen)) return;
+  // Finders Makers keeps the previous player's Search private until handoff.
+  if (state.gameMode === "hot-seat" && state.findersSearchFlip) return;
+  const alert = turnAlertTracker.update({
+    room: state.room, view: state.gameView, mode: state.gameMode, humanSeats: state.hotSeatSeats
+  });
+  if (alert) turnFeedback.play(alert.message);
+}
+
+for (const eventName of ["pointerup", "keydown"]) {
+  document.addEventListener(eventName, (event) => {
+    if (event.isTrusted) turnFeedback.unlock();
+  }, { capture: true, passive: true });
+}
 
 const threeSevenRules = globalThis.ThreeSevenRules;
 const thirteenRules = globalThis.ThirteenRules;
@@ -1993,6 +2018,9 @@ function rotatingRummySelection() {
   const viewer = state.room?.players.find((player) => player.isYou);
   const player = match.players.find((candidate) => candidate.seat === viewer?.seat);
   const selected = view.hand.filter((card) => state.selectedCards.has(card.id));
+  if (match.roundOver) {
+    return { selected, routeOk: false, linkOk: false, discardOk: false, linkTarget: null, reason: match.matchOver ? "Route circuit complete" : "Routes settled — ready for the next round" };
+  }
   if (match.turnStage !== "play") {
     return { selected, routeOk: false, linkOk: false, discardOk: false, linkTarget: null, reason: "Draw from the stock or discard first" };
   }
@@ -2889,6 +2917,7 @@ function renderHotSeatHandoff() {
           <p class="handoff-instruction">${dealerTurn ? "Dealer turn" : "CPU turn"}</p>
           <h1>${escapeHtml(dealerTurn ? "Dealer" : cpu?.name || "Cardcade CPU")}</h1>
           <p class="handoff-privacy">${dealerTurn ? "Every private hand is covered while the dealer resolves the table." : "The human hand is covered while the CPU plays automatically. Cardcade will name the next person when it is time to pass the device."}</p>
+          ${state.room?.gameId === "rotating-rummy" ? `<p class="handoff-instruction" role="status">${escapeHtml(match.lastMoveText)}</p>` : ""}
           <button class="action-button handoff-end" type="button" data-action="close-hot-seat">End table</button>
         </div>
       </section>`;
@@ -3053,7 +3082,7 @@ function renderOptionsCommands({ staticOnly = false } = {}) {
       <${tag} class="game-command-option" ${attrs("open-player-name-option")}><span aria-hidden="true">›</span><strong>Player name</strong><small>${escapeHtml(playerName())}</small></${tag}>
       <${tag} class="game-command-option" ${attrs("open-appearance-settings")}><span aria-hidden="true">›</span><strong>Appearance &amp; skins</strong><small>Customize</small></${tag}>
       <${tag} class="game-command-option" ${attrs("toggle-reduced-motion-setting")} ${staticOnly ? "" : `aria-pressed="${reducedMotion}"`}><span aria-hidden="true">›</span><strong>Reduce motion</strong><small>${reducedMotion ? "On" : "Off"}</small></${tag}>
-      <div class="game-command-option unavailable" aria-disabled="true"><span aria-hidden="true">·</span><strong>Sound</strong><small>Coming later</small></div>
+      <${tag} class="game-command-option" ${attrs("toggle-turn-alerts")} ${staticOnly ? "" : `aria-pressed="${turnAlertsEnabled()}"`}><span aria-hidden="true">›</span><strong>Turn alerts</strong><small>${turnAlertsEnabled() ? "On · vibration / chime" : "Off"}</small></${tag}>
     </nav>`;
 }
 
@@ -3262,6 +3291,7 @@ function render() {
   }
   if (controllerState.active) requestAnimationFrame(updateControllerHover);
   restoreGameScrollPosition(gameScrollPosition);
+  syncTurnAlert();
 }
 
 function syncSnapCountdown() {
@@ -3800,6 +3830,7 @@ async function revealHotSeatHand() {
 }
 
 function clearGameSession() {
+  turnAlertTracker.reset();
   disconnectRoomSocket();
   clearFindersMakersPresentation();
   clearTimeout(state.findersHotSeatHandoffTimer);
@@ -4203,6 +4234,13 @@ document.addEventListener("click", async (event) => {
     localStorage.setItem(storageKeys.reducedMotion, reducedMotion ? "false" : "true");
     render();
     requestAnimationFrame(() => app.querySelector('[data-action="toggle-reduced-motion-setting"]')?.focus({ preventScroll: true }));
+  }
+  if (action === "toggle-turn-alerts") {
+    localStorage.setItem(storageKeys.turnAlerts, turnAlertsEnabled() ? "false" : "true");
+    turnFeedback.unlock();
+    render();
+    showToast(turnAlertsEnabled() ? "Turn alerts on: vibration or chime, plus an on-screen notice." : "Turn alerts off.");
+    requestAnimationFrame(() => app.querySelector('[data-action="toggle-turn-alerts"]')?.focus({ preventScroll: true }));
   }
   if (action === "select-appearance-category") selectAppearanceCategory(Number(button.dataset.categoryIndex));
   if (action === "cycle-appearance-choice") cycleAppearanceChoice(Number(button.dataset.direction));

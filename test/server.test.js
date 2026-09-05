@@ -6,6 +6,9 @@ import standard52 from "../shared/standard-52.js";
 import { createCardcadeServer } from "../server/src/app.js";
 import { MatchEngine as BlackjackMatchEngine } from "../server/src/games/blackjack/match-engine.js";
 import { BlackjackRuntime } from "../server/src/games/blackjack/runtime.js";
+import rummyDeck from "../shared/rotating-rummy-deck.js";
+import { MatchEngine as RummyMatchEngine } from "../server/src/games/rotating-rummy/match-engine.js";
+import { RotatingRummyRuntime } from "../server/src/games/rotating-rummy/runtime.js";
 
 async function startServer(t, options = {}) {
   const app = createCardcadeServer(options);
@@ -419,6 +422,43 @@ test("Blackjack's paced dealer turn adds drawn cards and reaches the settled rou
   assert.equal(finalState.view.state.phase, "complete");
   assert.deepEqual(finalState.view.state.dealer.cards.map((card) => card.id), ["5D", "6C", "2S", "4H"]);
   assert.match(finalState.view.state.lastMoveText, /Dealer stands on 17/);
+});
+
+test("Rummy broadcasts each paced CPU action before returning the turn to the human", async (t) => {
+  class ScriptedEngine extends RummyMatchEngine {
+    createMatch(players) {
+      const match = super.createMatch(players, { routeDeckId: "neon-grid" });
+      const cards = new Map(rummyDeck.makeDeck().map((card) => [card.id, card]));
+      match.players[0].hand = ["rr-red-1-a", "rr-red-2-a"].map((id) => cards.get(id));
+      match.players[1].hand = ["rr-red-4-a", "rr-blue-4-a", "rr-green-6-a", "rr-yellow-7-a", "rr-red-8-a", "rr-blue-1-a"].map((id) => cards.get(id));
+      match.stock = [cards.get("rr-red-12-a")];
+      match.discardPile = [cards.get("rr-yellow-12-a")];
+      return match;
+    }
+  }
+  const rotatingRummyRuntime = new RotatingRummyRuntime({ matchEngine: new ScriptedEngine(), botStepDelayMs: 40 });
+  const { origin } = await startServer(t, { rotatingRummyRuntime });
+  const { body: session } = await jsonRequest(origin, "/api/solo/rotating-rummy", {
+    method: "POST", body: JSON.stringify({ name: "Pacing test", botCount: 1 })
+  });
+  const socket = await openSocket(origin, session, "game_state");
+  t.after(() => socket.terminate());
+  const draw = nextMessage(socket, (message) => message.view?.state.turnStage === "play");
+  socket.send(JSON.stringify({ type: "rummy_draw_stock" }));
+  await draw;
+  const steps = [];
+  socket.on("message", (buffer) => {
+    const message = JSON.parse(buffer);
+    const bot = message.view?.state.players.find((player) => player.type === "bot");
+    if (bot?.lastPlay) steps.push({ kind: bot.lastPlay.kind, at: performance.now(), activeSeat: message.view.state.activeSeat });
+  });
+  const returnedTurn = nextMessage(socket, (message) => message.view?.state.activeSeat === 0 && message.view.state.players[1].lastPlay?.kind === "discard");
+  socket.send(JSON.stringify({ type: "rummy_discard", cardId: "rr-red-12-a" }));
+  await returnedTurn;
+  assert.deepEqual(steps.map((step) => step.kind), ["draw", "route", "discard"]);
+  assert.deepEqual(steps.map((step) => step.activeSeat), [1, 1, 0]);
+  assert.ok(steps[1].at - steps[0].at >= 20, "Route update must be separated from the draw");
+  assert.ok(steps[2].at - steps[1].at >= 20, "discard must be separated from the Route update");
 });
 
 test("Texas Hold'em starts from Solo with fixed-limit points and private hole cards", async (t) => {

@@ -61,6 +61,8 @@ export class MatchEngine {
       discardPile: [openingCard],
       roundWinnerSeat: null,
       winnerSeat: null,
+      winnerSeats: [],
+      roundEndReason: null,
       roundOver: false,
       matchOver: false,
       lastMoveText: `${openingPlayer.name} opens Route ${openingPlayer.routeIndex + 1}.`,
@@ -100,7 +102,8 @@ export class MatchEngine {
     const route = currentRoute(match, player);
     if (!route) throw new RoomError("You have already cleared every Route.", "ROUTES_COMPLETE", 409);
     const selected = cardsOwnedBy(player, cardIds);
-    if (player.hand.length - selected.length < 1) {
+    const completesTable = match.players.every((candidate) => candidate === player || candidate.routeComplete);
+    if (!completesTable && player.hand.length - selected.length < 1) {
       throw new RoomError("Keep at least one card in hand to end your turn with a discard.", "DISCARD_REQUIRED", 409);
     }
     const evaluation = rules.evaluateRoute(selected, route);
@@ -118,6 +121,7 @@ export class MatchEngine {
     };
     match.lastMoveText = `${player.name} completed Route ${player.routeIndex + 1}: ${route.name}.`;
     match.log.unshift(match.lastMoveText);
+    if (completesTable) finishRound(match);
     return match;
   }
 
@@ -226,17 +230,23 @@ export class MatchEngine {
         : null;
       if (completionFromDiscard) this.drawDiscard(match, player.seat);
       else this.drawStock(match, player.seat);
+      return true;
     }
 
     if (!player.routeComplete) {
       const completion = rules.findRouteCompletion(player.hand, route);
-      if (completion) this.completeRoute(match, player.seat, completion.cards.map((card) => card.id));
+      if (completion) {
+        this.completeRoute(match, player.seat, completion.cards.map((card) => card.id));
+        return true;
+      }
     }
 
-    while (player.routeComplete && player.hand.length > 1) {
+    if (player.routeComplete && player.hand.length > 1) {
       const link = findBestLink(match, player);
-      if (!link) break;
-      this.link(match, player.seat, link.targetSeat, link.groupIndex, link.cards.map((card) => card.id));
+      if (link) {
+        this.link(match, player.seat, link.targetSeat, link.groupIndex, link.cards.map((card) => card.id));
+        return true;
+      }
     }
 
     const discard = player.routeComplete
@@ -280,6 +290,8 @@ export class MatchEngine {
         stockCount: match.stock.length,
         roundWinnerSeat: match.roundWinnerSeat,
         winnerSeat: match.winnerSeat,
+        winnerSeats: match.winnerSeats?.slice() || [],
+        roundEndReason: match.roundEndReason || null,
         roundOver: match.roundOver,
         matchOver: match.matchOver,
         actions: {
@@ -481,13 +493,15 @@ function nextPlayer(match, fromSeat) {
   return match.players[(fromIndex + 1) % match.players.length];
 }
 
-function finishRound(match, winner) {
-  const winningRouteNumber = winner.routeIndex + 1;
-  const points = match.players
-    .filter((player) => player.seat !== winner.seat)
-    .flatMap((player) => player.hand)
-    .reduce((total, card) => total + rules.cardPoints(card), 0);
-  winner.score += points;
+function finishRound(match, winner = null) {
+  const winningRouteNumber = winner ? winner.routeIndex + 1 : null;
+  // A shared Route finish has no go-out winner or go-out bonus.
+  if (winner) {
+    winner.score += match.players
+      .filter((player) => player.seat !== winner.seat)
+      .flatMap((player) => player.hand)
+      .reduce((total, card) => total + rules.cardPoints(card), 0);
+  }
 
   for (const player of match.players) {
     player.roundPenalty = player.hand.reduce((total, card) => total + rules.cardPoints(card), 0);
@@ -495,15 +509,23 @@ function finishRound(match, winner) {
     if (player.routeComplete) player.routeIndex = Math.min(match.totalRoutes, player.routeIndex + 1);
   }
 
-  match.roundWinnerSeat = winner.seat;
+  match.roundWinnerSeat = winner?.seat ?? null;
+  match.roundEndReason = winner ? "went-out" : "all-routes-complete";
   match.roundOver = true;
   match.activeSeat = null;
   match.turnStage = "complete";
-  match.matchOver = winner.routeIndex >= match.totalRoutes;
+  const finishers = match.players.filter((player) => player.routeIndex >= match.totalRoutes);
+  match.matchOver = finishers.length > 0;
   if (match.matchOver) {
     match.phase = "complete";
-    match.winnerSeat = winner.seat;
-    match.lastMoveText = `${winner.name} cleared Route ${winningRouteNumber} and wins Rotating Rummy.`;
+    const winners = winner && finishers.includes(winner) ? [winner] : finishers;
+    match.winnerSeats = winners.map((player) => player.seat);
+    match.winnerSeat = winners.length === 1 ? winners[0].seat : null;
+    match.lastMoveText = winners.length === 1
+      ? `${winners[0].name} cleared Route ${match.totalRoutes} and wins Rotating Rummy.`
+      : `${winners.map((player) => player.name).join(" and ")} cleared Route ${match.totalRoutes} and share the Rotating Rummy win.`;
+  } else if (!winner) {
+    match.lastMoveText = `All players completed their Routes. Ready for round ${match.round + 1}.`;
   } else {
     match.lastMoveText = `${winner.name} cleared Route ${winningRouteNumber} and ends the round.`;
   }

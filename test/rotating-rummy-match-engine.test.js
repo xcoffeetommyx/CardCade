@@ -3,6 +3,7 @@ import test from "node:test";
 import deck from "../shared/rotating-rummy-deck.js";
 import { GameError } from "../server/src/game-error.js";
 import { MatchEngine } from "../server/src/games/rotating-rummy/match-engine.js";
+import { RotatingRummyRuntime } from "../server/src/games/rotating-rummy/runtime.js";
 
 const identityShuffle = (cards) => cards.slice();
 const human = (seat, name) => ({ seat, name, type: "human" });
@@ -162,7 +163,7 @@ test("Pass cards move play past the next seat after a discard", () => {
   assert.match(table.lastMoveText, /discarded a Pass\. Play moves past Two/);
 });
 
-test("Rotating Rummy CPUs resolve a whole draw, route, and discard turn", () => {
+test("Rotating Rummy CPUs expose draw, Route, and discard as separate steps", () => {
   const game = engine();
   const table = matchFor([human(0, "Host"), bot(1, "Byte")]);
   setTable(table, {
@@ -172,8 +173,17 @@ test("Rotating Rummy CPUs resolve a whole draw, route, and discard turn", () => 
     stock: ["rr-blue-3-a"]
   });
   assert.equal(game.runBotTurn(table), true);
+  assert.equal(table.players[1].lastPlay.kind, "draw");
+  assert.equal(table.players[1].routeComplete, false);
+  assert.equal(table.activeSeat, 1);
+  assert.equal(game.runBotTurn(table), true);
   assert.equal(table.players[1].routeComplete, true);
+  assert.equal(table.players[1].lastPlay.kind, "route");
+  assert.equal(table.activeSeat, 1);
+  assert.equal(game.runBotTurn(table), true);
+  assert.equal(table.players[1].lastPlay.kind, "discard");
   assert.equal(table.activeSeat, 0);
+  assert.equal(game.runBotTurn(table), false);
 });
 
 test("Rotating Rummy CPUs link compatible cards so short Routes can still go out", () => {
@@ -185,9 +195,97 @@ test("Rotating Rummy CPUs link compatible cards so short Routes can still go out
     turnStage: "play"
   });
   assert.equal(game.runBotTurn(table), true);
+  assert.equal(table.players[1].lastPlay.kind, "route");
+  assert.equal(table.roundOver, false);
+  assert.equal(game.runBotTurn(table), true);
+  assert.equal(table.players[1].lastPlay.kind, "link");
+  assert.equal(table.roundOver, false);
+  assert.equal(game.runBotTurn(table), true);
   assert.equal(table.roundOver, true);
   assert.equal(table.players[1].routeMeld[0].length, 3);
   assert.equal(table.players[1].hand.length, 0);
+});
+
+const warmStart = ["rr-red-4-a", "rr-blue-4-a", "rr-green-6-a", "rr-yellow-7-a", "rr-red-8-a"];
+const finishLine = ["rr-red-1-a", "rr-blue-12-a", "rr-yellow-2-a", "rr-green-11-a", "rr-red-5-a", "rr-red-6-a", "rr-red-7-a", "rr-red-8-a"];
+
+test("The final Route completion advances everyone without a discard or score bonus", () => {
+  const game = engine();
+  const table = matchFor();
+  setTable(table, { hands: [[...warmStart, "rr-red-2-a"], ["rr-green-1-a"], ["rr-blue-1-a"]], turnStage: "play" });
+  table.players[1].routeComplete = true;
+  table.players[2].routeComplete = true;
+  table.players[0].score = 23;
+  game.completeRoute(table, 0, warmStart);
+  assert.equal(table.roundOver, true);
+  assert.equal(table.roundEndReason, "all-routes-complete");
+  assert.equal(table.roundWinnerSeat, null);
+  assert.equal(table.activeSeat, null);
+  assert.equal(table.turnStage, "complete");
+  assert.equal(table.players[0].hand.length, 1);
+  assert.deepEqual(table.players.map((player) => player.score), [23, 0, 0]);
+  assert.ok(table.players.every((player) => player.routeIndex === 1 && player.completedThisRound));
+  assertGameError(() => game.discard(table, 0, "rr-red-2-a"), "MATCH_NOT_ACTIVE");
+  assert.ok(Object.values(game.viewFor(table, 0).state.actions).every((allowed) => !allowed));
+  const next = game.nextRound(table);
+  assert.equal(next.round, 2);
+  assert.equal(next.activeSeat, 1);
+  assert.equal(next.roundEndReason, null);
+  assert.ok(next.players.every((player) => player.routeIndex === 1 && !player.routeComplete && player.hand.length === 10));
+});
+
+test("The last outstanding Route may use the player's entire hand", () => {
+  const table = matchFor([human(0, "One"), human(1, "Two")]);
+  setTable(table, { hands: [warmStart, ["rr-green-1-a"]], turnStage: "play" });
+  assertGameError(() => engine().completeRoute(table, 0, warmStart), "DISCARD_REQUIRED");
+  table.players[1].routeComplete = true;
+  engine().completeRoute(table, 0, warmStart);
+  assert.equal(table.roundOver, true);
+  assert.equal(table.players[0].hand.length, 0);
+});
+
+test("A CPU stops immediately when it completes the final outstanding Route", () => {
+  const table = matchFor([human(0, "Host"), bot(1, "Byte")]);
+  setTable(table, { hands: [["rr-yellow-12-a"], [...warmStart, "rr-green-4-a", "rr-red-1-b"]], activeSeat: 1, turnStage: "play" });
+  table.players[0].routeComplete = true;
+  assert.equal(engine().runBotTurn(table), true);
+  assert.equal(table.roundOver, true);
+  assert.equal(table.players[1].lastPlay.kind, "route");
+  assert.equal(table.players[1].hand.length, 2);
+  assert.equal(engine().runBotTurn(table), false);
+});
+
+test("Shared Route finishes settle Route 10, including ties and uneven progress", () => {
+  for (const otherRouteIndex of [0, 9]) {
+    const table = matchFor([human(0, "One"), human(1, "Two")]);
+    setTable(table, { hands: [[...finishLine, "rr-green-1-a"], ["rr-yellow-12-a"]], turnStage: "play" });
+    table.players[0].routeIndex = 9;
+    table.players[1].routeIndex = otherRouteIndex;
+    table.players[1].routeComplete = true;
+    engine().completeRoute(table, 0, finishLine);
+    assert.equal(table.matchOver, true);
+    assert.equal(table.phase, "complete");
+    assert.deepEqual(table.winnerSeats, otherRouteIndex === 9 ? [0, 1] : [0]);
+    assert.equal(table.winnerSeat, otherRouteIndex === 9 ? null : 0);
+    assertGameError(() => engine().nextRound(table), "MATCH_COMPLETE");
+  }
+});
+
+test("Rummy schedules readable steps and resumes a saved mid-turn without drawing twice", () => {
+  const table = matchFor([human(0, "Host"), bot(1, "Byte")]);
+  setTable(table, { hands: [["rr-yellow-12-a"], [...warmStart, "rr-red-1-a"]], activeSeat: 1 });
+  const restore = (state) => new RotatingRummyRuntime({ matchEngine: engine(), restoredMatches: [{ gameId: "rotating-rummy", code: "PACE", state }] });
+  const runtime = restore(table);
+  assert.equal(runtime.nextActionDelay("PACE"), 1_600);
+  runtime.runScheduledStep("PACE");
+  const drawn = runtime.snapshot("PACE");
+  assert.equal(drawn.turnStage, "play");
+  const restored = restore(drawn);
+  restored.runScheduledStep("PACE");
+  assert.equal(restored.snapshot("PACE").players[1].lastPlay.kind, "route");
+  assert.equal(restored.snapshot("PACE").stock.length, drawn.stock.length);
+  while (restored.nextActionDelay("PACE") !== null) restored.runScheduledStep("PACE");
+  assert.equal(restored.snapshot("PACE").activeSeat, 0);
 });
 
 function assertGameError(action, code) {

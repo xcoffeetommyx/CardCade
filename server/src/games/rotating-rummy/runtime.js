@@ -7,9 +7,11 @@ const BOT_STYLES = ["steady", "patient", "pressure"];
 export class RotatingRummyRuntime {
   #matches = new Map();
   #engine;
+  #botStepDelayMs;
 
-  constructor({ matchEngine = new MatchEngine(), restoredMatches = [] } = {}) {
+  constructor({ matchEngine = new MatchEngine(), restoredMatches = [], botStepDelayMs = 1_600 } = {}) {
     this.#engine = matchEngine;
+    this.#botStepDelayMs = botStepDelayMs;
     for (const record of restoredMatches) {
       if (record?.gameId !== "rotating-rummy" || typeof record.code !== "string" || !record.state?.players) continue;
       this.#matches.set(record.code, structuredClone(record.state));
@@ -91,7 +93,18 @@ export class RotatingRummyRuntime {
   }
 
   runBotTurn(roomCode) {
+    // One public action per tick, so every draw, Route, Link and discard is visible.
     return this.#engine.runBotTurn(this.#requireMatch(roomCode));
+  }
+
+  nextActionDelay(roomCode) {
+    const match = this.#requireMatch(roomCode);
+    const player = match.players.find((candidate) => candidate.seat === match.activeSeat);
+    return !match.roundOver && player?.type === "bot" ? this.#botStepDelayMs : null;
+  }
+
+  runScheduledStep(roomCode) {
+    return this.runBotTurn(roomCode);
   }
 
   replaceHumanWithBot(roomCode, seat) {
