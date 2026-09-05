@@ -3,6 +3,7 @@ import test from "node:test";
 import deck from "../shared/juan-deck.js";
 import { GameError } from "../server/src/game-error.js";
 import { MatchEngine } from "../server/src/games/juan/match-engine.js";
+import { JuanRuntime } from "../server/src/games/juan/runtime.js";
 
 const identityShuffle = (cards) => cards.slice();
 const human = (seat, name) => ({ seat, name, type: "human" });
@@ -108,6 +109,8 @@ test("JUAN requires a player to call JUAN and lets another player catch a missed
   assert.equal(match.players[0].juan, true);
   assert.equal(match.pendingJuan, null);
   assert.match(match.lastMoveText, /called JUAN/);
+  assert.deepEqual(match.lastJuanCall, { id: "1:1", seat: 0, calledAt: match.lastJuanCall.calledAt });
+  assert.deepEqual(engine.viewFor(match, 1).state.juanAnnouncement, match.lastJuanCall);
 
   const declaredWithPlay = setTable(matchFor(), {
     hands: [["blaze-7-a", "tide-1-a"], ["spark-1-a"], ["grove-1-a"]]
@@ -115,6 +118,7 @@ test("JUAN requires a player to call JUAN and lets another player catch a missed
   engine.play(declaredWithPlay, 0, "blaze-7-a", null, true);
   assert.equal(declaredWithPlay.players[0].juan, true);
   assert.equal(declaredWithPlay.pendingJuan, null);
+  assert.equal(declaredWithPlay.lastJuanCall.seat, 0);
 
   const caughtMatch = setTable(matchFor(), {
     hands: [["blaze-7-a", "tide-1-a"], ["spark-1-a"], ["grove-1-a"]],
@@ -291,6 +295,55 @@ test("JUAN CPUs resolve exactly one turn at a time", () => {
   assert.equal(engine.runBotTurn(match), true);
   assert.ok(match.players[1].lastPlay);
   assert.equal(match.players[2].lastPlay, null);
+});
+
+test("JUAN CPUs expose a counter window before calling and announce a successful call", () => {
+  let now = 10_000;
+  const engine = new MatchEngine({ shuffleDeck: identityShuffle, now: () => now, botJuanCallDelayMs: 2_600 });
+  const makeMatch = () => setTable(engine.createMatch([bot(0, "Juno"), human(1, "Host")]), {
+    hands: [["blaze-7-a", "tide-1-a"], ["spark-1-a", "grove-1-a"]],
+    activeSeat: 0,
+    stock: ["spark-2-a", "spark-3-a"]
+  });
+
+  const caught = makeMatch();
+  assert.equal(engine.runBotTurn(caught), true);
+  assert.equal(caught.players[0].juan, false);
+  assert.equal(caught.pendingJuan.seat, 0);
+  assert.equal(caught.pendingJuan.botCallAt, 12_600);
+  assert.equal(caught.activeSeat, 1);
+  assert.equal(engine.runBotTurn(caught), false, "the bot cannot call before its public deadline");
+  engine.catchJuan(caught, 1);
+  assert.equal(caught.players[0].hand.length, 3);
+  assert.equal(caught.pendingJuan, null);
+
+  const called = makeMatch();
+  engine.runBotTurn(called);
+  assert.equal(engine.nextBotActionDelay(called), 2_600);
+  now = 12_599;
+  assert.equal(engine.runBotTurn(called), false);
+  assert.equal(engine.nextBotActionDelay(called), 1);
+  now = 12_600;
+  assert.equal(engine.runBotTurn(called), true);
+  assert.equal(called.players[0].juan, true);
+  assert.equal(called.pendingJuan, null);
+  assert.deepEqual(called.lastJuanCall, { id: "1:1", seat: 0, calledAt: 12_600 });
+  assert.match(called.lastMoveText, /Juno called JUAN!/);
+});
+
+test("JUAN runtime schedules a saved CPU call deadline even during a human turn", () => {
+  let now = 2_000;
+  const engine = new MatchEngine({ shuffleDeck: identityShuffle, now: () => now, botJuanCallDelayMs: 2_600 });
+  const match = setTable(engine.createMatch([bot(0, "Juno"), human(1, "Host")]), {
+    hands: [["blaze-7-a", "tide-1-a"], ["spark-1-a", "grove-1-a"]], activeSeat: 0
+  });
+  engine.runBotTurn(match);
+  const runtime = new JuanRuntime({ matchEngine: engine, restoredMatches: [{ gameId: "juan", code: "CALL", state: match }] });
+  assert.equal(runtime.nextActionDelay("CALL"), 2_600);
+  now = 4_600;
+  assert.equal(runtime.runScheduledStep("CALL"), true);
+  assert.equal(runtime.snapshot("CALL").lastJuanCall.seat, 0);
+  assert.equal(runtime.nextActionDelay("CALL"), null);
 });
 
 function assertGameError(action, code) {

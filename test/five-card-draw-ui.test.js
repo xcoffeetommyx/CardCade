@@ -40,6 +40,12 @@ test("Five Card Draw reuses Cardcade's private fan, physical card flight, and fi
   assert.match(app, /standard-card-game \$\{activeTableAppearanceClass\(\)\} five-card-draw-game/);
   assert.match(css, /\.five-card-draw-table-zone/);
   assert.match(css, /\.draw-card-back/);
+  assert.match(app, /function renderFiveCardDrawPile/);
+  assert.match(app, /draw-card-layer-\$\{index \+ 1\}/);
+  assert.match(css, /\.five-card-draw-pile-cards \{[\s\S]*?width: var\(--game-card-width\);[\s\S]*?height: var\(--game-card-height\)/);
+  assert.match(css, /\.five-card-draw-table-scene \.draw-stack \.draw-card-layer-1[\s\S]*?rotateX\(var\(--table-card-lay/);
+  assert.match(css, /\.five-card-draw-table-scene \.draw-discard-pile \.draw-card-back[\s\S]*?rotateX\(var\(--table-card-lay/);
+  assert.doesNotMatch(css, /\.draw-card-back \{[\s\S]*?width: 74px/);
   assert.match(css, /\.five-card-draw-actions/);
   assert.match(worker, /shared\/five-card-draw-rules\.js/);
 });

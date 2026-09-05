@@ -85,14 +85,17 @@ test("shared table action bars follow the cards instead of covering them", () =>
   assert.match(css, /\.snap-action-dock \{[\s\S]*?position: fixed;/);
 });
 
-test("Five Card Draw centers a single laid-down stock beside its discard", () => {
+test("Five Card Draw centers full-size laid-down stock and discard piles", () => {
   const app = read("public/app.js");
   const css = read("public/app.css");
 
   assert.doesNotMatch(app, /five-card-draw-copy|Every player is building one private five-card hand/);
   assert.match(css, /\.juan-table-scene \.center-play-area,[\s\S]*?\.five-card-draw-table-scene \.center-play-area \{ top: 21%; height: 37%; \}/);
   assert.match(css, /\.five-card-draw-table-scene \.five-card-draw-piles \{ transform: translateY\(12px\); \}/);
-  assert.match(css, /\.five-card-draw-table-scene \.draw-stack::before,[\s\S]*?\.five-card-draw-table-scene \.draw-stack::after \{[\s\S]*?display: none;/);
+  assert.match(app, /function renderFiveCardDrawPile/);
+  assert.match(css, /\.five-card-draw-pile-cards \{[\s\S]*?width: var\(--game-card-width\);[\s\S]*?height: var\(--game-card-height\);/);
+  assert.match(css, /\.five-card-draw-table-scene \.draw-stack \.draw-card-layer-1[\s\S]*?rotateX\(var\(--table-card-lay/);
+  assert.match(css, /\.five-card-draw-table-scene \.draw-discard-pile \.draw-card-back[\s\S]*?rotateX\(var\(--table-card-lay/);
 });
 
 test("desktop held-hand tables reserve separate north, center, and local HUD bands", () => {

@@ -6,8 +6,10 @@ import { GameError as RoomError } from "../../game-error.js";
 const DEAL_COUNT = 7;
 
 export class MatchEngine {
-  constructor({ shuffleDeck = secureShuffle } = {}) {
+  constructor({ shuffleDeck = secureShuffle, now = Date.now, botJuanCallDelayMs = 2_600 } = {}) {
     this.shuffleDeck = shuffleDeck;
+    this.now = now;
+    this.botJuanCallDelayMs = botJuanCallDelayMs;
   }
 
   createMatch(roomPlayers) {
@@ -49,6 +51,8 @@ export class MatchEngine {
       drawnCardId: null,
       drawnSeat: null,
       pendingJuan: null,
+      juanCallSequence: 0,
+      lastJuanCall: null,
       pendingPrismBurst: null,
       placements: [],
       roundOver: false,
@@ -89,11 +93,13 @@ export class MatchEngine {
     player.lastPlayedCard = { ...card };
     let juanCall = "";
     if (player.hand.length === 1) {
-      if (player.type === "bot" || declareJuan === true) {
-        player.juan = true;
+      if (declareJuan === true) {
+        recordJuanCall(match, player, this.now());
         juanCall = " JUAN!";
       } else {
-        match.pendingJuan = { seat: player.seat };
+        match.pendingJuan = player.type === "bot"
+          ? { seat: player.seat, botCallAt: this.now() + this.botJuanCallDelayMs }
+          : { seat: player.seat };
         juanCall = " One card remains — call JUAN!";
       }
     }
@@ -156,8 +162,7 @@ export class MatchEngine {
     if (!pending || pending.seat !== player.seat || player.hand.length !== 1) {
       throw new RoomError("JUAN can only be called when you have exactly one uncalled card.", "JUAN_CALL_NOT_AVAILABLE", 409);
     }
-    player.juan = true;
-    match.pendingJuan = null;
+    recordJuanCall(match, player, this.now());
     match.lastMoveText = `${player.name} called JUAN!`;
     match.log.unshift(match.lastMoveText);
     return match;
@@ -235,6 +240,7 @@ export class MatchEngine {
     if (pendingJuan) {
       const caller = getPlayer(match, pendingJuan.seat);
       if (caller?.type === "bot" && caller.hand.length === 1) {
+        if (Number.isFinite(pendingJuan.botCallAt) && pendingJuan.botCallAt > this.now()) return false;
         this.callJuan(match, caller.seat);
         return true;
       }
@@ -279,6 +285,16 @@ export class MatchEngine {
     return match;
   }
 
+  nextBotActionDelay(match, botActionDelayMs = 1_100) {
+    if (!match || match.roundOver) return null;
+    const pending = match.pendingJuan;
+    const caller = pending ? getPlayer(match, pending.seat) : null;
+    if (caller?.type === "bot" && caller.hand.length === 1) {
+      return Number.isFinite(pending.botCallAt) ? Math.max(0, pending.botCallAt - this.now()) : 0;
+    }
+    return getPlayer(match, match.activeSeat)?.type === "bot" ? botActionDelayMs : null;
+  }
+
   replaceWithBot(match, seat) {
     const player = getPlayer(match, seat);
     if (!player || player.type !== "human") return false;
@@ -286,7 +302,9 @@ export class MatchEngine {
     player.style = "steady";
     player.name = `${player.name} · Bot`;
     match.log.unshift(`${player.name} took over the disconnected seat.`);
-    if (match.pendingJuan?.seat === player.seat && player.hand.length === 1) this.callJuan(match, player.seat);
+    if (match.pendingJuan?.seat === player.seat && player.hand.length === 1) {
+      match.pendingJuan.botCallAt = this.now() + this.botJuanCallDelayMs;
+    }
     return true;
   }
 
@@ -306,6 +324,7 @@ export class MatchEngine {
         stockCount: match.stock.length,
         drawnCardId: match.drawnSeat === viewer.seat ? match.drawnCardId : null,
         juanCall: match.pendingJuan ? { seat: match.pendingJuan.seat } : null,
+        juanAnnouncement: match.lastJuanCall ? { ...match.lastJuanCall } : null,
         prismBurstChallenge: match.pendingPrismBurst ? {
           sourceSeat: match.pendingPrismBurst.sourceSeat,
           targetSeat: match.pendingPrismBurst.targetSeat,
@@ -484,6 +503,17 @@ function getPlayer(match, seat) {
 function clearDrawChoice(match) {
   match.drawnCardId = null;
   match.drawnSeat = null;
+}
+
+function recordJuanCall(match, player, calledAt) {
+  player.juan = true;
+  match.pendingJuan = null;
+  match.juanCallSequence = Number(match.juanCallSequence || 0) + 1;
+  match.lastJuanCall = {
+    id: `${match.round}:${match.juanCallSequence}`,
+    seat: player.seat,
+    calledAt
+  };
 }
 
 function nextPlayer(match, fromSeat) {

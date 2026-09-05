@@ -7,9 +7,11 @@ const BOT_STYLES = ["steady", "pressure", "patient"];
 export class JuanRuntime {
   #matches = new Map();
   #engine;
+  #botActionDelayMs;
 
-  constructor({ matchEngine = new MatchEngine(), restoredMatches = [] } = {}) {
+  constructor({ matchEngine = new MatchEngine(), restoredMatches = [], botActionDelayMs = 1_100 } = {}) {
     this.#engine = matchEngine;
+    this.#botActionDelayMs = botActionDelayMs;
     for (const record of restoredMatches) {
       if (record?.gameId !== "juan" || typeof record.code !== "string" || !record.state?.players) continue;
       this.#matches.set(record.code, structuredClone(record.state));
@@ -91,6 +93,14 @@ export class JuanRuntime {
 
   runBotTurn(roomCode) {
     return this.#engine.runBotTurn(this.#requireMatch(roomCode));
+  }
+
+  nextActionDelay(roomCode) {
+    return this.#engine.nextBotActionDelay(this.#requireMatch(roomCode), this.#botActionDelayMs);
+  }
+
+  runScheduledStep(roomCode) {
+    return this.runBotTurn(roomCode);
   }
 
   replaceHumanWithBot(roomCode, seat) {

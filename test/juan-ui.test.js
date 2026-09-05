@@ -53,6 +53,12 @@ test("JUAN has its own renderer while retaining the shared fan and motion path",
   assert.match(css, /\.juan-call-panel/);
   assert.match(css, /\.juan-prism-challenge-panel/);
   assert.match(app, /function queueJuanPrismReveal/);
+  assert.match(app, /function queueJuanCallReveal/);
+  assert.match(app, /state\.seenJuanCallAnnouncements/);
+  assert.match(app, /announcement\.seat === nextViewer/);
+  assert.match(app, /One card remains/);
+  assert.match(css, /\.juan-prism-reveal\.juan-call-reveal/);
+  assert.match(css, /\.juan-call-shout/);
   assert.match(app, /function renderJuanReactionPanels/);
   assert.match(app, /data-action="juan-call"/);
   assert.match(app, /data-action="juan-catch"/);

@@ -67,6 +67,9 @@ const state = {
   rummyPatternHelpOpen: false,
   juanPrismReveal: null,
   juanPrismRevealTimer: null,
+  juanCallReveal: null,
+  juanCallRevealTimer: null,
+  seenJuanCallAnnouncements: new Set(),
   findersBuildSelection: new Set(),
   findersSearchConfirmation: null,
   findersPendingSearch: null,
@@ -1808,6 +1811,32 @@ function fiveCardDrawPlayerStatus(player) {
   return `${player.cardCount} down`;
 }
 
+function renderFiveCardDrawPile({ count, kind }) {
+  const safeCount = Math.max(0, Number(count) || 0);
+  const layers = kind === "stock" ? Math.max(1, Math.min(3, safeCount)) : 1;
+  const label = kind === "stock" ? "Draw" : "Discard";
+  const renderPileBack = (index) => kind === "stock"
+    ? renderCardBack({
+        deckFamilyId: "standard-52",
+        context: "draw-stock",
+        className: `draw-card-back draw-card-back-stock draw-card-layer-${index + 1} ${safeCount ? "" : "empty"}`,
+        ariaHidden: true,
+        parts: [{ tag: "i", text: "CC" }]
+      })
+    : renderCardBack({
+        deckFamilyId: "standard-52",
+        context: "discard",
+        className: `draw-card-back draw-card-back-discard draw-card-layer-${index + 1} ${safeCount ? "" : "empty"}`,
+        ariaHidden: true,
+        parts: [{ tag: "i", text: "↻" }]
+      });
+  const cards = Array.from({ length: layers }, (_, index) => renderPileBack(index)).join("");
+  return `<div class="${kind === "stock" ? "draw-stack" : "draw-discard-pile"}" aria-label="${safeCount} cards in ${label.toLowerCase()} pile">
+    <div class="five-card-draw-pile-cards" aria-hidden="true">${cards}</div>
+    <strong>${label}</strong><small>${safeCount} card${safeCount === 1 ? "" : "s"}</small>
+  </div>`;
+}
+
 function renderFiveCardDrawGame() {
   const view = state.gameView;
   if (!view || !fiveCardDrawRules) return `<div class="empty-state">Opening the Five Card Draw table…</div>`;
@@ -1870,8 +1899,8 @@ function renderFiveCardDrawGame() {
           <section class="game-table status-separated-table five-card-draw-table">
             <div class="five-card-draw-table-zone">
               <div class="five-card-draw-piles" aria-label="Draw and discard piles">
-                <div class="draw-stack ${activeCardAppearanceClass("standard-52")}" aria-label="${match.stockCount} cards in draw pile">${renderCardBack({ deckFamilyId: "standard-52", context: "draw-stock", className: "draw-card-back", ariaHidden: true, parts: [{ tag: "i", text: "CC" }] })}<strong>Draw</strong><small>${match.stockCount} cards</small></div>
-                <div class="active-pile draw-discard-pile ${activeCardAppearanceClass("standard-52")}" aria-label="${match.discardCount} private discards">${renderCardBack({ deckFamilyId: "standard-52", context: "discard", className: "draw-card-back discard", ariaHidden: true, parts: [{ tag: "i", text: "↻" }] })}<strong>Discard</strong><small>${match.discardCount} card${match.discardCount === 1 ? "" : "s"}</small></div>
+                ${renderFiveCardDrawPile({ count: match.stockCount, kind: "stock" })}
+                ${renderFiveCardDrawPile({ count: match.discardCount, kind: "discard" })}
               </div>
             </div>
           </section>`,
@@ -2577,6 +2606,19 @@ function juanColorChooser(selectedCard) {
 }
 
 function renderJuanPrismReveal() {
+  const call = state.juanCallReveal;
+  if (call) {
+    return `
+      <div class="juan-prism-reveal juan-call-reveal" data-reveal-key="${escapeHtml(call.key)}" role="status" aria-live="assertive">
+        <div class="juan-prism-reveal-burst" aria-hidden="true"></div>
+        <div class="juan-call-shout" aria-hidden="true">JUAN!</div>
+        <div class="juan-prism-reveal-copy">
+          <span>${escapeHtml(call.playerName)} called</span>
+          <strong>JUAN!</strong>
+          <small>One card remains</small>
+        </div>
+      </div>`;
+  }
   const reveal = state.juanPrismReveal;
   if (!reveal?.card || !juanDeck.COLORS.includes(reveal.color)) return "";
   return `
@@ -2593,7 +2635,9 @@ function renderJuanPrismReveal() {
 
 function syncJuanPrismReveal() {
   if (!juanPrismRevealRoot) return;
-  const reveal = ["game", "hot-seat-handoff"].includes(state.screen) ? state.juanPrismReveal : null;
+  const reveal = ["game", "hot-seat-handoff"].includes(state.screen)
+    ? state.juanCallReveal || state.juanPrismReveal
+    : null;
   const existing = juanPrismRevealRoot.firstElementChild;
   if (!reveal) {
     if (existing) juanPrismRevealRoot.replaceChildren();
@@ -2605,9 +2649,39 @@ function syncJuanPrismReveal() {
 
 function clearJuanPrismReveal() {
   clearTimeout(state.juanPrismRevealTimer);
+  clearTimeout(state.juanCallRevealTimer);
   state.juanPrismRevealTimer = null;
+  state.juanCallRevealTimer = null;
   state.juanPrismReveal = null;
+  state.juanCallReveal = null;
   syncJuanPrismReveal();
+}
+
+function queueJuanCallReveal(gameId, previousView, nextView, nextRoom = state.room, previousRoom = state.room) {
+  if (gameId !== "juan") return;
+  const announcement = nextView?.state?.juanAnnouncement;
+  if (!announcement?.id || !Number.isInteger(announcement.seat)) return;
+  const previousAnnouncement = previousView?.state?.juanAnnouncement;
+  const previousViewer = previousRoom?.players?.find((player) => player.isYou)?.seat;
+  const nextViewer = nextRoom?.players?.find((player) => player.isYou)?.seat;
+  if (announcement.id === previousAnnouncement?.id && previousViewer === nextViewer) return;
+  if (announcement.seat === nextViewer || state.seenJuanCallAnnouncements.has(announcement.id)) return;
+  const player = nextView.state.players.find((candidate) => candidate.seat === announcement.seat);
+  if (!player) return;
+
+  state.seenJuanCallAnnouncements.add(announcement.id);
+  clearTimeout(state.juanPrismRevealTimer);
+  clearTimeout(state.juanCallRevealTimer);
+  state.juanPrismReveal = null;
+  state.juanCallReveal = { key: `juan:${announcement.id}`, playerName: player.name };
+  const reducedMotion = localStorage.getItem(storageKeys.reducedMotion) === "true"
+    || matchMedia("(prefers-reduced-motion: reduce)").matches;
+  state.juanCallRevealTimer = setTimeout(() => {
+    if (state.juanCallReveal?.key !== `juan:${announcement.id}`) return;
+    state.juanCallReveal = null;
+    state.juanCallRevealTimer = null;
+    syncJuanPrismReveal();
+  }, reducedMotion ? 1_050 : 2_200);
 }
 
 function queueJuanPrismReveal(gameId, previousView, nextView) {
@@ -2622,6 +2696,9 @@ function queueJuanPrismReveal(gameId, previousView, nextView) {
   if (state.juanPrismReveal?.key === revealKey) return;
   const player = nextView.state.players.find((candidate) => candidate.lastPlayedCard?.id === nextCard.id);
   clearTimeout(state.juanPrismRevealTimer);
+  clearTimeout(state.juanCallRevealTimer);
+  state.juanCallReveal = null;
+  state.juanCallRevealTimer = null;
   state.juanPrismReveal = {
     key: revealKey,
     card: { ...nextCard },
@@ -3780,6 +3857,7 @@ function queueHotSeatHandoff(seatNumber, { room = state.room, view = state.gameV
 
 function beginHotSeatSession(session) {
   clearJuanPrismReveal();
+  state.seenJuanCallAnnouncements = new Set();
   clearFindersMakersPresentation();
   state.findersPresentedBuildKeys = new Set();
   state.gameMode = "hot-seat";
@@ -3810,14 +3888,17 @@ async function revealHotSeatHand() {
   });
   if (!session.game?.view) throw new Error("That Hot Seat table is no longer in play.");
 
+  const previousView = state.gameView;
+  const previousRoom = state.room;
+  clearJuanPrismReveal();
   state.session = { code: session.code, token: nextSeat.token, playerId: nextSeat.playerId, mode: "hot-seat" };
   state.room = session.room;
+  queueJuanCallReveal(session.room?.gameId, previousView, session.game.view, session.room, previousRoom);
   state.gameView = session.game.view;
   state.hotSeatPendingPlayerId = null;
   state.hotSeatWaitingForCpu = false;
   state.selectedCards = new Set();
   state.juanChosenColor = null;
-  clearJuanPrismReveal();
   clearFindersMakersPresentation();
   state.findersBuildSelection = new Set();
   state.gameActionLock = false;
@@ -3833,6 +3914,7 @@ function clearGameSession() {
   turnAlertTracker.reset();
   disconnectRoomSocket();
   clearFindersMakersPresentation();
+  state.seenJuanCallAnnouncements = new Set();
   clearTimeout(state.findersHotSeatHandoffTimer);
   state.findersHotSeatHandoffTimer = null;
   localStorage.removeItem(storageKeys.room);
@@ -3939,6 +4021,7 @@ function connectRoom(session) {
         state.findersPendingSearch = null;
         state.findersPresentedBuildKeys = new Set();
         clearJuanPrismReveal();
+        state.seenJuanCallAnnouncements = new Set();
         clearFindersMakersPresentation();
         state.gameActionLock = false;
         state.dealtHandOwners = new Set();
@@ -3947,6 +4030,7 @@ function connectRoom(session) {
       } else if (state.screen === "room") render();
     } else if (message.type === "game_state" && supportsGame(message.gameId)) {
       queueJuanPrismReveal(message.gameId, state.gameView, message.view);
+      queueJuanCallReveal(message.gameId, state.gameView, message.view, message.room);
       const hasPrivateFindersReveal = queueFindersSearchFlip(message.gameId, state.gameView, message.view);
       if (state.gameMode === "hot-seat" && state.hotSeatPendingPlayerId) return;
       if (state.gameMode === "hot-seat") {
@@ -4056,6 +4140,7 @@ function enterRoom(session) {
 
 function enterGameSession(session, mode) {
   clearJuanPrismReveal();
+  state.seenJuanCallAnnouncements = new Set();
   clearFindersMakersPresentation();
   state.session = { code: session.code, token: session.token, playerId: session.playerId, mode };
   state.room = session.room;

@@ -1830,33 +1830,30 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 .five-card-draw-piles { min-width: 0; display: flex; align-items: center; justify-content: center; gap: clamp(18px, 5vw, 56px); }
 .draw-stack, .draw-discard-pile {
   position: relative;
-  width: 104px;
-  min-height: 142px;
+  width: calc(var(--game-card-width) + 18px);
+  min-height: calc(var(--game-card-height) + 34px);
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-end;
   gap: 2px;
   color: #d8e1ec;
   text-align: center;
 }
-.draw-stack::before, .draw-stack::after {
-  content: "";
+.five-card-draw-pile-cards {
   position: absolute;
-  width: 73px;
-  height: 103px;
-  border: 2px solid rgba(105,174,242,.42);
-  border-radius: 9px;
-  background: #112948;
-  box-shadow: inset 0 0 0 2px rgba(105,174,242,.14);
+  inset: 0 auto auto 50%;
+  width: var(--game-card-width);
+  height: var(--game-card-height);
+  transform: translateX(-50%);
+  transform-style: preserve-3d;
 }
-.draw-stack::before { transform: translate(-6px, 5px) rotate(-4deg); opacity: .58; }
-.draw-stack::after { transform: translate(6px, 4px) rotate(4deg); opacity: .72; }
 .draw-card-back {
-  position: relative;
+  position: absolute;
   z-index: 2;
-  width: 74px;
-  height: 104px;
+  inset: 0;
+  width: var(--game-card-width);
+  height: var(--game-card-height);
   display: grid;
   place-items: center;
   border: 3px solid #46688c;
@@ -1868,11 +1865,11 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
     repeating-linear-gradient(-45deg, transparent 0 6px, rgba(203,228,255,.08) 6px 8px),
     linear-gradient(145deg, #1b3b62, #112948);
   box-shadow: 5px 7px 0 rgba(0,0,0,.48), inset 0 0 0 2px rgba(105,174,242,.16);
-  transform: rotate(-2deg);
+  transform-origin: 50% 64%;
 }
 .draw-card-back::after { content: ""; position: absolute; inset: 7px; border: 1px solid rgba(203,228,255,.58); border-radius: 4px; }
 .draw-card-back i { position: relative; z-index: 1; font: 900 .94rem "Cardcade Pixel", "Courier New", monospace; font-style: normal; text-shadow: 2px 2px 0 rgba(0,0,0,.45); }
-.draw-card-back.discard { transform: rotate(4deg); }
+.draw-card-back.empty { opacity: .42; }
 .draw-stack > strong, .draw-discard-pile > strong { position: relative; z-index: 3; margin-top: 4px; font: 800 .64rem "Cardcade Pixel", "Courier New", monospace; letter-spacing: .07em; text-transform: uppercase; }
 .draw-stack > small, .draw-discard-pile > small { position: relative; z-index: 3; color: var(--muted); font-size: .64rem; }
 .five-card-draw-hand { min-height: 286px; }
@@ -2325,6 +2322,26 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 .juan-prism-reveal.juan-tide { --reveal-color: #2d7dd2; }
 .juan-prism-reveal.juan-grove { --reveal-color: #43b66b; }
 .juan-prism-reveal.juan-spark { --reveal-color: #f2bf3d; }
+.juan-prism-reveal.juan-call-reveal {
+  --reveal-color: #54dfb1;
+  grid-template-columns: auto minmax(0, 270px);
+  background: radial-gradient(circle at 43% 50%, rgba(84, 223, 177, .3), rgba(1, 6, 13, .93) 57%);
+}
+.juan-call-shout {
+  position: relative;
+  z-index: 1;
+  padding: 22px 18px 18px;
+  border: 5px solid #fffaf0;
+  border-radius: 18px;
+  color: #07101d;
+  background: #54dfb1;
+  box-shadow: 9px 11px 0 rgba(0, 0, 0, .5), 0 0 38px rgba(84, 223, 177, .42);
+  font: 900 clamp(2rem, 8vw, 4rem)/1 "Cardcade Pixel", monospace;
+  letter-spacing: .04em;
+  transform: rotate(-5deg);
+  animation: prismRevealCard 2s cubic-bezier(.16,.84,.26,1.05) both;
+}
+.juan-call-reveal .juan-prism-reveal-copy strong { color: #75f2c8; }
 .juan-prism-reveal-burst { position: absolute; left: 43%; top: 50%; width: 110vmax; height: 110vmax; border: 3px solid color-mix(in srgb, var(--reveal-color) 55%, transparent); border-radius: 50%; box-shadow: inset 0 0 80px color-mix(in srgb, var(--reveal-color) 20%, transparent), 0 0 80px color-mix(in srgb, var(--reveal-color) 20%, transparent); transform: translate(-50%, -50%); animation: prismBurst 1.7s ease-out both; }
 .juan-prism-reveal-card { position: relative; z-index: 1; filter: drop-shadow(0 0 22px color-mix(in srgb, var(--reveal-color) 48%, transparent)); }
 .juan-prism-reveal-card .playing-card.played { width: 132px; height: 188px; animation: prismRevealCard 1.65s cubic-bezier(.16,.84,.26,1.05) both; }
@@ -3281,6 +3298,8 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   .juan-prism-reveal-card .playing-card.played { width: 112px; height: 159px; }
   .juan-prism-reveal-copy { text-align: center; }
   .juan-prism-reveal-copy strong { justify-content: center; }
+  .juan-prism-reveal.juan-call-reveal { grid-template-columns: 1fr; }
+  .juan-call-shout { font-size: clamp(2rem, 14vw, 3.3rem); }
   .blackjack-rule-bar { min-height: 42px; gap: 3px 7px; padding: 6px 8px; font-size: .55rem; }
   .blackjack-rule-bar i { display: none; }
   .blackjack-dealer-zone { min-height: 125px; grid-template-columns: 1fr; gap: 1px; }
@@ -3313,9 +3332,8 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   .five-card-draw-rule-bar i { display: none; }
   .five-card-draw-table-zone { min-height: 126px; grid-template-columns: 1fr; gap: 1px; }
   .five-card-draw-piles { gap: 46px; }
-  .draw-stack, .draw-discard-pile { width: 82px; min-height: 106px; }
-  .draw-stack::before, .draw-stack::after { width: 60px; height: 84px; }
-  .draw-card-back { width: 61px; height: 86px; border-radius: 8px; }
+  .draw-stack, .draw-discard-pile { width: calc(var(--game-card-width) + 14px); min-height: calc(var(--game-card-height) + 28px); }
+  .draw-card-back { border-radius: 8px; }
   .draw-card-back::after { inset: 5px; }
   .draw-stack > strong, .draw-discard-pile > strong { margin-top: 2px; font-size: .54rem; }
   .draw-stack > small, .draw-discard-pile > small { font-size: .55rem; }
@@ -5018,18 +5036,15 @@ body.reduced-motion #app.shell-transition-back { animation: none !important; }
   transform-style: preserve-3d;
 }
 .five-card-draw-table-scene .five-card-draw-piles { transform: translateY(12px); }
-.casino-table-scene :is(.draw-stack, .draw-discard-pile) .draw-card-back,
+.five-card-draw-table-scene .draw-card-back,
 .snap-table-scene .snap-center-board :is(.playing-card, .snap-empty-card) {
   transform: rotateX(var(--table-card-lay, 40deg));
   transform-origin: 50% 64%;
 }
-/* The old decorative stock layers stayed upright while the real stock card lay
-   on the felt, producing the doubled, broken-looking pile. A single laid-down
-   stock mirrors JUAN's clear stock/discard treatment. */
-.five-card-draw-table-scene .draw-stack::before,
-.five-card-draw-table-scene .draw-stack::after {
-  display: none;
-}
+.five-card-draw-table-scene .draw-stack .draw-card-layer-1 { transform: translate3d(-7px, 6px, -4px) rotateX(var(--table-card-lay, 40deg)) rotateZ(-4deg); opacity: .72; }
+.five-card-draw-table-scene .draw-stack .draw-card-layer-2 { transform: translate3d(5px, 3px, -2px) rotateX(var(--table-card-lay, 40deg)) rotateZ(3deg); opacity: .88; }
+.five-card-draw-table-scene .draw-stack .draw-card-layer-3 { transform: rotateX(var(--table-card-lay, 40deg)) rotateZ(-1deg); }
+.five-card-draw-table-scene .draw-discard-pile .draw-card-back { transform: rotateX(var(--table-card-lay, 40deg)) rotateZ(5deg); }
 /* These two keep the jaunty rotation that marks them as a loose stack; the lay
    is applied on top of it rather than replacing it. */
 .juan-table-scene .juan-stock,

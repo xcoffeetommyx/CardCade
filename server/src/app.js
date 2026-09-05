@@ -141,7 +141,7 @@ export function createCardcadeServer({
   const rooms = roomStore ?? new RoomStore({ registry: gameRegistry });
   const threeSeven = threeSevenRuntime ?? new ThreeSevenRuntime();
   const thirteen = thirteenRuntime ?? new ThirteenRuntime();
-  const juan = juanRuntime ?? new JuanRuntime();
+  const juan = juanRuntime ?? new JuanRuntime({ botActionDelayMs: botTurnDelayMs });
   const rotatingRummy = rotatingRummyRuntime ?? new RotatingRummyRuntime();
   const findersMakers = findersMakersRuntime ?? new FindersMakersRuntime();
   const blackjack = blackjackRuntime ?? new BlackjackRuntime();
