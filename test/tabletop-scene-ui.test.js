@@ -98,6 +98,15 @@ test("Five Card Draw centers full-size laid-down stock and discard piles", () =>
   assert.match(css, /\.five-card-draw-table-scene \.draw-discard-pile \.draw-card-back[\s\S]*?rotateX\(var\(--table-card-lay/);
 });
 
+test("casino tables fit their header, felt, hand, and controls inside one viewport", () => {
+  const css = read("public/app.css");
+
+  assert.match(css, /\.playing-game:has\(:is\(\.blackjack-game, \.holdem-game, \.five-card-draw-game\)\) \{[\s\S]*?overflow: hidden;/);
+  assert.match(css, /\.standard-card-game:is\(\.blackjack-game, \.holdem-game, \.five-card-draw-game\) \{[\s\S]*?height: calc\(var\(--game-viewport-height\)[\s\S]*?grid-template-rows: auto auto minmax\(0, 1fr\) auto;[\s\S]*?overflow: hidden;/);
+  assert.match(css, /> \.casino-table-scene \{[\s\S]*?height: 100%;[\s\S]*?min-height: 0;/);
+  assert.match(css, /\.blackjack-game > \.blackjack-insurance-prompt \{[\s\S]*?position: fixed;/);
+});
+
 test("desktop held-hand tables reserve separate north, center, and local HUD bands", () => {
   const css = read("public/app.css");
   const desktop = css.slice(css.indexOf("@media (min-width: 821px) and (min-height: 641px)"));
