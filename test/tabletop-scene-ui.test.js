@@ -103,8 +103,9 @@ test("ordinary stock piles share squared table geometry", () => {
   const css = read("public/app.css");
 
   assert.match(css, /\.card-back\.ordinary-card-stock \{[^}]*rotateX\(var\(--table-card-lay, 40deg\)\);/);
-  assert.match(app, /rummy-stock ordinary-card-stock/);
-  assert.match(app, /juan-stock ordinary-card-stock/);
+  assert.match(app, /className: `\$\{className\} ordinary-card-stock`/);
+  assert.match(app, /renderOrdinaryStock\(\{ deckFamilyId: "rotating-rummy", className: "rummy-stock"/);
+  assert.match(app, /renderOrdinaryStock\(\{ deckFamilyId: "color-action", className: "juan-stock"/);
   assert.match(app, /draw-card-back ordinary-card-stock draw-card-back-stock/);
   assert.doesNotMatch(css, /\.(?:juan-stock|rummy-stock)\s*\{[^}]*rotate\(-?4deg\)/);
 });
@@ -134,7 +135,7 @@ test("desktop held-hand tables reserve separate north, center, and local HUD ban
 
 test("narrow casino copy stays below the north fan without moving JUAN or Five Card Draw", () => {
   const css = read("public/app.css");
-  const narrow = css.slice(css.indexOf("@media (max-width: 820px) and (min-height: 641px)"));
+  const narrow = css.match(/@media \(max-width: 820px\) and \(min-height: 641px\) \{[\s\S]*?\n\}/)?.[0] || "";
 
   assert.match(narrow, /\.blackjack-table-scene \.center-play-area,\s*\.holdem-table-scene \.center-play-area \{\s*top: 26%;\s*height: 33%;/);
   assert.doesNotMatch(narrow, /\.juan-table-scene|\.five-card-draw-table-scene/);

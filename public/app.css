@@ -20,6 +20,9 @@
   --safe-right: env(safe-area-inset-right, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);
+  /* Informational animation stays below authoritative gameplay controls. */
+  --layer-cinematic: 1650;
+  --layer-gameplay-overlay: 1850;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-synthesis: none;
 }
@@ -1645,7 +1648,7 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 
 .round-result {
   position: fixed;
-  z-index: 500;
+  z-index: var(--layer-gameplay-overlay);
   left: 50%;
   bottom: max(10px, env(safe-area-inset-bottom));
   width: min(620px, calc(100% - 24px));
@@ -1945,6 +1948,7 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   border-radius: 13px;
   background: rgba(8,24,43,.9);
   box-shadow: inset 0 0 0 1px rgba(255,255,255,.03);
+  pointer-events: auto;
 }
 .juan-reaction-panel > span { min-width: 0; }
 .juan-reaction-panel strong,
@@ -1962,6 +1966,24 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 .juan-prism-challenge-panel { border-color: #8da9d8; background: linear-gradient(135deg, rgba(74,127,210,.2), rgba(8,24,43,.95)); }
 .juan-prism-wait-panel { border-style: dashed; }
 .juan-reaction-actions { display: flex; flex: 0 0 auto; gap: 6px; }
+
+#juan-gameplay-overlay-root {
+  position: fixed;
+  z-index: var(--layer-gameplay-overlay);
+  inset: 0;
+  pointer-events: none;
+}
+.juan-gameplay-overlay {
+  position: absolute;
+  left: 50%;
+  bottom: max(10px, calc(var(--safe-bottom) + 6px));
+  width: min(660px, calc(100% - var(--safe-left) - var(--safe-right) - 20px));
+  max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 20px);
+  display: grid;
+  gap: 7px;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
 
 .juan-game .game-opponents { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
 .juan-game .game-seat { min-height: 66px; }
@@ -2019,7 +2041,10 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 }
 .juan-stock::before { content: ""; position: absolute; inset: 9px; border: 2px solid rgba(255,255,255,.72); border-radius: 5px; background: rgba(255,255,255,.025); }
 .juan-stock::after { content: none; }
-:is(.juan-stock, .rummy-stock) .card-back-count { position: absolute; z-index: 2; right: -9px; bottom: -9px; width: max-content; min-width: 29px; height: 29px; padding-inline: 4px; display: grid; place-items: center; border: 2px solid #f2ebdd; border-radius: 999px; color: #06101f; background: #f2bf3d; font-size: .72rem; font-variant-numeric: tabular-nums; line-height: 1; white-space: nowrap; }
+.ordinary-stock-display { display: grid; justify-items: center; gap: 6px; }
+.ordinary-stock-copy { position: relative; z-index: 4; display: grid; justify-items: center; gap: 2px; color: #f5f0e4; line-height: 1; text-align: center; text-shadow: 1px 2px 0 rgba(0,0,0,.5); }
+.ordinary-stock-copy strong { font: 800 .64rem "Cardcade Pixel", "Courier New", monospace; letter-spacing: .07em; text-transform: uppercase; }
+.ordinary-stock-copy small { color: #c4cfdd; font-size: .64rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
 /* Minimal face system: the color field and one mark do the visual work. */
 .juan-card {
@@ -2220,7 +2245,7 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 
 .juan-prism-dialog {
   position: fixed;
-  z-index: 1700;
+  z-index: var(--layer-gameplay-overlay);
   inset: 0;
   display: grid;
   place-items: center;
@@ -2287,7 +2312,7 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 .juan-prism-reveal {
   --reveal-color: #fff;
   position: fixed;
-  z-index: 1650;
+  z-index: var(--layer-cinematic);
   inset: 0;
   display: grid;
   grid-template-columns: auto minmax(0, 220px);
@@ -2299,6 +2324,7 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   background: radial-gradient(circle at 43% 50%, color-mix(in srgb, var(--reveal-color) 28%, transparent), rgba(1,6,13,.91) 55%);
   backdrop-filter: blur(8px);
   animation: prismRevealScene 1.9s ease both;
+  pointer-events: none;
 }
 .juan-prism-reveal.juan-blaze { --reveal-color: #ef4d54; }
 .juan-prism-reveal.juan-tide { --reveal-color: #2d7dd2; }
@@ -2450,7 +2476,6 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 }
 .rummy-stock::before { content: ""; position: absolute; inset: 9px; border: 2px solid rgba(220,233,244,.55); border-radius: 5px; pointer-events: none; }
 .rummy-stock::after { content: none; }
-.rummy-stock .card-back-count { border-color: #dce9f4; color: #070b11; background: #f5ca4d; }
 
 .rummy-red { --rummy-color: var(--rummy-red, #ef5d62); }
 .rummy-blue { --rummy-color: var(--rummy-blue, #4c9cff); }
@@ -2886,8 +2911,6 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 .card-back.card-skin-juan-paper-pop > :is(b, i, span, strong) { position: relative; z-index: 2; color: inherit; }
 .juan-stock.card-skin-juan-night-shift::before { border-color: rgba(121,230,255,.72); box-shadow: 0 0 12px rgba(121,230,255,.18); }
 .juan-stock.card-skin-juan-paper-pop::before { border-color: rgba(255,244,223,.78); }
-.juan-stock.card-skin-juan-night-shift .card-back-count { border-color: #b9f3ff; background: #79e6ff; }
-.juan-stock.card-skin-juan-paper-pop .card-back-count { border-color: #fff4df; background: #ffd45e; }
 
 .skin-preview.card-skin-juan-night-shift { border-color: rgba(121,230,255,.48); background: radial-gradient(circle at 50% 120%, rgba(121,230,255,.18), rgba(3,12,25,.82)); }
 .skin-preview.card-skin-juan-paper-pop { border-color: rgba(232,79,89,.48); background: radial-gradient(circle at 50% 120%, rgba(232,79,89,.2), rgba(34,16,24,.76)); }
@@ -2922,7 +2945,6 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 .card-back.card-skin-rotating-rummy-blackout::before { content: ""; position: absolute; z-index: 1; inset: 9px; border: 1px solid rgba(220,233,244,.44); border-radius: 5px; pointer-events: none; }
 .card-back.card-skin-rotating-rummy-blackout > :is(b, i, span, strong) { position: relative; z-index: 2; color: inherit; }
 .rummy-stock.card-skin-rotating-rummy-blackout::before { border-color: rgba(220,233,244,.55); }
-.rummy-stock.card-skin-rotating-rummy-blackout .card-back-count { border-color: #dce9f4; background: #f5ca4d; }
 .rummy-seat-card.card-skin-rotating-rummy-blackout { border-color: #dce9f4; }
 .skin-preview.card-skin-rotating-rummy-blackout { border-color: rgba(245,202,77,.5); background: radial-gradient(circle at 50% 120%, rgba(245,202,77,.16), rgba(3,10,18,.84)); }
 .skin-preview.card-skin-rotating-rummy-blackout .skin-preview-rummy-face { border-color: #dce9f4; box-shadow: 4px 5px 0 rgba(0,0,0,.52), 0 0 0 1px rgba(245,202,77,.32); }
@@ -2955,7 +2977,6 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 .card-back.card-skin-rotating-rummy-light::before { content: ""; position: absolute; z-index: 1; inset: 9px; border: 1px solid rgba(24,48,68,.38); border-radius: 5px; pointer-events: none; }
 .card-back.card-skin-rotating-rummy-light > :is(b, i, span, strong) { position: relative; z-index: 2; color: inherit; }
 .rummy-stock.card-skin-rotating-rummy-light::before { border-color: rgba(24,48,68,.42); }
-.rummy-stock.card-skin-rotating-rummy-light .card-back-count { border-color: var(--rummy-light-border); color: #152a3b; background: #f5ca4d; }
 .rummy-seat-card.card-skin-rotating-rummy-light { border-color: var(--rummy-light-border); background: #ffffff; box-shadow: 3px 4px 0 rgba(6,17,29,.42); text-shadow: 1px 1px 0 rgba(255,255,255,.7); }
 .skin-preview.card-skin-rotating-rummy-light { border-color: rgba(147,180,198,.68); background: radial-gradient(circle at 50% 120%, rgba(126,180,201,.2), rgba(8,23,39,.9)); }
 .skin-preview.card-skin-rotating-rummy-light .skin-preview-rummy-face { border-color: var(--rummy-light-border); background: #ffffff; box-shadow: 4px 5px 0 rgba(6,17,29,.42), 0 0 0 1px rgba(255,255,255,.72); }
@@ -3255,9 +3276,12 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   .juan-lane { width: 15px; height: 15px; }
   .juan-lane-bar > strong { min-width: 42px; }
   .juan-direction { min-width: 25px; font-size: 1.1rem; }
-  .juan-reaction-panel { align-items: stretch; flex-direction: column; gap: 7px; }
-  .juan-reaction-panel > button { width: 100%; }
-  .juan-reaction-actions { width: 100%; }
+  .juan-gameplay-overlay { bottom: max(7px, calc(var(--safe-bottom) + 4px)); width: calc(100% - var(--safe-left) - var(--safe-right) - 14px); gap: 5px; }
+  .juan-reaction-panel { min-height: 56px; padding: 6px 7px; gap: 7px; }
+  .juan-reaction-panel strong { font-size: .69rem; }
+  .juan-reaction-panel small { font-size: .56rem; line-height: 1.2; }
+  .juan-reaction-panel button { min-height: 42px; padding: 5px 7px; font-size: .56rem; }
+  .juan-reaction-actions { max-width: 52%; }
   .juan-reaction-actions button { min-width: 0; flex: 1 1 0; }
   .juan-stock { width: 72px; height: 102px; }
   .juan-pile-zone .active-pile.cards-pile { width: 72px; min-width: 72px; flex-basis: 72px; }
@@ -3405,7 +3429,6 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   .playing-game .rummy-pile-zone .active-pile.cards-pile { width: 64px; min-width: 64px; flex-basis: 64px; }
   .playing-game .rummy-stock { width: 64px; height: 91px; border-width: 3px; font-size: .62rem; }
   .playing-game .rummy-stock::before { inset: 6px; }
-  .playing-game .rummy-stock .card-back-count { right: -8px; bottom: -8px; min-width: 23px; height: 23px; padding-inline: 3px; font-size: .58rem; }
   .playing-game .rummy-link-group-cards .playing-card.played { flex-basis: 24px; width: 24px; height: 34px; margin-left: -8px; }
   .playing-game .rummy-link-board { padding: 7px; }
   .playing-game .rummy-link-targets { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -5482,6 +5505,30 @@ body.reduced-motion .card-table-scene .table-seat.active { translate: 0; }
     width: min(480px, calc(100% - var(--safe-left) - var(--safe-right) - 20px));
     transform: translateX(-50%);
   }
+}
+
+/* JUAN uses the visible viewport as a fixed table grid. Transient gameplay
+   prompts render in #juan-gameplay-overlay-root, so reactions never add a row
+   or change the document height. */
+.playing-game:has(.juan-game) {
+  --game-main-top: 4px;
+  --game-main-bottom: max(6px, var(--safe-bottom));
+  overflow: hidden;
+}
+@supports (height: 100dvh) {
+  .playing-game:has(.juan-game) { --game-viewport-height: 100dvh; }
+}
+.playing-game .juan-game {
+  height: calc(var(--game-viewport-height) - var(--safe-top) - var(--game-main-top) - var(--game-main-bottom));
+  min-height: 0;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  gap: 6px;
+  overflow: hidden;
+}
+.playing-game .juan-game > .juan-table-scene {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
 }
 
 /* Rummy owns five viewport rows: header, Route, help, table, actions. The

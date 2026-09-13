@@ -98,7 +98,7 @@ test("Rotating Rummy's blackout and light skins remain deck-family-scoped visual
 
   assert.match(app, /skin-preview-rummy-face/);
   assert.match(app, /skin-preview-rummy-wild/);
-  assert.match(app, /deckFamilyId: "rotating-rummy", context: "stock"/);
+  assert.match(app, /renderOrdinaryStock\(\{ deckFamilyId: "rotating-rummy", className: "rummy-stock", count: match\.stockCount \}\)/);
   assert.match(css, /\.rummy-wild-mark \{/);
   assert.match(css, /\.rummy-action-pass i \{/);
   assert.match(css, /\.rummy-card\.card-skin-rotating-rummy-light \{[\s\S]*?background: #ffffff;/);

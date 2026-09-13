@@ -74,8 +74,7 @@ test("physical card backs cannot render visible Cardcade branding", () => {
   const app = read("public/app.js");
   const renderer = app.slice(app.indexOf("function renderCardBack"), app.indexOf("function tableSeatAssignments"));
 
-  assert.doesNotMatch(renderer, /parts|CC|JUAN|RR/);
-  assert.match(renderer, /card-back-count/);
+  assert.doesNotMatch(renderer, /parts|countBadge|card-back-count|CC|JUAN|RR/);
   assert.match(renderer, /aria-hidden="true"/);
   assert.doesNotMatch(app, /text: "(?:CC|JUAN|RR)"|>CC<|>RR<|>BUILD<|>F<|>M</);
 });
@@ -178,7 +177,7 @@ test("JUAN skins cover number, action, Prism, backs, piles, opponent minis, and 
 
   assert.match(app, /skin-preview-juan-prism/);
   assert.match(app, /deckFamilyId: "color-action",[\s\S]*?cardCount: player\.cardCount/);
-  assert.match(app, /deckFamilyId: "color-action", context: "stock"/);
+  assert.match(app, /renderOrdinaryStock\(\{ deckFamilyId: "color-action", className: "juan-stock", count: match\.stockCount \}\)/);
   assert.match(app, /juan-prism-stage-card.*renderJuanCard/s);
   assert.match(app, /juan-prism-reveal-card.*renderJuanCard/s);
   for (const skinClass of ["card-skin-juan-night-shift", "card-skin-juan-paper-pop"]) {

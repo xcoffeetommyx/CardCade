@@ -13,6 +13,7 @@ const systemBannerAction = systemBanner?.querySelector('[data-action="apply-app-
 const siteShell = document.querySelector(".site-shell");
 const skipLink = document.querySelector(".skip-link");
 const juanPrismRevealRoot = document.querySelector("#juan-prism-reveal-root");
+const juanGameplayOverlayRoot = document.querySelector("#juan-gameplay-overlay-root");
 const findersMakersPresentationRoot = document.querySelector("#finders-makers-presentation-root");
 const controllerKeyboardRoot = document.querySelector("#controller-keyboard-root");
 const controllerCursor = document.querySelector("#controller-cursor");
@@ -1168,8 +1169,7 @@ function renderCardBack({
   className = "",
   ariaLabel = "",
   ariaHidden = false,
-  attributes = "",
-  countBadge = null
+  attributes = ""
 }) {
   const skin = skinId ? cardSkins?.resolveSkin(deckFamilyId, skinId) : null;
   const classes = [
@@ -1182,10 +1182,21 @@ function renderCardBack({
   const accessibility = ariaHidden
     ? 'aria-hidden="true"'
     : `aria-label="${escapeHtml(ariaLabel)}"`;
-  const content = Number.isFinite(Number(countBadge))
-    ? `<b class="card-back-count" aria-hidden="true">${escapeHtml(countBadge)}</b>`
-    : "";
-  return `<span class="${classes}" ${attributes} ${accessibility}>${content}</span>`;
+  return `<span class="${classes}" ${attributes} ${accessibility}></span>`;
+}
+
+function renderOrdinaryStock({ deckFamilyId, className, count, label = "Draw" }) {
+  const safeCount = Math.max(0, Math.floor(Number(count) || 0));
+  return `
+    <div class="ordinary-stock-display">
+      ${renderCardBack({
+        deckFamilyId,
+        context: "stock",
+        className: `${className} ordinary-card-stock`,
+        ariaLabel: `${safeCount} cards in stock`
+      })}
+      <span class="ordinary-stock-copy" aria-hidden="true"><strong>${escapeHtml(label)}</strong><small>${safeCount} card${safeCount === 1 ? "" : "s"}</small></span>
+    </div>`;
 }
 
 function tableSeatAssignments(match, viewerSeat) {
@@ -1375,8 +1386,7 @@ function renderBlackjackCardBack(index, { enter = false } = {}) {
     context: "dealer-hole",
     className: `playing-card played blackjack-card-back ${enter ? "enter" : ""}`,
     ariaLabel: "Dealer hole card",
-    attributes: playedCardStyle(index, { animate: enter }),
-    countBadge: null
+    attributes: playedCardStyle(index, { animate: enter })
   });
 }
 
@@ -2317,7 +2327,7 @@ function renderRotatingRummyGame() {
           <div class="rummy-table-stage">
             <section class="game-table status-separated-table rummy-table">
               <div class="rummy-pile-zone">
-                ${renderCardBack({ deckFamilyId: "rotating-rummy", context: "stock", className: "rummy-stock ordinary-card-stock", ariaLabel: `${match.stockCount} cards in stock`, countBadge: match.stockCount })}
+                ${renderOrdinaryStock({ deckFamilyId: "rotating-rummy", className: "rummy-stock", count: match.stockCount })}
                 <div class="active-pile cards-pile">${match.topCard ? renderRotatingRummyCard(match.topCard, 0, { played: true, enter: pileIsNew }) : ""}</div>
               </div>
             </section>
@@ -2872,7 +2882,17 @@ function renderJuanReactionPanels(match, viewerSeat) {
         </section>`);
     }
   }
-  return panels.join("");
+  if (!panels.length) return "";
+  // A missed-call window can coexist with a Prism Burst decision. Keep the
+  // Call/Catch action first, but expose both authoritative actions together.
+  return `<div class="juan-gameplay-overlay" role="region" aria-label="JUAN reactions">${panels.join("")}</div>`;
+}
+
+function syncJuanGameplayOverlay() {
+  if (!juanGameplayOverlayRoot) return;
+  const match = state.screen === "game" && state.room?.gameId === "juan" ? state.gameView?.state : null;
+  const viewerSeat = state.room?.players?.find((player) => player.isYou)?.seat;
+  juanGameplayOverlayRoot.innerHTML = match ? renderJuanReactionPanels(match, viewerSeat) : "";
 }
 
 function renderJuanGame() {
@@ -2915,7 +2935,6 @@ function renderJuanGame() {
         <strong>${escapeHtml(juanDeck.COLOR_NAME[match.activeColor])}</strong>
         <span class="juan-direction" aria-label="Play direction ${match.direction === 1 ? "forward" : "backward"}">${match.direction === 1 ? "↻" : "↺"}</span>
       </div>
-      ${renderJuanReactionPanels(match, viewerSeat)}
       ${renderTableScene({
         match,
         viewerSeat,
@@ -2938,7 +2957,7 @@ function renderJuanGame() {
         centerMarkup: `
           <section class="game-table status-separated-table juan-table">
             <div class="juan-pile-zone">
-              ${renderCardBack({ deckFamilyId: "color-action", context: "stock", className: "juan-stock ordinary-card-stock", ariaLabel: `${match.stockCount} cards in stock`, countBadge: match.stockCount })}
+              ${renderOrdinaryStock({ deckFamilyId: "color-action", className: "juan-stock", count: match.stockCount })}
               <div class="active-pile cards-pile">${renderJuanCard(match.topCard, 0, { played: true, enter: pileIsNew })}</div>
             </div>
           </section>`,
@@ -3346,6 +3365,7 @@ function render() {
     app.classList.add(state.navigationDirection === "back" ? "shell-transition-back" : "shell-transition-forward");
   }
   state.renderedScreen = state.screen;
+  syncJuanGameplayOverlay();
   syncJuanPrismReveal();
   syncFindersBuildReveal();
   syncSnapCountdown();

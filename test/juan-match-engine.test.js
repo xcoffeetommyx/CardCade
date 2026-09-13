@@ -149,6 +149,29 @@ test("JUAN automatically draws two when its call is missed before the next actio
   assertGameError(() => engine.catchJuan(match, 2), "JUAN_CATCH_NOT_AVAILABLE");
 });
 
+test("a Prism play that leaves one card exposes the same authoritative Call and Catch JUAN window", () => {
+  const engine = new MatchEngine({ shuffleDeck: identityShuffle });
+  const match = setTable(matchFor(), {
+    hands: [["prism-1", "tide-7-a"], ["tide-1-a"], ["grove-1-a"]],
+    stock: ["spark-1-a", "spark-2-a"]
+  });
+
+  engine.play(match, 0, "prism-1", "tide");
+  assert.deepEqual(match.pendingJuan, { seat: 0 });
+  assert.deepEqual(engine.viewFor(match, 0).state.juanCall, { seat: 0 });
+  assert.deepEqual(engine.viewFor(match, 1).state.juanCall, { seat: 0 });
+
+  const called = structuredClone(match);
+  engine.callJuan(called, 0);
+  assert.equal(called.players[0].juan, true);
+  assert.equal(called.pendingJuan, null);
+
+  const caught = structuredClone(match);
+  engine.catchJuan(caught, 1);
+  assert.equal(caught.players[0].hand.length, 3);
+  assert.equal(caught.pendingJuan, null);
+});
+
 test("JUAN Prism Burst opens a challenge decision instead of drawing cards immediately", () => {
   const engine = new MatchEngine({ shuffleDeck: identityShuffle });
   const match = setTable(matchFor(), {
@@ -157,6 +180,7 @@ test("JUAN Prism Burst opens a challenge decision instead of drawing cards immed
   });
   engine.play(match, 0, "prism-burst-1", "tide");
   assert.equal(match.activeColor, "tide");
+  assert.deepEqual(match.pendingJuan, { seat: 0 });
   assert.equal(match.players[1].hand.length, 1);
   assert.equal(match.activeSeat, 1);
   assert.deepEqual(match.pendingPrismBurst, {
@@ -168,6 +192,8 @@ test("JUAN Prism Burst opens a challenge decision instead of drawing cards immed
   });
   assertGameError(() => engine.draw(match, 1), "PRISM_BURST_RESPONSE_REQUIRED");
   const view = engine.viewFor(match, 1);
+  assert.deepEqual(engine.viewFor(match, 0).state.juanCall, { seat: 0 });
+  assert.deepEqual(view.state.juanCall, { seat: 0 });
   assert.deepEqual(view.state.prismBurstChallenge, {
     sourceSeat: 0,
     targetSeat: 1,
@@ -175,6 +201,18 @@ test("JUAN Prism Burst opens a challenge decision instead of drawing cards immed
     chosenColor: "tide"
   });
   assert.equal(JSON.stringify(view).includes("sourceHadPriorColor"), false, "The secret challenge result must stay server-side");
+
+  const called = structuredClone(match);
+  engine.callJuan(called, 0);
+  assert.equal(called.players[0].juan, true);
+  assert.equal(called.pendingJuan, null);
+  assert.ok(called.pendingPrismBurst, "calling JUAN does not resolve the separate Burst decision");
+
+  const caught = structuredClone(match);
+  engine.catchJuan(caught, 1);
+  assert.equal(caught.players[0].hand.length, 3);
+  assert.equal(caught.pendingJuan, null);
+  assert.ok(caught.pendingPrismBurst, "catching JUAN does not resolve the separate Burst decision");
 
   engine.acceptPrismBurst(match, 1);
   assert.equal(match.players[1].hand.length, 5);

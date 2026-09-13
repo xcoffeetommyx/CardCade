@@ -56,7 +56,8 @@ test("table status and stock counts expand instead of cutting off long labels", 
   assert.match(css, /\.game-status > span:first-child \{ flex: 1 1 auto; min-width: 0; \}/);
   assert.match(css, /\.game-status \.badge \{[\s\S]*?white-space: normal;[\s\S]*?overflow-wrap: anywhere;/);
   assert.doesNotMatch(css, /\.game-status \.badge \{ max-width: 112px;[\s\S]*?text-overflow: ellipsis/);
-  assert.match(css, /:is\(\.juan-stock, \.rummy-stock\) \.card-back-count \{[\s\S]*?width: max-content;[\s\S]*?white-space: nowrap;/);
+  assert.match(css, /\.ordinary-stock-copy small \{[^}]*white-space: nowrap;/);
+  assert.doesNotMatch(css, /\.card-back-count/);
 });
 
 test("table seats render the last public card instead of player initials", () => {
