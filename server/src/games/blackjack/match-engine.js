@@ -2,16 +2,18 @@ import { randomInt } from "node:crypto";
 import standard52 from "../../../../shared/standard-52.js";
 import rules from "../../../../shared/blackjack-rules.js";
 import { GameError as RoomError } from "../../game-error.js";
+import { randomSeat, seatAtOffset, secureRandomIndex } from "../../gameplay-order.js";
 
 const MIN_PLAYERS = 1;
 const MAX_PLAYERS = 4;
 
 export class MatchEngine {
-  constructor({ shuffleDeck = secureShuffle } = {}) {
+  constructor({ shuffleDeck = secureShuffle, randomIndex = secureRandomIndex } = {}) {
     this.shuffleDeck = shuffleDeck;
+    this.randomIndex = randomIndex;
   }
 
-  createMatch(roomPlayers, { carryScores = null, round = 1 } = {}) {
+  createMatch(roomPlayers, { carryScores = null, round = 1, initialOriginSeat = null, roundOpeningSeat = null } = {}) {
     if (!Array.isArray(roomPlayers) || roomPlayers.length < MIN_PLAYERS || roomPlayers.length > MAX_PLAYERS) {
       throw new RoomError("Blackjack supports between one and four occupied seats.", "INVALID_PLAYER_COUNT");
     }
@@ -33,12 +35,25 @@ export class MatchEngine {
         score: scoreForSeat(player.seat)
       }));
 
+    const establishedOrigin = initialOriginSeat !== null
+      && initialOriginSeat !== undefined
+      && players.some((player) => player.seat === Number(initialOriginSeat))
+      ? Number(initialOriginSeat)
+      : randomSeat(players, this.randomIndex);
+    const openingSeat = roundOpeningSeat !== null
+      && roundOpeningSeat !== undefined
+      && players.some((player) => player.seat === Number(roundOpeningSeat))
+      ? Number(roundOpeningSeat)
+      : seatAtOffset(players, establishedOrigin, Math.max(0, Number(round) - 1));
+
     const stock = this.shuffleDeck(standard52.makeDeck());
     validateDeck(stock);
     const match = {
       round,
       phase: "dealing",
       players,
+      initialOriginSeat: establishedOrigin,
+      roundOpeningSeat: openingSeat,
       dealer: { cards: [], revealed: false, peeked: false },
       stock,
       discard: [],
@@ -49,9 +64,9 @@ export class MatchEngine {
       log: []
     };
 
-    for (const player of players) player.hands[0].cards.push(drawCard(match));
+    for (const player of playersInRoundOrder(match)) player.hands[0].cards.push(drawCard(match));
     match.dealer.cards.push(drawCard(match));
-    for (const player of players) player.hands[0].cards.push(drawCard(match));
+    for (const player of playersInRoundOrder(match)) player.hands[0].cards.push(drawCard(match));
     match.dealer.cards.push(drawCard(match));
 
     const dealerUpcard = match.dealer.cards[0];
@@ -162,7 +177,7 @@ export class MatchEngine {
     match.lastMoveText = takeInsurance ? `${player.name} takes insurance.` : `${player.name} declines insurance.`;
     match.log.unshift(match.lastMoveText);
 
-    const next = match.players.find((candidate) => !candidate.insurance.decisionMade);
+    const next = playersInRoundOrder(match).find((candidate) => !candidate.insurance.decisionMade);
     if (next) {
       match.activeSeat = next.seat;
       match.activeHandIndex = null;
@@ -246,12 +261,18 @@ export class MatchEngine {
   nextRound(match) {
     if (!match?.roundOver) throw new RoomError("Finish the current Blackjack round first.", "ROUND_IN_PROGRESS", 409);
     const carryScores = new Map(match.players.map((player) => [player.seat, player.score]));
+    const roundOpeningSeat = seatAtOffset(match.players, match.roundOpeningSeat, 1);
     return this.createMatch(match.players.map((player) => ({
       seat: player.seat,
       name: player.name,
       type: player.type,
       style: player.style
-    })), { carryScores, round: match.round + 1 });
+    })), {
+      carryScores,
+      round: match.round + 1,
+      initialOriginSeat: match.initialOriginSeat,
+      roundOpeningSeat
+    });
   }
 
   viewFor(match, seat, connections = new Map()) {
@@ -281,6 +302,8 @@ export class MatchEngine {
       state: {
         phase: match.phase,
         round: match.round,
+        initialOriginSeat: match.initialOriginSeat,
+        roundOpeningSeat: match.roundOpeningSeat,
         activeSeat: match.activeSeat,
         activeHandIndex: match.activeHandIndex,
         dealer: {
@@ -352,7 +375,7 @@ function beginInitialDecision(match) {
   const dealerUpcard = match.dealer.cards[0];
   if (rules.insuranceOffered({ dealerUpcard })) {
     match.phase = "insurance";
-    match.activeSeat = match.players[0].seat;
+    match.activeSeat = playersInRoundOrder(match).find((player) => !player.insurance.decisionMade)?.seat ?? null;
     match.activeHandIndex = null;
     match.lastMoveText = "Dealer shows an Ace. Insurance is available.";
     match.log.unshift(match.lastMoveText);
@@ -444,7 +467,8 @@ function advanceAfterHand(match, seat, handIndex) {
 }
 
 function nextOpenHand(match, afterSeat = null, afterHandIndex = null) {
-  const entries = match.players.flatMap((player) => player.hands.map((hand, handIndex) => ({ player, hand, handIndex })));
+  const entries = playersInRoundOrder(match)
+    .flatMap((player) => player.hands.map((hand, handIndex) => ({ player, hand, handIndex })));
   if (!entries.length) return null;
   const currentIndex = afterSeat == null
     ? -1
@@ -455,6 +479,12 @@ function nextOpenHand(match, afterSeat = null, afterHandIndex = null) {
     if (!candidate.hand.complete) return { seat: candidate.player.seat, handIndex: candidate.handIndex };
   }
   return null;
+}
+
+function playersInRoundOrder(match) {
+  const startIndex = match.players.findIndex((player) => player.seat === Number(match.roundOpeningSeat));
+  const origin = startIndex >= 0 ? startIndex : 0;
+  return match.players.map((_, index) => match.players[(origin + index) % match.players.length]);
 }
 
 function setActiveHand(match, seat, handIndex) {

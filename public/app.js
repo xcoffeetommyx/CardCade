@@ -1169,7 +1169,7 @@ function renderCardBack({
   ariaLabel = "",
   ariaHidden = false,
   attributes = "",
-  parts = []
+  countBadge = null
 }) {
   const skin = skinId ? cardSkins?.resolveSkin(deckFamilyId, skinId) : null;
   const classes = [
@@ -1182,12 +1182,9 @@ function renderCardBack({
   const accessibility = ariaHidden
     ? 'aria-hidden="true"'
     : `aria-label="${escapeHtml(ariaLabel)}"`;
-  const content = parts.map(({ tag = null, text = "", ariaHidden: partHidden = false }) => {
-    const escaped = escapeHtml(text);
-    if (!tag) return escaped;
-    const safeTag = ["b", "i", "span", "strong"].includes(tag) ? tag : "span";
-    return `<${safeTag}${partHidden ? ' aria-hidden="true"' : ""}>${escaped}</${safeTag}>`;
-  }).join("");
+  const content = Number.isFinite(Number(countBadge))
+    ? `<b class="card-back-count" aria-hidden="true">${escapeHtml(countBadge)}</b>`
+    : "";
   return `<span class="${classes}" ${attributes} ${accessibility}>${content}</span>`;
 }
 
@@ -1379,10 +1376,7 @@ function renderBlackjackCardBack(index, { enter = false } = {}) {
     className: `playing-card played blackjack-card-back ${enter ? "enter" : ""}`,
     ariaLabel: "Dealer hole card",
     attributes: playedCardStyle(index, { animate: enter }),
-    parts: [
-      { tag: "i", text: "CC", ariaHidden: true },
-      { tag: "b", text: "", ariaHidden: true }
-    ]
+    countBadge: null
   });
 }
 
@@ -1462,7 +1456,7 @@ function renderSnapGame() {
             <div class="snap-compare-card"><span>Previous</span>${match.previousCard ? renderPlayingCard(match.previousCard, 1, { played: true }) : `<div class="snap-empty-card">—</div>`}</div>
             <div class="snap-compare-card current"><span>Current</span>${match.currentCard ? renderPlayingCard(match.currentCard, 2, { played: true, enter: match.phase === snapRules.PHASES.REACTION }) : `<div class="snap-empty-card">?</div>`}</div>
             <div class="snap-hidden-source" aria-label="Upcoming card remains hidden">
-              ${renderCardBack({ deckFamilyId: "standard-52", context: "snap-source", className: "playing-card played", ariaLabel: "Hidden upcoming card", parts: [{ tag: "i", text: "CC", ariaHidden: true }] })}
+              ${renderCardBack({ deckFamilyId: "standard-52", context: "snap-source", className: "playing-card played", ariaLabel: "Hidden upcoming card" })}
               <small>${escapeHtml(revealPlayer?.name || "Next reveal")}</small>
             </div>
           </div>`,
@@ -1819,16 +1813,14 @@ function renderFiveCardDrawPile({ count, kind }) {
     ? renderCardBack({
         deckFamilyId: "standard-52",
         context: "draw-stock",
-        className: `draw-card-back draw-card-back-stock draw-card-layer-${index + 1} ${safeCount ? "" : "empty"}`,
-        ariaHidden: true,
-        parts: [{ tag: "i", text: "CC" }]
+        className: `draw-card-back ordinary-card-stock draw-card-back-stock draw-card-layer-${index + 1} ${safeCount ? "" : "empty"}`,
+        ariaHidden: true
       })
     : renderCardBack({
         deckFamilyId: "standard-52",
         context: "discard",
         className: `draw-card-back draw-card-back-discard draw-card-layer-${index + 1} ${safeCount ? "" : "empty"}`,
-        ariaHidden: true,
-        parts: [{ tag: "i", text: "↻" }]
+        ariaHidden: true
       });
   const cards = Array.from({ length: layers }, (_, index) => renderPileBack(index)).join("");
   return `<div class="${kind === "stock" ? "draw-stack" : "draw-discard-pile"}" aria-label="${safeCount} cards in ${label.toLowerCase()} pile">
@@ -2325,7 +2317,7 @@ function renderRotatingRummyGame() {
           <div class="rummy-table-stage">
             <section class="game-table status-separated-table rummy-table">
               <div class="rummy-pile-zone">
-                ${renderCardBack({ deckFamilyId: "rotating-rummy", context: "stock", className: "rummy-stock", ariaLabel: `${match.stockCount} cards in stock`, parts: [{ tag: "span", text: "RR" }, { tag: "b", text: match.stockCount }] })}
+                ${renderCardBack({ deckFamilyId: "rotating-rummy", context: "stock", className: "rummy-stock ordinary-card-stock", ariaLabel: `${match.stockCount} cards in stock`, countBadge: match.stockCount })}
                 <div class="active-pile cards-pile">${match.topCard ? renderRotatingRummyCard(match.topCard, 0, { played: true, enter: pileIsNew }) : ""}</div>
               </div>
             </section>
@@ -2722,7 +2714,7 @@ function renderFindersBuildReveal() {
     <section class="finders-build-reveal ${reveal.shared ? "shared" : ""} ${reveal.reducedMotion ? "reduced-motion" : ""}" data-reveal-key="${escapeHtml(reveal.key)}" role="dialog" aria-modal="true" aria-labelledby="finders-build-reveal-title" tabindex="-1">
       <div class="finders-build-reveal-card">
         <div class="finders-build-reveal-card-inner">
-          <div class="finders-build-reveal-card-face finders-build-reveal-card-back" aria-hidden="true"><span>F</span><span>M</span><b>BUILD</b></div>
+          <div class="finders-build-reveal-card-face finders-build-reveal-card-back" aria-hidden="true"></div>
           <div class="finders-build-reveal-card-face finders-build-reveal-card-front">
             <span class="family-kicker">${title}</span>
             <strong id="finders-build-reveal-title">${escapeHtml(reveal.build.name)}</strong>
@@ -2890,6 +2882,8 @@ function renderJuanGame() {
   const viewer = state.room?.players.find((player) => player.isYou);
   const viewerSeat = viewer?.seat;
   const yourPlayer = match.players.find((player) => player.seat === viewerSeat);
+  const isHost = viewer?.role === "host";
+  const totalRounds = Number.isInteger(match.totalRounds) ? match.totalRounds : 4;
   const yourPlace = placementForPlayer(match, yourPlayer);
   const opponents = match.players.filter((player) => player.seat !== viewerSeat);
   const hasPrismBurstDecision = Boolean(match.prismBurstChallenge);
@@ -2912,7 +2906,7 @@ function renderJuanGame() {
     <section class="standard-card-game ${activeTableAppearanceClass()} juan-game" data-game-id="juan" data-active-color="${escapeHtml(match.activeColor)}">
       <header class="game-topbar">
         <button class="back-button" type="button" data-action="leave-game" aria-label="${state.gameMode === "multiplayer" ? "Return to room lobby" : "Leave game"}">←</button>
-        <div><span class="family-kicker">${state.gameMode === "solo" ? "Solo table" : state.gameMode === "hot-seat" ? "Hot Seat table" : `Room ${escapeHtml(state.room.code)}`}</span><h2>JUAN</h2><p>Race to one · ${escapeHtml(match.lastMoveText)}</p></div>
+        <div><span class="family-kicker">${state.gameMode === "solo" ? "Solo table" : state.gameMode === "hot-seat" ? "Hot Seat table" : `Room ${escapeHtml(state.room.code)}`}</span><h2>JUAN</h2><p>Round ${match.round} / ${totalRounds} · ${escapeHtml(match.lastMoveText)}</p></div>
         <button class="game-score ${placementClassFor(yourPlace)}" type="button" disabled><span>${yourPlace ? `${placeLabel(yourPlace)} place` : "Score"}</span><strong>${yourPlayer?.score ?? 0}</strong></button>
       </header>
       <div class="juan-lane-bar">
@@ -2934,17 +2928,17 @@ function renderJuanGame() {
             player,
             deckFamilyId: "color-action",
             cardCount: player.cardCount,
-            detail: playerPlace ? `${placeLabel(playerPlace)} place` : player.juan ? "JUAN! · 1 card" : needsJuanCall ? "1 card · call JUAN!" : `${player.cardCount} cards`,
+            detail: playerPlace ? `${placeLabel(playerPlace)} place · ${player.score} pts` : player.juan ? `JUAN! · 1 card · ${player.score} pts` : needsJuanCall ? `1 card · call JUAN! · ${player.score} pts` : `${player.cardCount} cards · ${player.score} pts`,
             modifiers: `${player.juan ? "juan-alert" : ""} ${needsJuanCall ? "juan-call-pending" : ""} ${placementClassFor(playerPlace)}`,
             gameId: "juan",
             showLastPlay: true
           });
         }).join(""),
-        tableStatusMarkup: `<div class="game-status"><span><strong>${match.roundOver ? "Match complete" : hasPrismBurstDecision ? `${escapeHtml(activePlayer?.name || "Player")} is resolving +4` : isYourTurn ? `${escapeHtml(yourPlayer?.name || "You")}, your turn` : `${escapeHtml(activePlayer?.name || "Player")} is thinking`}</strong><small>${hasPrismBurstDecision ? "Challenge it or take four" : `Stock ${match.stockCount} · match color or face`}</small></span><span class="badge">${escapeHtml(juanDeck.COLOR_NAME[match.activeColor])}</span></div>`,
+        tableStatusMarkup: `<div class="game-status"><span><strong>${match.roundOver ? match.matchOver ? "Match complete" : "Round complete" : hasPrismBurstDecision ? `${escapeHtml(activePlayer?.name || "Player")} is resolving +4` : isYourTurn ? `${escapeHtml(yourPlayer?.name || "You")}, your turn` : `${escapeHtml(activePlayer?.name || "Player")} is thinking`}</strong><small>${hasPrismBurstDecision ? "Challenge it or take four" : `Round ${match.round} / ${totalRounds} · Stock ${match.stockCount}`}</small></span><span class="badge">${escapeHtml(juanDeck.COLOR_NAME[match.activeColor])}</span></div>`,
         centerMarkup: `
           <section class="game-table status-separated-table juan-table">
             <div class="juan-pile-zone">
-              ${renderCardBack({ deckFamilyId: "color-action", context: "stock", className: "juan-stock", ariaLabel: `${match.stockCount} cards in stock`, parts: [{ tag: "span", text: "JUAN" }, { tag: "b", text: match.stockCount }] })}
+              ${renderCardBack({ deckFamilyId: "color-action", context: "stock", className: "juan-stock ordinary-card-stock", ariaLabel: `${match.stockCount} cards in stock`, countBadge: match.stockCount })}
               <div class="active-pile cards-pile">${renderJuanCard(match.topCard, 0, { played: true, enter: pileIsNew })}</div>
             </div>
           </section>`,
@@ -2971,8 +2965,8 @@ function renderJuanGame() {
       </nav>
       ${match.roundOver ? `
         <div class="round-result juan-result">
-          <div><span class="family-kicker">JUAN complete</span><h3>${escapeHtml(match.lastMoveText)}</h3><p>${match.placements.map((seat, index) => `${index + 1}. ${escapeHtml(match.players.find((player) => player.seat === seat)?.name || "Player")}`).join(" · ")}</p></div>
-          <button class="action-button" type="button" data-action="leave-game">Return to Cardcade</button>
+          <div><span class="family-kicker">${match.matchOver ? "Final standings" : `Round ${match.round} / ${totalRounds} complete`}</span><h3>${escapeHtml(match.lastMoveText)}</h3>${match.matchOver ? renderStandardFinalStandings(match) : `<p>${match.players.map((player) => `${escapeHtml(player.name)} · ${player.score} pts`).join(" · ")}</p>`}</div>
+          ${match.matchOver ? `<button class="action-button" type="button" data-action="leave-game">Return to Cardcade</button>` : `<button class="action-button primary" type="button" data-action="next-round" ${isHost ? "" : "disabled"}>${isHost ? "Deal next round" : "Waiting for host"}</button>`}
         </div>` : ""}
     </section>`;
 }
@@ -3016,7 +3010,7 @@ function renderHotSeatHandoff() {
     <section class="hot-seat-handoff">
       <div class="handoff-panel">
         <span class="family-kicker">Hot Seat · ${escapeHtml(gameName)} · ${escapeHtml(round)}</span>
-        ${renderCardBack({ deckFamilyId: deckFamilyIdForGame(), context: "hot-seat-handoff", className: "handoff-card-back", ariaHidden: true, parts: [{ tag: "span", text: "CC" }] })}
+        ${renderCardBack({ deckFamilyId: deckFamilyIdForGame(), context: "hot-seat-handoff", className: "handoff-card-back", ariaHidden: true })}
         <p class="handoff-instruction">Pass the device to</p>
         <h1>${escapeHtml(nextSeat.name)}</h1>
         <p class="handoff-privacy">Everyone else: look away. The previous hand has been hidden and only ${escapeHtml(nextSeat.name)}'s private seat will reconnect.</p>
@@ -3042,7 +3036,7 @@ function renderSkinPreview(skin) {
     return `
       <div class="skin-preview ${skin.className}" data-skin-preview="${escapeHtml(skin.deckFamilyId)}" role="img" aria-label="${escapeHtml(skin.name)} card face and back preview">
         <span class="skin-preview-card skin-preview-face skin-preview-standard-face" aria-hidden="true"><span><strong>A</strong><i>♥</i></span><b>♥</b></span>
-        ${renderCardBack({ deckFamilyId: skin.deckFamilyId, skinId: skin.id, context: "settings-preview", className: "skin-preview-card skin-preview-back skin-preview-standard-back", ariaHidden: true, parts: [{ tag: "strong", text: "CC" }] })}
+        ${renderCardBack({ deckFamilyId: skin.deckFamilyId, skinId: skin.id, context: "settings-preview", className: "skin-preview-card skin-preview-back skin-preview-standard-back", ariaHidden: true })}
       </div>`;
   }
   if (skin.deckFamilyId === "rotating-rummy") {
@@ -3050,14 +3044,14 @@ function renderSkinPreview(skin) {
       <div class="skin-preview ${skin.className}" data-skin-preview="${escapeHtml(skin.deckFamilyId)}" role="img" aria-label="${escapeHtml(skin.name)} card face and back preview">
         <span class="skin-preview-card skin-preview-face skin-preview-rummy-face" aria-hidden="true"><small>7</small><b>7</b></span>
         <span class="skin-preview-card skin-preview-face skin-preview-rummy-wild" aria-hidden="true">${rummyWildMark("rummy-wild-mark-preview")}</span>
-        ${renderCardBack({ deckFamilyId: skin.deckFamilyId, skinId: skin.id, context: "settings-preview", className: "skin-preview-card skin-preview-back skin-preview-rummy-back", ariaHidden: true, parts: [{ tag: "strong", text: "RR" }] })}
+        ${renderCardBack({ deckFamilyId: skin.deckFamilyId, skinId: skin.id, context: "settings-preview", className: "skin-preview-card skin-preview-back skin-preview-rummy-back", ariaHidden: true })}
       </div>`;
   }
   return `
     <div class="skin-preview ${skin.className}" data-skin-preview="${escapeHtml(skin.deckFamilyId)}" role="img" aria-label="${escapeHtml(skin.name)} card face and back preview">
       <span class="skin-preview-card skin-preview-face skin-preview-juan-face" aria-hidden="true"><small>1</small><b>1</b></span>
       <span class="skin-preview-card skin-preview-face skin-preview-juan-prism" aria-hidden="true"><small>PRISM</small><b>✦</b></span>
-      ${renderCardBack({ deckFamilyId: skin.deckFamilyId, skinId: skin.id, context: "settings-preview", className: "skin-preview-card skin-preview-back skin-preview-juan-back", ariaHidden: true, parts: [{ tag: "strong", text: "JUAN" }] })}
+      ${renderCardBack({ deckFamilyId: skin.deckFamilyId, skinId: skin.id, context: "settings-preview", className: "skin-preview-card skin-preview-back skin-preview-juan-back", ariaHidden: true })}
     </div>`;
 }
 

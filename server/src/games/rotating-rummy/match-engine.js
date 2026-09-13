@@ -3,18 +3,20 @@ import rummyDeck from "../../../../shared/rotating-rummy-deck.js";
 import routeLibrary from "../../../../shared/rotating-rummy-routes.js";
 import rules from "../../../../shared/rotating-rummy-rules.js";
 import { GameError as RoomError } from "../../game-error.js";
+import { randomSeat, seatAtOffset, secureRandomIndex } from "../../gameplay-order.js";
 
 const DEAL_COUNT = 10;
 const MIN_PLAYERS = 2;
 const MAX_PLAYERS = 4;
 
 export class MatchEngine {
-  constructor({ shuffleDeck = secureShuffle, selectRouteDeck = randomRouteDeck } = {}) {
+  constructor({ shuffleDeck = secureShuffle, selectRouteDeck = randomRouteDeck, randomIndex = secureRandomIndex } = {}) {
     this.shuffleDeck = shuffleDeck;
     this.selectRouteDeck = selectRouteDeck;
+    this.randomIndex = randomIndex;
   }
 
-  createMatch(roomPlayers, { routeDeckId = null, round = 1, carryProgress = new Map() } = {}) {
+  createMatch(roomPlayers, { routeDeckId = null, round = 1, carryProgress = new Map(), initialOriginSeat = null } = {}) {
     if (!Array.isArray(roomPlayers) || roomPlayers.length < MIN_PLAYERS || roomPlayers.length > MAX_PLAYERS) {
       throw new RoomError("Rotating Rummy requires two to four occupied seats.", "INVALID_PLAYER_COUNT");
     }
@@ -46,7 +48,13 @@ export class MatchEngine {
     if (openerIndex < 0) throw new RoomError("Rotating Rummy could not find a numbered opening discard.", "INVALID_DECK", 500);
     const [openingCard] = stock.splice(openerIndex, 1);
     const normalizedRound = Number.isInteger(round) && round > 0 ? round : 1;
-    const openingPlayer = players[(normalizedRound - 1) % players.length];
+    const establishedOrigin = initialOriginSeat !== null
+      && initialOriginSeat !== undefined
+      && players.some((player) => player.seat === Number(initialOriginSeat))
+      ? Number(initialOriginSeat)
+      : randomSeat(players, this.randomIndex);
+    const openingSeat = seatAtOffset(players, establishedOrigin, normalizedRound - 1);
+    const openingPlayer = players.find((player) => player.seat === openingSeat);
 
     return {
       round: normalizedRound,
@@ -55,6 +63,8 @@ export class MatchEngine {
       routeDeckName: routeDeck.name,
       totalRoutes: routeDeck.routes.length,
       players,
+      initialOriginSeat: establishedOrigin,
+      roundOpeningSeat: openingSeat,
       activeSeat: openingPlayer.seat,
       turnStage: "draw",
       stock,
@@ -213,7 +223,8 @@ export class MatchEngine {
     return this.createMatch(players, {
       routeDeckId: match.routeDeckId,
       round: match.round + 1,
-      carryProgress
+      carryProgress,
+      initialOriginSeat: match.initialOriginSeat
     });
   }
 
@@ -228,7 +239,12 @@ export class MatchEngine {
       const completionFromDiscard = !player.routeComplete && topCard
         ? rules.findRouteCompletion([...player.hand, topCard], route)
         : null;
-      if (completionFromDiscard) this.drawDiscard(match, player.seat);
+      const currentUtility = !player.routeComplete ? rules.routeUtility(player.hand, route) : 0;
+      const discardUtility = !player.routeComplete && topCard ? rules.routeUtility([...player.hand, topCard], route) : 0;
+      const materiallyUsefulDiscard = topCard
+        && !player.routeComplete
+        && (topCard.kind === "glitch" || discardUtility >= currentUtility + 100);
+      if (completionFromDiscard || materiallyUsefulDiscard) this.drawDiscard(match, player.seat);
       else this.drawStock(match, player.seat);
       return true;
     }
@@ -282,6 +298,8 @@ export class MatchEngine {
       state: {
         phase: match.phase,
         round: match.round,
+        initialOriginSeat: match.initialOriginSeat,
+        roundOpeningSeat: match.roundOpeningSeat,
         activeSeat: match.activeSeat,
         turnStage: match.turnStage,
         routeDeck: projectRouteDeck(routeDeck),

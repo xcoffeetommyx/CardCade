@@ -24,7 +24,7 @@ function room({ code = "BLACKJACK", botCount = 0, players = [{ seat: 0, name: "H
 }
 
 test("Blackjack runtime fills shared room seats with CPUs and protects every private hand", () => {
-  const runtime = new BlackjackRuntime({ matchEngine: new MatchEngine({ shuffleDeck: identityShuffle }) });
+  const runtime = new BlackjackRuntime({ matchEngine: new MatchEngine({ shuffleDeck: identityShuffle, randomIndex: () => 0 }) });
   const table = room({ botCount: 3 });
   runtime.start(table);
 
@@ -42,7 +42,7 @@ test("Blackjack runtime fills shared room seats with CPUs and protects every pri
 });
 
 test("Blackjack runtime maps room actions, persists snapshots, and restores tables", () => {
-  const runtime = new BlackjackRuntime({ matchEngine: new MatchEngine({ shuffleDeck: scriptedShuffle }) });
+  const runtime = new BlackjackRuntime({ matchEngine: new MatchEngine({ shuffleDeck: scriptedShuffle, randomIndex: () => 0 }) });
   const table = room();
   runtime.start(table);
   const before = runtime.view(table);
@@ -53,7 +53,7 @@ test("Blackjack runtime maps room actions, persists snapshots, and restores tabl
   assert.throws(() => runtime.act(table, { type: "blackjack_unknown" }), (error) => error instanceof GameError && error.code === "UNKNOWN_GAME_ACTION");
 
   const restored = new BlackjackRuntime({
-    matchEngine: new MatchEngine({ shuffleDeck: identityShuffle }),
+    matchEngine: new MatchEngine({ shuffleDeck: identityShuffle, randomIndex: () => 0 }),
     restoredMatches: [{ gameId: "blackjack", code: table.code, state: runtime.snapshot(table.code) }]
   });
   assert.equal(restored.has(table.code), true);

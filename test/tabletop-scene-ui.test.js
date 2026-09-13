@@ -98,6 +98,17 @@ test("Five Card Draw centers full-size laid-down stock and discard piles", () =>
   assert.match(css, /\.five-card-draw-table-scene \.draw-discard-pile \.draw-card-back[\s\S]*?rotateX\(var\(--table-card-lay/);
 });
 
+test("ordinary stock piles share squared table geometry", () => {
+  const app = read("public/app.js");
+  const css = read("public/app.css");
+
+  assert.match(css, /\.card-back\.ordinary-card-stock \{[^}]*rotateX\(var\(--table-card-lay, 40deg\)\);/);
+  assert.match(app, /rummy-stock ordinary-card-stock/);
+  assert.match(app, /juan-stock ordinary-card-stock/);
+  assert.match(app, /draw-card-back ordinary-card-stock draw-card-back-stock/);
+  assert.doesNotMatch(css, /\.(?:juan-stock|rummy-stock)\s*\{[^}]*rotate\(-?4deg\)/);
+});
+
 test("casino tables fit their header, felt, hand, and controls inside one viewport", () => {
   const css = read("public/app.css");
 

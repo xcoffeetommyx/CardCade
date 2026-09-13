@@ -2,20 +2,32 @@ import { randomInt } from "node:crypto";
 import juanDeck from "../../../../shared/juan-deck.js";
 import rules from "../../../../shared/juan-rules.js";
 import { GameError as RoomError } from "../../game-error.js";
+import { randomSeat, seatAtOffset, secureRandomIndex } from "../../gameplay-order.js";
 
 const DEAL_COUNT = 7;
+export const TOTAL_ROUNDS = 4;
 
 export class MatchEngine {
-  constructor({ shuffleDeck = secureShuffle, now = Date.now, botJuanCallDelayMs = 2_600 } = {}) {
+  constructor({ shuffleDeck = secureShuffle, now = Date.now, botJuanCallDelayMs = 2_600, randomIndex = secureRandomIndex } = {}) {
     this.shuffleDeck = shuffleDeck;
     this.now = now;
     this.botJuanCallDelayMs = botJuanCallDelayMs;
+    this.randomIndex = randomIndex;
   }
 
-  createMatch(roomPlayers) {
-    if (!Array.isArray(roomPlayers) || roomPlayers.length < 2 || roomPlayers.length > 8) {
-      throw new RoomError("JUAN requires between two and eight occupied seats.", "INVALID_PLAYER_COUNT");
+  createMatch(roomPlayers, { round = 1, carryScores = null, initialOriginSeat = null } = {}) {
+    if (!Array.isArray(roomPlayers) || roomPlayers.length < 2 || roomPlayers.length > 4) {
+      throw new RoomError("JUAN requires between two and four occupied seats.", "INVALID_PLAYER_COUNT");
     }
+    if (!Number.isInteger(round) || round < 1 || round > TOTAL_ROUNDS) {
+      throw new RoomError(`JUAN has exactly ${TOTAL_ROUNDS} rounds.`, "INVALID_ROUND");
+    }
+
+    const scoreForSeat = (seat) => {
+      if (!carryScores) return 0;
+      const score = carryScores instanceof Map ? carryScores.get(seat) : carryScores[seat];
+      return Number.isFinite(score) ? score : 0;
+    };
 
     const players = roomPlayers
       .slice()
@@ -25,8 +37,17 @@ export class MatchEngine {
         name: player.name,
         avatar: initialsForName(player.name, `P${player.seat}`),
         type: player.type === "bot" ? "bot" : "human",
-        style: player.style || (player.type === "bot" ? "steady" : "human")
+        style: player.style || (player.type === "bot" ? "steady" : "human"),
+        score: scoreForSeat(player.seat)
       }));
+
+    const establishedOrigin = initialOriginSeat !== null
+      && initialOriginSeat !== undefined
+      && players.some((player) => player.seat === Number(initialOriginSeat))
+      ? Number(initialOriginSeat)
+      : randomSeat(players, this.randomIndex);
+    const roundOpeningSeat = seatAtOffset(players, establishedOrigin, round - 1);
+    const openingPlayer = players.find((player) => player.seat === roundOpeningSeat);
 
     const stock = this.shuffleDeck(juanDeck.makeDeck());
     validateDeck(stock);
@@ -40,10 +61,13 @@ export class MatchEngine {
     const [openingCard] = stock.splice(openerIndex, 1);
 
     return {
-      round: 1,
+      round,
+      totalRounds: TOTAL_ROUNDS,
       phase: "playing",
       players,
-      activeSeat: players[0].seat,
+      initialOriginSeat: establishedOrigin,
+      roundOpeningSeat,
+      activeSeat: roundOpeningSeat,
       direction: 1,
       stock,
       discardPile: [openingCard],
@@ -55,9 +79,15 @@ export class MatchEngine {
       lastJuanCall: null,
       pendingPrismBurst: null,
       placements: [],
+      roundWinnerSeat: null,
+      roundPoints: 0,
+      winnerSeat: null,
+      winnerSeats: [],
+      winners: [],
+      finalStandings: [],
       roundOver: false,
       matchOver: false,
-      lastMoveText: `${players[0].name} leads the JUAN table.`,
+      lastMoveText: `${openingPlayer.name} leads Round ${round} of JUAN.`,
       log: [`Opening card: ${juanDeck.cardLabel(openingCard)}.`]
     };
   }
@@ -107,7 +137,7 @@ export class MatchEngine {
     match.log.unshift(match.lastMoveText);
 
     if (player.hand.length === 0 && card.kind !== "prism-burst") {
-      finishMatch(match, player);
+      finishRound(match, player);
       return match;
     }
 
@@ -199,7 +229,7 @@ export class MatchEngine {
     match.lastMoveText = `${missedJuan}${target.name} takes the four-card Prism Burst and loses the turn.`;
     match.log.unshift(match.lastMoveText);
     if (source.hand.length === 0) {
-      finishMatch(match, source);
+      finishRound(match, source);
       return match;
     }
     match.activeSeat = nextPlayer(match, target.seat)?.seat ?? null;
@@ -227,7 +257,7 @@ export class MatchEngine {
     match.lastMoveText = `${missedJuan}${target.name} lost the Prism Burst challenge, draws ${count}, and loses the turn.`;
     match.log.unshift(match.lastMoveText);
     if (source.hand.length === 0) {
-      finishMatch(match, source);
+      finishRound(match, source);
       return match;
     }
     match.activeSeat = nextPlayer(match, target.seat)?.seat ?? null;
@@ -308,6 +338,24 @@ export class MatchEngine {
     return true;
   }
 
+  nextRound(match) {
+    if (!match?.roundOver) throw new RoomError("Finish the current JUAN round first.", "ROUND_IN_PROGRESS", 409);
+    if (match.matchOver || match.round >= TOTAL_ROUNDS) {
+      throw new RoomError("This four-round JUAN match is complete.", "MATCH_COMPLETE", 409);
+    }
+    const carryScores = new Map(match.players.map((player) => [player.seat, player.score]));
+    return this.createMatch(match.players.map((player) => ({
+      seat: player.seat,
+      name: player.name,
+      type: player.type,
+      style: player.style
+    })), {
+      round: match.round + 1,
+      carryScores,
+      initialOriginSeat: match.initialOriginSeat
+    });
+  }
+
   viewFor(match, seat, connections = new Map()) {
     const viewer = getPlayer(match, seat);
     if (!viewer || viewer.type !== "human") throw new RoomError("No private JUAN view exists for this seat.", "SEAT_NOT_FOUND", 404);
@@ -317,6 +365,9 @@ export class MatchEngine {
       state: {
         phase: match.phase,
         round: match.round,
+        totalRounds: match.totalRounds,
+        initialOriginSeat: match.initialOriginSeat,
+        roundOpeningSeat: match.roundOpeningSeat,
         activeSeat: match.activeSeat,
         direction: match.direction,
         activeColor: match.activeColor,
@@ -348,6 +399,12 @@ export class MatchEngine {
           connected: player.type === "bot" ? true : connections.get(player.seat) === true
         })),
         placements: match.placements.slice(),
+        roundWinnerSeat: match.roundWinnerSeat,
+        roundPoints: match.roundPoints,
+        winnerSeat: match.winnerSeat,
+        winnerSeats: match.winnerSeats.slice(),
+        winners: match.winners.slice(),
+        finalStandings: match.finalStandings.slice(),
         roundOver: match.roundOver,
         matchOver: match.matchOver,
         lastMoveText: match.lastMoveText,
@@ -457,8 +514,8 @@ export function secureShuffle(deck) {
   return shuffled;
 }
 
-function createMatchPlayer({ seat, name, avatar, type, style }) {
-  return { seat, name, avatar, type, style, hand: [], juan: false, lastPlay: null, lastPlayedCard: null, score: 0 };
+function createMatchPlayer({ seat, name, avatar, type, style, score = 0 }) {
+  return { seat, name, avatar, type, style, hand: [], juan: false, lastPlay: null, lastPlayedCard: null, score };
 }
 
 function validateDeck(deck) {
@@ -532,7 +589,7 @@ function chooseBotCard(player, legal) {
   })[0];
 }
 
-function finishMatch(match, winner) {
+function finishRound(match, winner) {
   const others = match.players
     .filter((player) => player.seat !== winner.seat)
     .sort((left, right) => left.hand.length - right.hand.length || left.seat - right.seat);
@@ -543,12 +600,36 @@ function finishMatch(match, winner) {
   match.pendingJuan = null;
   match.pendingPrismBurst = null;
   clearDrawChoice(match);
+  match.roundWinnerSeat = winner.seat;
+  match.roundPoints = points;
   match.roundOver = true;
+  match.matchOver = false;
+  match.phase = "round-complete";
+  match.activeSeat = null;
+  match.lastMoveText = `${winner.name} wins Round ${match.round} with ${points} points.`;
+  match.log.unshift(match.lastMoveText);
+  if (match.round === TOTAL_ROUNDS) completeMatch(match);
+}
+
+function completeMatch(match) {
+  const highScore = Math.max(...match.players.map((player) => player.score));
+  const winners = match.players.filter((player) => player.score === highScore);
   match.matchOver = true;
   match.phase = "complete";
-  match.activeSeat = null;
-  match.lastMoveText = `${winner.name} wins JUAN with ${points} points.`;
-  match.log.unshift(match.lastMoveText);
+  match.winnerSeats = winners.map((player) => player.seat);
+  match.winners = match.winnerSeats.slice();
+  match.winnerSeat = winners.length === 1 ? winners[0].seat : null;
+  match.finalStandings = match.players
+    .slice()
+    .sort((left, right) => right.score - left.score)
+    .map((player) => player.seat);
+  const roundWinner = getPlayer(match, match.roundWinnerSeat);
+  const roundSummary = `${roundWinner?.name || "A player"} wins Round ${match.round} with ${match.roundPoints} points.`;
+  const matchSummary = winners.length === 1
+    ? `${winners[0].name} wins the JUAN match with ${highScore} points.`
+    : `${winners.map((player) => player.name).join(" and ")} share the JUAN win with ${highScore} points.`;
+  match.lastMoveText = `${roundSummary} ${matchSummary}`;
+  match.log.unshift(matchSummary);
 }
 
 function initialsForName(name, fallback) {

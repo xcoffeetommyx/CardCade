@@ -70,6 +70,16 @@ test("faces and all hidden-card contexts use the shared skin boundary", () => {
   }
 });
 
+test("physical card backs cannot render visible Cardcade branding", () => {
+  const app = read("public/app.js");
+  const renderer = app.slice(app.indexOf("function renderCardBack"), app.indexOf("function tableSeatAssignments"));
+
+  assert.doesNotMatch(renderer, /parts|CC|JUAN|RR/);
+  assert.match(renderer, /card-back-count/);
+  assert.match(renderer, /aria-hidden="true"/);
+  assert.doesNotMatch(app, /text: "(?:CC|JUAN|RR)"|>CC<|>RR<|>BUILD<|>F<|>M</);
+});
+
 test("modern Standard 52 artwork scales equally in hands and table piles", () => {
   const css = read("public/app.css");
 
@@ -95,8 +105,7 @@ test("default felt and Cardcade Pixel backs stay consistent across game modes", 
 
   assert.match(css, /\.card-back\.card-skin-cardcade-pixel \{/);
   assert.match(css, /\.draw-stack\.card-skin-cardcade-pixel::before/);
-  assert.match(css, /\.blackjack-card-back b \{ display: none; \}/);
-  assert.match(css, /\.draw-card-back\.card-skin-cardcade-pixel::after \{ content: none; \}/);
+  assert.doesNotMatch(css, /\.blackjack-card-back b|\.draw-card-back::after\s*\{[^}]*content:\s*"CC"/);
 });
 
 test("table skins are independently previewed and applied to every game table", () => {

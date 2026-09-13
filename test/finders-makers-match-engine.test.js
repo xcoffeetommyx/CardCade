@@ -26,7 +26,8 @@ function engine({ selectBotPosition = (positions) => positions[0] } = {}) {
   return new MatchEngine({
     generatePieceBoard: deterministicBoard,
     selectBuild: (builds) => builds[0],
-    selectBotPosition
+    selectBotPosition,
+    randomIndex: () => 0
   });
 }
 
@@ -80,6 +81,23 @@ test("Search preserves the face-down board and reveals a Piece only in the searc
   assert.equal(opponentView.state.latestSearch.position, 0, "The inspected position is public");
   assert.equal(opponentView.state.board[0].pieceId, undefined, "The board projection must never contain a Piece identity");
   assert.doesNotMatch(JSON.stringify(opponentView), /privateDiscoveries|pieceId/);
+});
+
+test("Finders Makers randomizes its match origin and alternates later round openers from it", () => {
+  const game = new MatchEngine({
+    generatePieceBoard: deterministicBoard,
+    selectBuild: (builds) => builds[0],
+    selectBotPosition: (positions) => positions[0],
+    randomIndex: () => 1
+  });
+  let match = game.createMatch(players, { buildIds: ["cake", "sundae"] });
+  assert.equal(match.initialOriginSeat, 1);
+  assert.equal(match.roundOpeningSeat, 1);
+  winRound(game, match, 1);
+  match = game.nextRound(match, { buildIds: ["cake", "sundae"] });
+  assert.equal(match.initialOriginSeat, 1);
+  assert.equal(match.roundOpeningSeat, 0);
+  assert.equal(match.activeSeat, 0);
 });
 
 test("normal-round Builds are private and player-specific while the public state has no objective identities", () => {

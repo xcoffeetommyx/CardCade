@@ -18,7 +18,7 @@ function room({ code = "HOLDME", botCount = 0, players = [{ seat: 0, name: "Host
 }
 
 test("Texas Hold'em runtime fills shared room seats with CPUs and protects every private hole hand", () => {
-  const runtime = new HoldemRuntime({ matchEngine: new MatchEngine({ shuffleDeck: identityShuffle }) });
+  const runtime = new HoldemRuntime({ matchEngine: new MatchEngine({ shuffleDeck: identityShuffle, randomIndex: () => 0 }) });
   const table = room({ botCount: 3 });
   runtime.start(table);
 
@@ -35,7 +35,7 @@ test("Texas Hold'em runtime fills shared room seats with CPUs and protects every
 });
 
 test("Texas Hold'em runtime maps table actions, snapshots ongoing tables, and restores them", () => {
-  const runtime = new HoldemRuntime({ matchEngine: new MatchEngine({ shuffleDeck: identityShuffle }) });
+  const runtime = new HoldemRuntime({ matchEngine: new MatchEngine({ shuffleDeck: identityShuffle, randomIndex: () => 0 }) });
   const table = room({
     players: [
       { seat: 0, name: "Host", role: "host", isYou: true, connected: true },
@@ -51,7 +51,7 @@ test("Texas Hold'em runtime maps table actions, snapshots ongoing tables, and re
   assert.throws(() => runtime.act(table, { type: "holdem_unknown" }), (error) => error instanceof GameError && error.code === "UNKNOWN_GAME_ACTION");
 
   const restored = new HoldemRuntime({
-    matchEngine: new MatchEngine({ shuffleDeck: identityShuffle }),
+    matchEngine: new MatchEngine({ shuffleDeck: identityShuffle, randomIndex: () => 0 }),
     restoredMatches: [{ gameId: "holdem", code: table.code, state: runtime.snapshot(table.code) }]
   });
   assert.equal(restored.has(table.code), true);
@@ -59,7 +59,7 @@ test("Texas Hold'em runtime maps table actions, snapshots ongoing tables, and re
 });
 
 test("Texas Hold'em runtime preserves the shared 52-card source for complete tables", () => {
-  const runtime = new HoldemRuntime({ matchEngine: new MatchEngine({ shuffleDeck: identityShuffle }) });
+  const runtime = new HoldemRuntime({ matchEngine: new MatchEngine({ shuffleDeck: identityShuffle, randomIndex: () => 0 }) });
   const table = room({ botCount: 1 });
   runtime.start(table);
   const snapshot = runtime.snapshot(table.code);

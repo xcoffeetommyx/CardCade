@@ -45,7 +45,7 @@ test("JUAN has its own renderer while retaining the shared fan and motion path",
   assert.match(css, /\.juan-card\.card-skin-juan-paper-pop:is\(\.juan-kind-double-draw, \.juan-kind-prism-burst\) \.juan-corner strong \{[\s\S]*?color: #07101d;[\s\S]*?-webkit-text-stroke: 0;/);
   assert.match(css, /\.juan-card\.card-skin-juan-paper-pop \.juan-action-double-draw b,[\s\S]*?color: #07101d;[\s\S]*?-webkit-text-stroke-color: var\(--juan-face\);/);
   assert.match(css, /\.juan-action-prism-burst b \{ padding: 0; border: 0; border-radius: 0; background: transparent; \}/);
-  assert.match(css, /\.juan-stock span/);
+  assert.match(css, /\.juan-stock[\s\S]*?\.card-back-count/);
   assert.match(css, /\.juan-color-chooser/);
   assert.match(css, /\.juan-prism-dialog/);
   assert.match(css, /\.juan-prism-reveal/);
@@ -78,6 +78,10 @@ test("JUAN has its own renderer while retaining the shared fan and motion path",
   assert.match(html, /id="juan-prism-reveal-root"/);
   assert.match(worker, /shared\/juan-deck\.js/);
   assert.match(worker, /shared\/juan-rules\.js/);
+  assert.match(app, /Round \$\{match\.round\} \/ \$\{totalRounds\}/);
+  assert.match(app, /match\.matchOver \? renderStandardFinalStandings\(match\)/);
+  assert.match(app, /data-action="next-round"/);
+  assert.match(app, /player\.score} pts/);
 
   const renderer = app.slice(app.indexOf("function renderJuanCard"), app.indexOf("function juanColorChooser"));
   assert.doesNotMatch(renderer, /JUAN/);

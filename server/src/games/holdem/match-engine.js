@@ -2,6 +2,7 @@ import { randomInt } from "node:crypto";
 import standard52 from "../../../../shared/standard-52.js";
 import rules from "../../../../shared/holdem-rules.js";
 import { GameError as RoomError } from "../../game-error.js";
+import { randomSeat, secureRandomIndex } from "../../gameplay-order.js";
 
 const MIN_PLAYERS = 2;
 const MAX_PLAYERS = 4;
@@ -14,8 +15,9 @@ const MAX_PLAYERS = 4;
  * order so the same table can run Solo, rooms, and Hot Seat unchanged.
  */
 export class MatchEngine {
-  constructor({ shuffleDeck = secureShuffle } = {}) {
+  constructor({ shuffleDeck = secureShuffle, randomIndex = secureRandomIndex } = {}) {
     this.shuffleDeck = shuffleDeck;
+    this.randomIndex = randomIndex;
   }
 
   createMatch(roomPlayers) {
@@ -34,11 +36,13 @@ export class MatchEngine {
         style: player.style || (player.type === "bot" ? "steady" : "human")
       }));
 
+    const initialDealerSeat = randomSeat(players, this.randomIndex);
     const match = {
       round: 0,
       phase: "waiting",
       players,
-      dealerSeat: players[0].seat,
+      initialDealerSeat,
+      dealerSeat: initialDealerSeat,
       smallBlindSeat: null,
       bigBlindSeat: null,
       activeSeat: null,
@@ -57,7 +61,7 @@ export class MatchEngine {
       log: []
     };
 
-    this.#startHand(match, { dealerSeat: players[0].seat });
+    this.#startHand(match, { dealerSeat: initialDealerSeat });
     return match;
   }
 
@@ -203,6 +207,7 @@ export class MatchEngine {
         phase: match.phase,
         round: match.round,
         activeSeat: match.activeSeat,
+        initialDealerSeat: match.initialDealerSeat,
         dealerSeat: match.dealerSeat,
         smallBlindSeat: match.smallBlindSeat,
         bigBlindSeat: match.bigBlindSeat,

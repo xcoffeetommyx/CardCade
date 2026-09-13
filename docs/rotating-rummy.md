@@ -5,12 +5,12 @@ Rotating Rummy is CardCade's original route-completion rummy game. A match selec
 ## Deck
 
 - 96 numbered cards: values 1–12, four color lanes, two copies of each.
-- 6 Glitches: wildcards that may stand in for a number or color while completing a Route.
-- 6 Locks: discard-only interruption cards that skip the next player. Locks never count toward a Route.
+- 8 Glitches: wildcards that may stand in for a number or color while completing a Route.
+- 4 Locks: discard-only interruption cards that skip the next player. Locks never count toward a Route.
 
 ## Round flow
 
-Each player begins with ten cards. On a turn, draw one card from the stock or discard pile, optionally complete the current Route by laying down its exact card groups, then discard one card. Once a player has completed their Route, they may **Link** compatible cards onto any completed Route group at the table before their discard. A player cannot go out until their current Route is complete.
+Each player begins with ten cards. Round 1 chooses a random opening player while preserving the table's clockwise order; each later round advances the opener by one player from that initial origin. On a turn, draw one card from the stock or discard pile, optionally complete the current Route by laying down its exact card groups, then discard one card. Once a player has completed their Route, they may **Link** compatible cards onto any completed Route group at the table before their discard. A player cannot go out until their current Route is complete.
 
 The round ends when a player goes out **or as soon as everyone has completed their current Route**. Every player who completed their own Route advances one Route number; players who did not complete theirs retry it next round. The host deals the next round when the table is ready. When everyone completes their Route, no further discard is needed and no go-out bonus is awarded.
 

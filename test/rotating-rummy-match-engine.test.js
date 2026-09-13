@@ -12,7 +12,7 @@ const cards = new Map(deck.makeDeck().map((card) => [card.id, card]));
 const card = (id) => cards.get(id);
 
 function engine() {
-  return new MatchEngine({ shuffleDeck: identityShuffle, selectRouteDeck: (routeDecks) => routeDecks[0] });
+  return new MatchEngine({ shuffleDeck: identityShuffle, selectRouteDeck: (routeDecks) => routeDecks[0], randomIndex: () => 0 });
 }
 
 function matchFor(players = [human(0, "One"), human(1, "Two"), human(2, "Three")]) {
@@ -204,6 +204,52 @@ test("Rotating Rummy CPUs link compatible cards so short Routes can still go out
   assert.equal(table.roundOver, true);
   assert.equal(table.players[1].routeMeld[0].length, 3);
   assert.equal(table.players[1].hand.length, 0);
+});
+
+test("Rotating Rummy CPUs preserve a useful Glitch instead of feeding it to the next player", () => {
+  const game = engine();
+  const table = matchFor([human(0, "Host"), bot(1, "Byte")]);
+  setTable(table, {
+    hands: [["rr-blue-1-a"], ["rr-glitch-1", "rr-red-4-a", "rr-blue-4-a", "rr-green-6-a", "rr-yellow-9-a", "rr-red-12-a"]],
+    activeSeat: 1,
+    turnStage: "play"
+  });
+  assert.equal(game.runBotTurn(table), true);
+  assert.equal(table.players[1].lastPlayedCard.id, "rr-red-12-a");
+  assert.ok(table.players[1].hand.some((entry) => entry.kind === "glitch"));
+});
+
+test("Rotating Rummy CPUs take a public Glitch when it materially improves Route prospects", () => {
+  const game = engine();
+  const table = matchFor([human(0, "Host"), bot(1, "Byte")]);
+  setTable(table, {
+    hands: [["rr-blue-1-a"], ["rr-red-4-a", "rr-blue-5-a", "rr-green-7-a", "rr-yellow-10-a"]],
+    top: "rr-glitch-1",
+    stock: ["rr-red-12-a"],
+    activeSeat: 1,
+    turnStage: "draw"
+  });
+  assert.equal(game.runBotTurn(table), true);
+  assert.equal(table.players[1].lastPlay.label, "Took Wild");
+  assert.ok(table.players[1].hand.some((entry) => entry.id === "rr-glitch-1"));
+});
+
+test("Rotating Rummy randomizes its initial opener and continues its intentional round rotation", () => {
+  const game = new MatchEngine({
+    shuffleDeck: identityShuffle,
+    selectRouteDeck: (routeDecks) => routeDecks[0],
+    randomIndex: () => 2
+  });
+  const match = game.createMatch([human(0, "One"), human(1, "Two"), human(2, "Three")]);
+  assert.equal(match.initialOriginSeat, 2);
+  assert.equal(match.roundOpeningSeat, 2);
+  assert.equal(match.activeSeat, 2);
+  match.roundOver = true;
+  match.phase = "round-complete";
+  const next = game.nextRound(match);
+  assert.equal(next.initialOriginSeat, 2);
+  assert.equal(next.roundOpeningSeat, 0);
+  assert.equal(next.activeSeat, 0);
 });
 
 const warmStart = ["rr-red-4-a", "rr-blue-4-a", "rr-green-6-a", "rr-yellow-7-a", "rr-red-8-a"];

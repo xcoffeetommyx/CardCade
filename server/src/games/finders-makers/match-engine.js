@@ -1,6 +1,7 @@
 import { randomInt } from "node:crypto";
 import content from "../../../../shared/finders-makers-content.js";
 import { GameError } from "../../game-error.js";
+import { randomSeat, seatAtOffset, secureRandomIndex } from "../../gameplay-order.js";
 import { NORMAL_BOARD, SUDDEN_DEATH_BOARD, assertBoardContains, generateBoard, requiredPiecesFor } from "./board-generator.js";
 
 export const NORMAL_ROUNDS = 4;
@@ -10,16 +11,22 @@ export class MatchEngine {
   constructor({
     generatePieceBoard = generateBoard,
     selectBuild = secureBuildChoice,
-    selectBotPosition = secureBotPositionChoice
+    selectBotPosition = secureBotPositionChoice,
+    randomIndex = secureRandomIndex
   } = {}) {
     this.generatePieceBoard = generatePieceBoard;
     this.selectBuild = selectBuild;
     this.selectBotPosition = selectBotPosition;
+    this.randomIndex = randomIndex;
   }
 
   createMatch(roomPlayers, { buildIds = null } = {}) {
     const players = createPlayers(roomPlayers);
-    return this.#createNormalRound(players, { round: 1, buildIds });
+    return this.#createNormalRound(players, {
+      round: 1,
+      buildIds,
+      initialOriginSeat: randomSeat(players, this.randomIndex)
+    });
   }
 
   search(match, seat, position) {
@@ -89,7 +96,11 @@ export class MatchEngine {
     if (match.matchOver || match.round >= NORMAL_ROUNDS) {
       throw new GameError("This Finders Makers match is complete.", "MATCH_COMPLETE", 409);
     }
-    return this.#createNormalRound(match.players, { round: match.round + 1, buildIds });
+    return this.#createNormalRound(match.players, {
+      round: match.round + 1,
+      buildIds,
+      initialOriginSeat: match.initialOriginSeat
+    });
   }
 
   startSuddenDeath(match, { buildId = null } = {}) {
@@ -102,7 +113,7 @@ export class MatchEngine {
     resetForRound(match, {
       board,
       layout: SUDDEN_DEATH_BOARD,
-      activeSeat: openingSeat(match.players, match.round),
+      activeSeat: openingSeat(match.players, match.initialOriginSeat, match.round),
       sharedBuildId: sharedBuild.id,
       buildIds: null,
       suddenDeath: true,
@@ -184,6 +195,8 @@ export class MatchEngine {
         phase: match.phase,
         round: match.round,
         normalRounds: NORMAL_ROUNDS,
+        initialOriginSeat: match.initialOriginSeat,
+        roundOpeningSeat: match.roundOpeningSeat,
         suddenDeath: match.suddenDeath,
         activeSeat: match.activeSeat,
         turnMode: match.turnMode,
@@ -224,10 +237,11 @@ export class MatchEngine {
     };
   }
 
-  #createNormalRound(players, { round, buildIds }) {
+  #createNormalRound(players, { round, buildIds, initialOriginSeat }) {
     const normalizedPlayers = players.map((player) => ({ ...player }));
     const builds = selectNormalBuilds(buildIds, this.selectBuild);
     const board = generatedBoard(this.generatePieceBoard, builds, NORMAL_BOARD);
+    const roundOpeningSeat = openingSeat(normalizedPlayers, initialOriginSeat, round);
     const match = {
       round,
       normalRounds: NORMAL_ROUNDS,
@@ -238,7 +252,9 @@ export class MatchEngine {
       buildIds: Object.fromEntries(normalizedPlayers.map((player, index) => [player.seat, builds[index].id])),
       sharedBuildId: null,
       players: normalizedPlayers,
-      activeSeat: openingSeat(normalizedPlayers, round),
+      initialOriginSeat,
+      roundOpeningSeat,
+      activeSeat: roundOpeningSeat,
       turnMode: "choose",
       privateDiscoveries: privateDiscoveryMap(normalizedPlayers),
       searchCounter: 0,
@@ -248,7 +264,7 @@ export class MatchEngine {
       matchWinnerSeat: null,
       roundOver: false,
       matchOver: false,
-      lastMoveText: `Round ${round}: ${playerAt(normalizedPlayers, openingSeat(normalizedPlayers, round)).name} searches first.`,
+      lastMoveText: `Round ${round}: ${playerAt(normalizedPlayers, roundOpeningSeat).name} searches first.`,
       log: []
     };
     match.log.push(match.lastMoveText);
@@ -312,6 +328,7 @@ function resetForRound(match, { board, layout, activeSeat, sharedBuildId, buildI
   match.buildIds = buildIds;
   match.sharedBuildId = sharedBuildId;
   match.activeSeat = activeSeat;
+  match.roundOpeningSeat = activeSeat;
   match.turnMode = "choose";
   match.privateDiscoveries = privateDiscoveryMap(match.players);
   match.searchCounter = 0;
@@ -434,8 +451,8 @@ function advanceTurn(match, fromSeat) {
   match.activeSeat = match.players[(index + 1) % match.players.length].seat;
 }
 
-function openingSeat(players, round) {
-  return players[(Math.max(1, Number(round) || 1) - 1) % players.length].seat;
+function openingSeat(players, initialOriginSeat, round) {
+  return seatAtOffset(players, initialOriginSeat, Math.max(1, Number(round) || 1) - 1);
 }
 
 function privateDiscoveryMap(players) {

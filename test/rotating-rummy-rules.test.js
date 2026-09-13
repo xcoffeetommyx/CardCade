@@ -77,3 +77,31 @@ test("Rotating Rummy sorting and card points are isolated from the other deck fa
   assert.equal(rules.cardPoints(card("rr-glitch-1")), 20);
   assert.equal(rules.cardPoints(card("rr-lock-1")), 15);
 });
+
+test("discard advice protects useful Glitches and promising partial Route cards", () => {
+  const warmStart = route("neon-grid", 0);
+  const hand = [
+    "rr-glitch-1",
+    "rr-red-4-a",
+    "rr-blue-4-a",
+    "rr-green-6-a",
+    "rr-yellow-7-a",
+    "rr-red-12-a"
+  ].map(card);
+  assert.equal(rules.recommendedDiscard(hand, warmStart).id, "rr-red-12-a");
+  assert.ok(rules.routeUtility(hand, warmStart) > rules.routeUtility(hand.filter((entry) => entry.kind !== "glitch"), warmStart));
+});
+
+test("discard advice may shed a genuinely redundant Glitch once natural cards already preserve the Route", () => {
+  const warmStart = route("neon-grid", 0);
+  const hand = [
+    "rr-red-4-a",
+    "rr-blue-4-a",
+    "rr-green-6-a",
+    "rr-yellow-7-a",
+    "rr-red-8-a",
+    "rr-glitch-1",
+    "rr-glitch-2"
+  ].map(card);
+  assert.equal(rules.recommendedDiscard(hand, warmStart).kind, "glitch");
+});

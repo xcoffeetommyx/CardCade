@@ -12,7 +12,7 @@ const bot = (seat, name, style = "steady") => ({ seat, name, type: "bot", style 
 const identityShuffle = (deck) => deck.slice();
 
 function engine() {
-  return new MatchEngine({ shuffleDeck: identityShuffle });
+  return new MatchEngine({ shuffleDeck: identityShuffle, randomIndex: () => 0 });
 }
 
 function matchFor(players = [human(0, "One"), human(1, "Two")]) {
@@ -64,6 +64,18 @@ test("Blackjack deals the shared 52-card deck to one through four player tables"
     assert.equal(match.stock.length, 52 - (count * 2) - 2);
     assert.ok(match.players.flatMap((player) => player.hands.flatMap((hand) => hand.cards)).every((candidate) => !("rankValue" in candidate)));
   }
+});
+
+test("Blackjack randomizes and rotates its persisted table action origin", () => {
+  const game = new MatchEngine({ shuffleDeck: identityShuffle, randomIndex: () => 2 });
+  const match = game.createMatch([human(0, "One"), human(1, "Two"), human(2, "Three")]);
+  assert.equal(match.initialOriginSeat, 2);
+  assert.equal(match.roundOpeningSeat, 2);
+  match.roundOver = true;
+  match.phase = "complete";
+  const next = game.nextRound(match);
+  assert.equal(next.initialOriginSeat, 2);
+  assert.equal(next.roundOpeningSeat, 0);
 });
 
 test("Blackjack private views hide dealer hole cards and every opponent hand", () => {

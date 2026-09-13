@@ -1725,18 +1725,6 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   border-radius: 5px;
   box-shadow: inset 0 0 0 1px rgba(255,255,255,.12);
 }
-.blackjack-card-back i {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  display: grid;
-  place-items: center;
-  color: #cbe4ff;
-  font: 900 1.3rem "Cardcade Pixel", "Courier New", monospace;
-  letter-spacing: .08em;
-  text-shadow: 2px 3px 0 rgba(0,0,0,.5);
-}
-.blackjack-card-back b { display: none; }
 .blackjack-hand { min-height: 286px; }
 .blackjack-hand-summaries {
   position: relative;
@@ -1868,7 +1856,6 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   transform-origin: 50% 64%;
 }
 .draw-card-back::after { content: ""; position: absolute; inset: 7px; border: 1px solid rgba(203,228,255,.58); border-radius: 4px; }
-.draw-card-back i { position: relative; z-index: 1; font: 900 .94rem "Cardcade Pixel", "Courier New", monospace; font-style: normal; text-shadow: 2px 2px 0 rgba(0,0,0,.45); }
 .draw-card-back.empty { opacity: .42; }
 .draw-stack > strong, .draw-discard-pile > strong { position: relative; z-index: 3; margin-top: 4px; font: 800 .64rem "Cardcade Pixel", "Courier New", monospace; letter-spacing: .07em; text-transform: uppercase; }
 .draw-stack > small, .draw-discard-pile > small { position: relative; z-index: 3; color: var(--muted); font-size: .64rem; }
@@ -2026,18 +2013,13 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   width: 86px;
   height: 122px;
   display: grid;
-  place-items: center;
   border: 5px solid #f2ebdd;
   border-radius: 10px;
   box-shadow: 7px 8px 0 rgba(0,0,0,.42), 0 0 0 2px #1a2947;
-  transform: rotate(-4deg);
-  font: 900 .88rem "Cardcade Pixel", monospace;
-  letter-spacing: .16em;
 }
 .juan-stock::before { content: ""; position: absolute; inset: 9px; border: 2px solid rgba(255,255,255,.72); border-radius: 5px; background: rgba(255,255,255,.025); }
 .juan-stock::after { content: none; }
-.juan-stock span { position: relative; z-index: 1; text-shadow: 2px 2px 0 rgba(0,0,0,.45); }
-:is(.juan-stock, .rummy-stock) b { position: absolute; z-index: 2; right: -9px; bottom: -9px; width: max-content; min-width: 29px; height: 29px; padding-inline: 4px; display: grid; place-items: center; border: 2px solid #f2ebdd; border-radius: 999px; color: #06101f; background: #f2bf3d; font-size: .72rem; font-variant-numeric: tabular-nums; line-height: 1; white-space: nowrap; }
+:is(.juan-stock, .rummy-stock) .card-back-count { position: absolute; z-index: 2; right: -9px; bottom: -9px; width: max-content; min-width: 29px; height: 29px; padding-inline: 4px; display: grid; place-items: center; border: 2px solid #f2ebdd; border-radius: 999px; color: #06101f; background: #f2bf3d; font-size: .72rem; font-variant-numeric: tabular-nums; line-height: 1; white-space: nowrap; }
 
 /* Minimal face system: the color field and one mark do the visual work. */
 .juan-card {
@@ -2396,7 +2378,6 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   box-shadow: 7px 9px 0 rgba(0,0,0,.45);
   transform: rotate(-3deg);
 }
-.handoff-card-back span { font: 900 1.6rem "Cardcade Pixel", "Courier New", monospace; letter-spacing: .08em; }
 
 /* ---------- Rotating Rummy Routes ---------- */
 .rotating-rummy-game {
@@ -2461,20 +2442,15 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   width: 86px;
   height: 122px;
   display: grid;
-  place-items: center;
   border: 4px solid #dce9f4;
   border-radius: 10px;
   color: #f5ca4d;
   background: repeating-linear-gradient(45deg, rgba(245,202,77,.15) 0 3px, transparent 3px 7px), repeating-linear-gradient(-45deg, rgba(76,156,255,.1) 0 3px, transparent 3px 7px), #101821;
   box-shadow: 7px 8px 0 rgba(0,0,0,.46), inset 0 0 0 1px rgba(255,255,255,.11);
-  transform: rotate(-4deg);
-  font: 900 .88rem "Cardcade Pixel", monospace;
-  letter-spacing: .15em;
 }
 .rummy-stock::before { content: ""; position: absolute; inset: 9px; border: 2px solid rgba(220,233,244,.55); border-radius: 5px; pointer-events: none; }
 .rummy-stock::after { content: none; }
-.rummy-stock span { position: relative; z-index: 1; text-shadow: 2px 2px 0 #02050a; }
-.rummy-stock b { border-color: #dce9f4; color: #070b11; background: #f5ca4d; }
+.rummy-stock .card-back-count { border-color: #dce9f4; color: #070b11; background: #f5ca4d; }
 
 .rummy-red { --rummy-color: var(--rummy-red, #ef5d62); }
 .rummy-blue { --rummy-color: var(--rummy-blue, #4c9cff); }
@@ -2910,8 +2886,8 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 .card-back.card-skin-juan-paper-pop > :is(b, i, span, strong) { position: relative; z-index: 2; color: inherit; }
 .juan-stock.card-skin-juan-night-shift::before { border-color: rgba(121,230,255,.72); box-shadow: 0 0 12px rgba(121,230,255,.18); }
 .juan-stock.card-skin-juan-paper-pop::before { border-color: rgba(255,244,223,.78); }
-.juan-stock.card-skin-juan-night-shift b { border-color: #b9f3ff; background: #79e6ff; }
-.juan-stock.card-skin-juan-paper-pop b { border-color: #fff4df; background: #ffd45e; }
+.juan-stock.card-skin-juan-night-shift .card-back-count { border-color: #b9f3ff; background: #79e6ff; }
+.juan-stock.card-skin-juan-paper-pop .card-back-count { border-color: #fff4df; background: #ffd45e; }
 
 .skin-preview.card-skin-juan-night-shift { border-color: rgba(121,230,255,.48); background: radial-gradient(circle at 50% 120%, rgba(121,230,255,.18), rgba(3,12,25,.82)); }
 .skin-preview.card-skin-juan-paper-pop { border-color: rgba(232,79,89,.48); background: radial-gradient(circle at 50% 120%, rgba(232,79,89,.2), rgba(34,16,24,.76)); }
@@ -2946,7 +2922,7 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 .card-back.card-skin-rotating-rummy-blackout::before { content: ""; position: absolute; z-index: 1; inset: 9px; border: 1px solid rgba(220,233,244,.44); border-radius: 5px; pointer-events: none; }
 .card-back.card-skin-rotating-rummy-blackout > :is(b, i, span, strong) { position: relative; z-index: 2; color: inherit; }
 .rummy-stock.card-skin-rotating-rummy-blackout::before { border-color: rgba(220,233,244,.55); }
-.rummy-stock.card-skin-rotating-rummy-blackout b { border-color: #dce9f4; background: #f5ca4d; }
+.rummy-stock.card-skin-rotating-rummy-blackout .card-back-count { border-color: #dce9f4; background: #f5ca4d; }
 .rummy-seat-card.card-skin-rotating-rummy-blackout { border-color: #dce9f4; }
 .skin-preview.card-skin-rotating-rummy-blackout { border-color: rgba(245,202,77,.5); background: radial-gradient(circle at 50% 120%, rgba(245,202,77,.16), rgba(3,10,18,.84)); }
 .skin-preview.card-skin-rotating-rummy-blackout .skin-preview-rummy-face { border-color: #dce9f4; box-shadow: 4px 5px 0 rgba(0,0,0,.52), 0 0 0 1px rgba(245,202,77,.32); }
@@ -2979,7 +2955,7 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 .card-back.card-skin-rotating-rummy-light::before { content: ""; position: absolute; z-index: 1; inset: 9px; border: 1px solid rgba(24,48,68,.38); border-radius: 5px; pointer-events: none; }
 .card-back.card-skin-rotating-rummy-light > :is(b, i, span, strong) { position: relative; z-index: 2; color: inherit; }
 .rummy-stock.card-skin-rotating-rummy-light::before { border-color: rgba(24,48,68,.42); }
-.rummy-stock.card-skin-rotating-rummy-light b { border-color: var(--rummy-light-border); color: #152a3b; background: #f5ca4d; }
+.rummy-stock.card-skin-rotating-rummy-light .card-back-count { border-color: var(--rummy-light-border); color: #152a3b; background: #f5ca4d; }
 .rummy-seat-card.card-skin-rotating-rummy-light { border-color: var(--rummy-light-border); background: #ffffff; box-shadow: 3px 4px 0 rgba(6,17,29,.42); text-shadow: 1px 1px 0 rgba(255,255,255,.7); }
 .skin-preview.card-skin-rotating-rummy-light { border-color: rgba(147,180,198,.68); background: radial-gradient(circle at 50% 120%, rgba(126,180,201,.2), rgba(8,23,39,.9)); }
 .skin-preview.card-skin-rotating-rummy-light .skin-preview-rummy-face { border-color: var(--rummy-light-border); background: #ffffff; box-shadow: 4px 5px 0 rgba(6,17,29,.42), 0 0 0 1px rgba(255,255,255,.72); }
@@ -3308,7 +3284,6 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   .blackjack-dealer-copy span { font-size: .6rem; }
   .blackjack-dealer-pile { min-height: 104px !important; }
   .blackjack-dealer-pile .playing-card.played { width: 68px; height: 97px; }
-  .blackjack-card-back i { font-size: 1rem; }
   .blackjack-hand { min-height: 240px; }
   .blackjack-hand-summaries { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 4px; }
   .blackjack-hand-summary { min-height: 36px; padding: 5px 6px; }
@@ -3430,7 +3405,7 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   .playing-game .rummy-pile-zone .active-pile.cards-pile { width: 64px; min-width: 64px; flex-basis: 64px; }
   .playing-game .rummy-stock { width: 64px; height: 91px; border-width: 3px; font-size: .62rem; }
   .playing-game .rummy-stock::before { inset: 6px; }
-  .playing-game .rummy-stock b { right: -8px; bottom: -8px; min-width: 23px; height: 23px; padding-inline: 3px; font-size: .58rem; }
+  .playing-game .rummy-stock .card-back-count { right: -8px; bottom: -8px; min-width: 23px; height: 23px; padding-inline: 3px; font-size: .58rem; }
   .playing-game .rummy-link-group-cards .playing-card.played { flex-basis: 24px; width: 24px; height: 34px; margin-left: -8px; }
   .playing-game .rummy-link-board { padding: 7px; }
   .playing-game .rummy-link-targets { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -3664,8 +3639,6 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 .finders-build-reveal-card-face { position: absolute; inset: 0; display: grid; backface-visibility: hidden; -webkit-backface-visibility: hidden; overflow: hidden; border: 4px solid #b9ffdb; border-radius: 20px; box-shadow: 12px 16px 0 rgba(0,0,0,.48), inset 0 0 0 2px rgba(255,255,255,.14); }
 .finders-build-reveal-card-back { place-items: center; align-content: center; gap: 14px; color: #d5fff0; background: repeating-linear-gradient(45deg, rgba(152,255,207,.18) 0 7px, transparent 7px 14px), linear-gradient(145deg, #17644f, #082d35); transform: rotateY(0deg); animation: findersBuildBackFace 6.2s step-end both; }
 .finders-build-reveal-card-back::before { content: ""; position: absolute; inset: 12px; border: 2px solid rgba(218,255,239,.66); border-radius: 12px; }
-.finders-build-reveal-card-back > span { position: relative; display: inline-grid; width: 54px; aspect-ratio: 1; place-items: center; border: 2px solid rgba(224,255,242,.74); border-radius: 50%; font: 900 1.45rem "Cardcade Pixel", monospace; }
-.finders-build-reveal-card-back > b { position: relative; color: #effff7; font: 900 1rem "Cardcade Pixel", monospace; letter-spacing: .15em; }
 .finders-build-reveal-card-front { padding: clamp(17px, 4vw, 26px); align-content: center; justify-items: center; gap: 9px; color: #effff7; background: linear-gradient(145deg, #1b7e60, #0b3740 72%); transform: rotateY(180deg); animation: findersBuildFrontFace 6.2s step-end both; }
 .finders-build-reveal.shared .finders-build-reveal-card-face { border-color: #ffdb7b; }
 .finders-build-reveal.shared .finders-build-reveal-card-front { background: linear-gradient(145deg, #8b631d, #38240b 72%); }
@@ -5041,17 +5014,14 @@ body.reduced-motion #app.shell-transition-back { animation: none !important; }
   transform: rotateX(var(--table-card-lay, 40deg));
   transform-origin: 50% 64%;
 }
-.five-card-draw-table-scene .draw-stack .draw-card-layer-1 { transform: translate3d(-7px, 6px, -4px) rotateX(var(--table-card-lay, 40deg)) rotateZ(-4deg); opacity: .72; }
-.five-card-draw-table-scene .draw-stack .draw-card-layer-2 { transform: translate3d(5px, 3px, -2px) rotateX(var(--table-card-lay, 40deg)) rotateZ(3deg); opacity: .88; }
-.five-card-draw-table-scene .draw-stack .draw-card-layer-3 { transform: rotateX(var(--table-card-lay, 40deg)) rotateZ(-1deg); }
-.five-card-draw-table-scene .draw-discard-pile .draw-card-back { transform: rotateX(var(--table-card-lay, 40deg)) rotateZ(5deg); }
-/* These two keep the jaunty rotation that marks them as a loose stack; the lay
-   is applied on top of it rather than replacing it. */
-.juan-table-scene .juan-stock,
-.rummy-table-scene .rummy-stock {
-  transform: rotateX(var(--table-card-lay, 40deg)) rotate(-4deg);
+.card-back.ordinary-card-stock {
+  transform: rotateX(var(--table-card-lay, 40deg));
   transform-origin: 50% 64%;
 }
+.five-card-draw-table-scene .draw-stack .draw-card-layer-1 { transform: translate3d(3px, 4px, -4px) rotateX(var(--table-card-lay, 40deg)); opacity: .72; }
+.five-card-draw-table-scene .draw-stack .draw-card-layer-2 { transform: translate3d(1.5px, 2px, -2px) rotateX(var(--table-card-lay, 40deg)); opacity: .88; }
+.five-card-draw-table-scene .draw-stack .draw-card-layer-3 { transform: rotateX(var(--table-card-lay, 40deg)); }
+.five-card-draw-table-scene .draw-discard-pile .draw-card-back { transform: rotateX(var(--table-card-lay, 40deg)) rotateZ(5deg); }
 
 .card-table-scene .game-status {
   position: relative;

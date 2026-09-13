@@ -12,7 +12,7 @@ const bot = (seat, name, style = "steady") => ({ seat, name, type: "bot", style 
 const identityShuffle = (deck) => deck.slice();
 
 function engine() {
-  return new MatchEngine({ shuffleDeck: identityShuffle });
+  return new MatchEngine({ shuffleDeck: identityShuffle, randomIndex: () => 0 });
 }
 
 function matchFor(players = [human(0, "One"), human(1, "Two")]) {
@@ -31,6 +31,18 @@ test("Texas Hold'em opens a 100-point table with shared-card hole hands and 1/2 
     assert.equal(match.stock.length, 52 - count * 2);
     assert.ok(match.players.flatMap((player) => player.holeCards).every((candidate) => !("rankValue" in candidate)));
   }
+});
+
+test("Texas Hold'em randomizes the initial dealer deterministically and rotates the button thereafter", () => {
+  const game = new MatchEngine({ shuffleDeck: identityShuffle, randomIndex: () => 2 });
+  const match = game.createMatch([human(0, "One"), human(1, "Two"), human(2, "Three"), human(3, "Four")]);
+  assert.equal(match.initialDealerSeat, 2);
+  assert.equal(match.dealerSeat, 2);
+  match.roundOver = true;
+  match.phase = "complete";
+  game.nextHand(match);
+  assert.equal(match.dealerSeat, 3);
+  assert.equal(match.initialDealerSeat, 2);
 });
 
 test("Texas Hold'em hides all opponent hole cards until an actual showdown", () => {

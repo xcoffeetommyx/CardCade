@@ -18,7 +18,7 @@ function room({ code = "DRAW77", botCount = 0, players = [{ seat: 0, name: "Host
 }
 
 test("Five Card Draw runtime fills shared room seats with CPUs and protects every private hand", () => {
-  const runtime = new FiveCardDrawRuntime({ matchEngine: new MatchEngine({ shuffleDeck: identityShuffle }) });
+  const runtime = new FiveCardDrawRuntime({ matchEngine: new MatchEngine({ shuffleDeck: identityShuffle, randomIndex: () => 0 }) });
   const table = room({ botCount: 3 });
   runtime.start(table);
 
@@ -35,7 +35,7 @@ test("Five Card Draw runtime fills shared room seats with CPUs and protects ever
 });
 
 test("Five Card Draw runtime maps betting and draw actions, persists snapshots, and restores tables", () => {
-  const runtime = new FiveCardDrawRuntime({ matchEngine: new MatchEngine({ shuffleDeck: identityShuffle }) });
+  const runtime = new FiveCardDrawRuntime({ matchEngine: new MatchEngine({ shuffleDeck: identityShuffle, randomIndex: () => 0 }) });
   const table = room({ botCount: 1 });
   runtime.start(table);
   const before = runtime.view(table);
@@ -52,7 +52,7 @@ test("Five Card Draw runtime maps betting and draw actions, persists snapshots, 
   assert.throws(() => runtime.act(table, { type: "five_card_draw_unknown" }), (error) => error instanceof GameError && error.code === "UNKNOWN_GAME_ACTION");
 
   const restored = new FiveCardDrawRuntime({
-    matchEngine: new MatchEngine({ shuffleDeck: identityShuffle }),
+    matchEngine: new MatchEngine({ shuffleDeck: identityShuffle, randomIndex: () => 0 }),
     restoredMatches: [{ gameId: "five-card-draw", code: table.code, state: runtime.snapshot(table.code) }]
   });
   assert.equal(restored.has(table.code), true);
@@ -60,7 +60,7 @@ test("Five Card Draw runtime maps betting and draw actions, persists snapshots, 
 });
 
 test("Five Card Draw runtime only deals cards from Cardcade's shared standard deck", () => {
-  const runtime = new FiveCardDrawRuntime({ matchEngine: new MatchEngine({ shuffleDeck: identityShuffle }) });
+  const runtime = new FiveCardDrawRuntime({ matchEngine: new MatchEngine({ shuffleDeck: identityShuffle, randomIndex: () => 0 }) });
   const table = room({ botCount: 1 });
   runtime.start(table);
   const snapshot = runtime.snapshot(table.code);

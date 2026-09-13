@@ -426,6 +426,10 @@ test("Blackjack's paced dealer turn adds drawn cards and reaches the settled rou
 
 test("Rummy broadcasts each paced CPU action before returning the turn to the human", async (t) => {
   class ScriptedEngine extends RummyMatchEngine {
+    constructor() {
+      super({ randomIndex: () => 0 });
+    }
+
     createMatch(players) {
       const match = super.createMatch(players, { routeDeckId: "neon-grid" });
       const cards = new Map(rummyDeck.makeDeck().map((card) => [card.id, card]));

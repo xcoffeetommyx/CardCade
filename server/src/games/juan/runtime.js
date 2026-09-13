@@ -47,7 +47,7 @@ export class JuanRuntime {
 
     const match = this.#engine.createMatch(players);
     this.#matches.set(room.code, match);
-    return match;
+    return this.#requireMatch(room.code);
   }
 
   view(room) {
@@ -85,10 +85,13 @@ export class JuanRuntime {
       case "juan_challenge_prism_burst":
         this.#engine.challengePrismBurst(match, viewer.seat);
         break;
+      case "next_round":
+        this.#nextRound(room.code, match, viewer);
+        break;
       default:
         throw new GameError("That JUAN action is not supported.", "UNKNOWN_GAME_ACTION");
     }
-    return match;
+    return this.#requireMatch(room.code);
   }
 
   runBotTurn(roomCode) {
@@ -110,6 +113,12 @@ export class JuanRuntime {
 
   snapshot(roomCode) {
     return structuredClone(this.#requireMatch(roomCode));
+  }
+
+  #nextRound(roomCode, match, viewer) {
+    if (!match.roundOver) throw new GameError("Finish the current JUAN round first.", "ROUND_IN_PROGRESS", 409);
+    if (viewer.role !== "host") throw new GameError("Only the host can start the next JUAN round.", "HOST_ONLY", 403);
+    this.#matches.set(roomCode, this.#engine.nextRound(match));
   }
 
   #requireMatch(roomCode) {

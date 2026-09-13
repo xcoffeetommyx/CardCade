@@ -223,13 +223,72 @@
     return cards.map((card) => card.id).sort().join(",");
   }
 
+  function routeUtility(hand, routeValue) {
+    if (!Array.isArray(hand) || !routeValue?.requirements) return 0;
+    const completion = findRouteCompletion(hand, routeValue);
+    if (completion) {
+      const wilds = completion.cards.filter((card) => card.kind === "glitch").length;
+      return 10_000 - wilds;
+    }
+
+    return routeValue.requirements.reduce((total, requirement) => {
+      const usable = hand.filter(isRouteCard);
+      const maximum = Math.min(usable.length, Number(requirement.size) || 0);
+      let best = 0;
+      for (let count = 1; count <= maximum; count += 1) {
+        for (const candidate of chooseCards(usable, count)) {
+          if (!matchesPartialRequirement(candidate, requirement)) continue;
+          const naturalCount = candidate.filter((card) => card.kind === "number").length;
+          best = Math.max(best, count * 100 + naturalCount);
+        }
+      }
+      return total + best;
+    }, 0);
+  }
+
+  function matchesPartialRequirement(cards, requirement) {
+    if (!cards.length || cards.length > Number(requirement?.size) || cards.some((card) => !isRouteCard(card))) return false;
+    const naturals = cards.filter((card) => card.kind === "number");
+    const values = naturals.map((card) => Number(card.value));
+    const colors = naturals.map((card) => card.color);
+    const targetSize = Number(requirement.size);
+    switch (requirement.type) {
+      case "set": return new Set(values).size <= 1;
+      case "run": return valuesFitWindow(values, targetSize, 1);
+      case "color": return new Set(colors).size <= 1;
+      case "parity": return values.length === 0 || values.every((value) => value % 2 === values[0] % 2);
+      case "spectrum": return new Set(colors).size === colors.length;
+      case "mirror": return true;
+      case "step": return valuesFitWindow(values, targetSize, Number(requirement.step) || 2);
+      case "color-run": return new Set(colors).size <= 1 && valuesFitWindow(values, targetSize, 1);
+      case "pair-run": return pairRunValuesFit(values, targetSize / 2);
+      default: return false;
+    }
+  }
+
+  function valuesFitWindow(values, size, step) {
+    if (new Set(values).size !== values.length) return false;
+    return possibleStarts(size, step).some((start) => {
+      const allowed = new Set(Array.from({ length: size }, (_, index) => start + index * step));
+      return values.every((value) => allowed.has(value));
+    });
+  }
+
+  function pairRunValuesFit(values, pairCount) {
+    const counts = new Map();
+    for (const value of values) {
+      counts.set(value, (counts.get(value) || 0) + 1);
+      if (counts.get(value) > 2) return false;
+    }
+    return possibleStarts(pairCount, 1).some((start) => values.every((value) => value >= start && value < start + pairCount));
+  }
+
   function recommendedDiscard(hand, routeValue) {
-    const completed = findRouteCompletion(hand, routeValue);
-    const protectedIds = new Set(completed?.cards?.map((card) => card.id) || []);
     return hand.slice().sort((left, right) => {
-      const leftProtected = protectedIds.has(left.id);
-      const rightProtected = protectedIds.has(right.id);
-      if (leftProtected !== rightProtected) return leftProtected ? 1 : -1;
+      const leftRemaining = hand.filter((card) => card.id !== left.id);
+      const rightRemaining = hand.filter((card) => card.id !== right.id);
+      const utilityDifference = routeUtility(rightRemaining, routeValue) - routeUtility(leftRemaining, routeValue);
+      if (utilityDifference) return utilityDifference;
       return cardPoints(right) - cardPoints(left) || right.id.localeCompare(left.id);
     })[0] || null;
   }
@@ -243,6 +302,7 @@
     isRouteCard,
     matchesRequirement,
     canExtendRequirement,
+    routeUtility,
     recommendedDiscard
   });
 });

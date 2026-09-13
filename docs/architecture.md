@@ -26,14 +26,15 @@ Cardcade server
          ├─ Blackjack adapter (playable)
          ├─ Texas Hold'em adapter (playable)
          ├─ Five Card Draw adapter (playable)
-         └─ Snap adapter (playable)
+         ├─ Snap adapter (playable)
+         └─ Finders Makers adapter (playable)
 ```
 
 The server is intentionally build-tool-free for the first milestone. It serves native browser modules and uses `ws` for the lobby connection.
 
 ## Catalog and deck families
 
-A deck family is launcher metadata plus a presentation capability. For example, `standard-52` identifies the familiar four suits, thirteen ranks, standard card renderer, and physical fan. `color-action` identifies JUAN's original color lanes, action faces, and dedicated card renderer. `rotating-rummy` identifies Blackout number cards, Glitches, Locks, and the Route renderer. Neither family defines a game's rules.
+A deck family is launcher metadata plus a presentation capability. For example, `standard-52` identifies the familiar four suits, thirteen ranks, standard card renderer, and physical fan. `color-action` identifies JUAN's original color lanes, action faces, and dedicated card renderer. `rotating-rummy` identifies Blackout number cards, Glitches, Locks, and the Route renderer. `finders-makers` identifies the hidden Piece board and Build presentation. No family defines a game's rules.
 
 Every game registry entry declares:
 
@@ -57,7 +58,7 @@ The current games implement a narrow runtime boundary resembling:
 }
 ```
 
-3s & 7s, Thirteen, JUAN, Rotating Rummy, Blackjack, Texas Hold'em, Five Card Draw, and Snap now prove this boundary in practice: Cardcade supplies rooms, identity, connections, persistence, physical card behavior, and private Hot Seat handoffs. Each runtime owns its deck contract where needed, rules, private views, CPU turns, timed transitions, round transitions, and scoring. Shared behavior should be generalized only when multiple implementations actually need it.
+3s & 7s, Thirteen, JUAN, Rotating Rummy, Blackjack, Texas Hold'em, Five Card Draw, Snap, and Finders Makers now prove this boundary in practice. The canonical availability, mode, and player-limit list lives in `server/src/game-catalog.js`. Cardcade supplies rooms, identity, connections, persistence, physical card behavior, and private Hot Seat handoffs. Each runtime owns its deck or board contract where needed, rules, private views, CPU turns, timed transitions, round transitions, and scoring. Shared behavior should be generalized only when multiple implementations actually need it.
 
 ## Rooms and sessions
 
@@ -89,7 +90,7 @@ ThreeSeven currently has the strongest version of these pieces:
 - reconnect and match lifecycle patterns;
 - broader automated coverage.
 
-These are now shared Cardcade presentation modules rather than imported game-specific assets. Thirteen keeps its own ranks, legal combinations, turn rules, scoring, and CPU decisions. JUAN uses the same fan, focus, selection, and movement vocabulary with an independent 108-card color/action deck and renderer. Rotating Rummy follows the same boundary with a distinct 108-card Route deck, public Route objectives, and Link actions on completed Route groups.
+These are now shared Cardcade presentation modules rather than imported game-specific assets. Thirteen keeps its own ranks, legal combinations, turn rules, scoring, and CPU decisions. JUAN uses the same fan, focus, selection, and movement vocabulary with an independent 108-card color/action deck and renderer. Rotating Rummy follows the same boundary with a distinct 108-card Route deck, public Route objectives, and Link actions on completed Route groups. Finders Makers uses the table shell around its own top-down Piece-board renderer and private discovery rules.
 
 ## Shared tabletop presentation
 

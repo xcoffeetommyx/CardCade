@@ -42,8 +42,14 @@ test("Five Card Draw reuses Cardcade's private fan, physical card flight, and fi
   assert.match(css, /\.draw-card-back/);
   assert.match(app, /function renderFiveCardDrawPile/);
   assert.match(app, /draw-card-layer-\$\{index \+ 1\}/);
+  assert.match(app, /draw-card-back ordinary-card-stock draw-card-back-stock/);
   assert.match(css, /\.five-card-draw-pile-cards \{[\s\S]*?width: var\(--game-card-width\);[\s\S]*?height: var\(--game-card-height\)/);
   assert.match(css, /\.five-card-draw-table-scene \.draw-stack \.draw-card-layer-1[\s\S]*?rotateX\(var\(--table-card-lay/);
+  for (const layer of [1, 2, 3]) {
+    const rule = css.match(new RegExp(`\\.five-card-draw-table-scene \\.draw-stack \\.draw-card-layer-${layer} \\{[^}]+\\}`))?.[0] || "";
+    assert.match(rule, /rotateX\(var\(--table-card-lay/);
+    assert.doesNotMatch(rule, /rotateZ|translateX\(-|translateY\(-/);
+  }
   assert.match(css, /\.five-card-draw-table-scene \.draw-discard-pile \.draw-card-back[\s\S]*?rotateX\(var\(--table-card-lay/);
   assert.doesNotMatch(css, /\.draw-card-back \{[\s\S]*?width: 74px/);
   assert.match(css, /\.five-card-draw-actions/);
