@@ -18,4 +18,6 @@ The service worker pre-caches the launcher, catalog, fonts, shared presentation 
 
 Updates install into a separate cache and wait. Cardcade shows **Update ready** and reloads only after the player chooses **Update**, avoiding an uncontrolled mid-turn client replacement. Room WebSockets use a bounded reconnect delay and show a persistent offline/reconnecting state instead of relying on a transient toast.
 
+For every release that changes a pre-cached asset, increment the cache version in `public/sw.js` and the changed asset's query version in both `public/index.html` and `public/sw.js`. The browser checks for a changed service worker script before it can show the update prompt.
+
 Service workers and Chromium PWA installation require a secure context outside loopback development. Configure HTTPS on the deployment host through private infrastructure and keep its hostname outside this repository.

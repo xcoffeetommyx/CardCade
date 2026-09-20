@@ -7,6 +7,18 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const read = (file) => readFileSync(path.join(root, file), "utf8");
 
+test("the PWA pre-cache uses the same release URLs as the launcher", () => {
+  const html = read("public/index.html");
+  const worker = read("public/sw.js");
+  for (const asset of ["app.css", "app.js", "shared/juan-deck.js"]) {
+    const escapedAsset = asset.replaceAll(".", "\\.").replaceAll("/", "\\/");
+    const releaseUrl = html.match(new RegExp(`${escapedAsset}\\?v=\\d+`))?.[0];
+    assert.ok(releaseUrl, `${asset} needs a versioned launcher URL`);
+    assert.ok(worker.includes(`"${releaseUrl}"`), `${asset} must use the same pre-cache URL`);
+  }
+  assert.match(worker, /const CACHE_NAME = "cardcade-shell-v\d+"/);
+});
+
 test("deck boxes use catalog titles and the Rotating Rummy fallback has no Routes suffix", () => {
   const app = read("public/app.js");
   const deckRenderer = app.slice(app.indexOf("function renderOrbitalDeck"), app.indexOf("function renderSpatialGameOptions"));
