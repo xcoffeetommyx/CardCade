@@ -86,7 +86,7 @@ test("health, catalog, and launcher are served from one process", async (t) => {
 
   const catalog = await fetch(`${origin}/api/catalog`);
   const catalogBody = await catalog.json();
-  assert.deepEqual(catalogBody.families[0].games.map((game) => game.id), ["three-seven", "thirteen", "blackjack", "holdem", "five-card-draw", "snap"]);
+  assert.deepEqual(catalogBody.families[0].games.map((game) => game.id), ["three-seven", "thirteen", "blackjack", "holdem", "five-card-draw", "snap", "spades", "hearts", "solitaire"]);
 
   const launcher = await fetch(origin);
   assert.equal(launcher.status, 200);

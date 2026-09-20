@@ -13,6 +13,7 @@ import { FiveCardDrawRuntime } from "./games/five-card-draw/runtime.js";
 import { SnapRuntime } from "./games/snap/runtime.js";
 import { RoomStore } from "./room-store.js";
 import { SnapshotStore } from "./snapshot-store.js";
+import { createExpansionRuntimes } from "./games/expansion/index.js";
 
 const host = process.env.HOST || "0.0.0.0";
 const port = Number.parseInt(process.env.PORT || "4380", 10);
@@ -34,7 +35,8 @@ const snapRuntime = new SnapRuntime({ restoredMatches: snapshots.map((snapshot) 
 for (const snapshot of snapshots) {
   if (!rooms.roomCodes().includes(snapshot.code)) snapshotStore.delete(snapshot.code);
 }
-const app = createCardcadeServer({ registry, roomStore: rooms, threeSevenRuntime, thirteenRuntime, juanRuntime, rotatingRummyRuntime, findersMakersRuntime, blackjackRuntime, holdemRuntime, fiveCardDrawRuntime, snapRuntime, snapshotStore });
+const expansionRuntimes = createExpansionRuntimes({ restoredMatches: snapshots.map(snapshot => snapshot.game).filter(Boolean) });
+const app = createCardcadeServer({ registry, roomStore: rooms, threeSevenRuntime, thirteenRuntime, juanRuntime, rotatingRummyRuntime, findersMakersRuntime, blackjackRuntime, holdemRuntime, fiveCardDrawRuntime, snapRuntime, expansionRuntimes, snapshotStore });
 
 await app.listen({ host, port });
 console.log(`Cardcade is listening on http://${host}:${port}`);

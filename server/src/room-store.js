@@ -66,7 +66,8 @@ export class RoomStore {
     }
   }
 
-  createRoom({ name }) {
+  createRoom({ name, mode = "multiplayer", drawCount }) {
+    assert(["solo", "multiplayer", "hot-seat"].includes(mode), "MODE_NOT_SUPPORTED", "Unknown play mode.");
     this.cleanupExpired();
     let code;
     for (let attempt = 0; attempt < 100; attempt += 1) {
@@ -83,6 +84,8 @@ export class RoomStore {
       code,
       phase: "configuring",
       gameId: null,
+      mode,
+      drawCount,
       gameSettings: { botCount: 0, sharedDevice: false },
       players: [],
       createdAt: now,
@@ -95,6 +98,7 @@ export class RoomStore {
 
   joinRoom(code, { name }) {
     const room = this.#getRoom(code);
+    assert(room.mode !== "solo", "MODE_NOT_SUPPORTED", "Solo tables are private.");
     assert(room.phase === "configuring", "ROOM_IN_PROGRESS", "That room has already started.", 409);
     const capacity = this.#capacity(room);
     assert(room.players.length < capacity, "ROOM_FULL", "That room is full.", 409);
@@ -134,11 +138,12 @@ export class RoomStore {
     assert(room.phase === "configuring", "ROOM_IN_PROGRESS", "The game cannot be changed after play begins.", 409);
 
     const game = this.#registry.getGame(gameId);
-    assert(game.modes.includes("multiplayer"), "MODE_NOT_SUPPORTED", "That game does not support multiplayer.");
+    assert(game.modes.includes(room.mode || "multiplayer"), "MODE_NOT_SUPPORTED", "That game does not support this play mode.");
     assert(room.players.length <= game.players.max, "TOO_MANY_PLAYERS", `${game.name} supports at most ${game.players.max} players.`, 409);
 
     room.gameId = game.id;
     room.gameSettings = { botCount: 0, sharedDevice: false };
+    if (gameId === "solitaire") room.gameSettings.drawCount = room.drawCount ?? 1;
     for (const roomPlayer of room.players) {
       roomPlayer.ready = false;
     }
@@ -254,6 +259,8 @@ export class RoomStore {
       code: room.code,
       phase: room.phase,
       gameId: room.gameId,
+      mode: room.mode,
+      drawCount: room.drawCount,
       gameSettings: { ...room.gameSettings },
       createdAt: room.createdAt,
       lastActivityAt: room.lastActivityAt,
@@ -288,6 +295,7 @@ export class RoomStore {
       code: room.code,
       phase: room.phase,
       gameId: room.gameId,
+      mode: room.mode,
       game,
       gameSettings: { ...room.gameSettings },
       players: room.players.map((player) => ({
@@ -405,9 +413,12 @@ function hydrateRoom(snapshot, now) {
     code,
     phase: snapshot.phase === "playing" ? "playing" : "configuring",
     gameId: typeof snapshot.gameId === "string" ? snapshot.gameId : null,
+    mode: ["solo", "multiplayer", "hot-seat"].includes(snapshot.mode) ? snapshot.mode : snapshot.gameSettings?.sharedDevice ? "hot-seat" : "multiplayer",
+    drawCount: snapshot.drawCount,
     gameSettings: {
       botCount: Math.max(0, Number(snapshot.gameSettings?.botCount) || 0),
-      sharedDevice: Boolean(snapshot.gameSettings?.sharedDevice)
+      sharedDevice: Boolean(snapshot.gameSettings?.sharedDevice),
+      ...(snapshot.gameId === "solitaire" ? { drawCount: snapshot.gameSettings?.drawCount === 3 ? 3 : 1 } : {})
     },
     players,
     createdAt: Number(snapshot.createdAt) || now,

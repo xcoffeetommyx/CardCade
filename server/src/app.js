@@ -16,6 +16,7 @@ import { HoldemRuntime } from "./games/holdem/runtime.js";
 import { FiveCardDrawRuntime } from "./games/five-card-draw/runtime.js";
 import { SnapRuntime } from "./games/snap/runtime.js";
 import { RoomStore } from "./room-store.js";
+import { createExpansionRuntimes } from "./games/expansion/index.js";
 
 const moduleDirectory = path.dirname(fileURLToPath(import.meta.url));
 const defaultPublicRoot = path.resolve(moduleDirectory, "../../public");
@@ -130,6 +131,7 @@ export function createCardcadeServer({
   holdemRuntime,
   fiveCardDrawRuntime,
   snapRuntime,
+  expansionRuntimes,
   snapshotStore = null,
   publicRoot = defaultPublicRoot,
   sharedRoot = defaultSharedRoot,
@@ -157,7 +159,8 @@ export function createCardcadeServer({
     ["blackjack", blackjack],
     ["holdem", holdem],
     ["five-card-draw", fiveCardDraw],
-    ["snap", snap]
+    ["snap", snap],
+    ...(expansionRuntimes ?? createExpansionRuntimes({ botActionDelayMs: botTurnDelayMs }))
   ]);
   const roomSockets = new Map();
   const botTimers = new Map();
@@ -201,10 +204,13 @@ export function createCardcadeServer({
         const gameId = soloMatch[1].toLowerCase();
         const game = gameRegistry.getGame(gameId);
         const runtime = requireRuntime(gameId);
-        if (game.status !== "available" || !game.modes.includes("solo") || !game.supportsBots) {
+        if (game.status !== "available" || !game.modes.includes("solo")) {
           throw new AppError("MODE_NOT_SUPPORTED", `${game.name} is not available for Solo play.`, 409);
         }
-        const session = rooms.createRoom({ name: body.name });
+        if (gameId === "solitaire" && body.settings?.drawCount !== undefined && ![1, 3].includes(body.settings.drawCount)) {
+          throw new AppError("INVALID_SETTINGS", "Solitaire draw count must be one or three.");
+        }
+        const session = rooms.createRoom({ name: body.name, mode: "solo", drawCount: body.settings?.drawCount });
         rooms.selectGame(session.code, session.token, gameId);
         const requestedBots = Number.isInteger(body.botCount) ? body.botCount : game.players.max - 1;
         rooms.setBotCount(session.code, session.token, requestedBots);
@@ -247,7 +253,7 @@ export function createCardcadeServer({
 
         let hostSession = null;
         try {
-          hostSession = rooms.createRoom({ name: names[0] });
+          hostSession = rooms.createRoom({ name: names[0], mode: "hot-seat" });
           const sessions = [hostSession];
           for (const name of names.slice(1)) {
             sessions.push(rooms.joinRoom(hostSession.code, { name }));

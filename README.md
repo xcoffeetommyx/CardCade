@@ -6,6 +6,8 @@ This repository is currently a local platform preview. The launcher, game regist
 
 ## Run locally
 
+Spades, Hearts, and JUAN FLEEP are also playable in Solo, Multiplayer, and Hot Seat. Solitaire is single-player Klondike with draw-one/draw-three, undo, hints, and server-backed resume. JUAN FLEEP appears directly beneath JUAN in the color/action library and uses paired light/dark faces. See [the expansion rules and architecture](docs/expansion-games.md).
+
 Cardcade requires Node.js 22 or newer.
 
 ```powershell

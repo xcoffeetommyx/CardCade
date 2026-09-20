@@ -1,6 +1,7 @@
 // Only public turn state is used; Hot Seat alerts never reveal a private hand.
 export function turnOpportunity({ room, view, mode, humanSeats = [] } = {}) {
   const match = view?.state;
+  if (room?.gameId === "solitaire") return null;
   if (!room?.code || !match || match.roundOver || match.matchOver) return null;
   const viewer = room.players?.find((player) => player.isYou);
   let seat = match.prismBurstChallenge?.targetSeat ?? match.activeSeat;
@@ -13,7 +14,7 @@ export function turnOpportunity({ room, view, mode, humanSeats = [] } = {}) {
     seat = viewer?.seat;
     stage = `ready-${match.revealSequence}`;
     prompt = "ready for the next reveal";
-  } else if (["dealing", "dealer-turn", "waiting", "complete", "finished", "showdown"].includes(match.phase)) {
+  } else if (["dealing", "dealer-turn", "waiting", "complete", "finished", "showdown", "trick-result"].includes(match.phase)) {
     return null;
   }
 

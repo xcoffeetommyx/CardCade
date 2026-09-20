@@ -109,6 +109,73 @@ export const games = [
     accent: "coral"
   },
   {
+    id: "spades",
+    name: "Spades",
+    eyebrow: "Partners, bids, and tricks",
+    description: "Partner across the table, make your bids, and race to 500.",
+    deckFamilyId: "standard-52",
+    genres: [
+      "trick-taking"
+    ],
+    modes: [
+      "solo",
+      "multiplayer",
+      "hot-seat"
+    ],
+    players: {
+      min: 4,
+      max: 4,
+      recommended: 4
+    },
+    supportsBots: true,
+    status: "available",
+    accent: "blue"
+  },
+  {
+    id: "hearts",
+    name: "Hearts",
+    eyebrow: "Keep your score low",
+    description: "Pass carefully, avoid penalty cards, or shoot the moon.",
+    deckFamilyId: "standard-52",
+    genres: [
+      "trick-taking"
+    ],
+    modes: [
+      "solo",
+      "multiplayer",
+      "hot-seat"
+    ],
+    players: {
+      min: 4,
+      max: 4,
+      recommended: 4
+    },
+    supportsBots: true,
+    status: "available",
+    accent: "coral"
+  },
+  {
+    id: "solitaire",
+    name: "Solitaire",
+    eyebrow: "Classic Klondike",
+    description: "Build four foundations with draw-one or draw-three Klondike.",
+    deckFamilyId: "standard-52",
+    genres: [
+      "patience"
+    ],
+    modes: [
+      "solo"
+    ],
+    players: {
+      min: 1,
+      max: 1,
+      recommended: 1
+    },
+    supportsBots: false,
+    status: "available",
+    accent: "blue"
+  },
+  {
     id: "juan",
     name: "JUAN",
     eyebrow: "One card changes everything",
@@ -120,6 +187,12 @@ export const games = [
     supportsBots: true,
     status: "available",
     accent: "spectrum"
+  },
+  {
+    id: "juan-fleep", name: "JUAN FLEEP", eyebrow: "Two sides. One wild table.",
+    description: "FLEEP between light and dark faces across four scored rounds.",
+    deckFamilyId: "color-action", genres: ["shedding"], modes: ["solo", "multiplayer", "hot-seat"],
+    players: { min: 2, max: 4, recommended: 4 }, supportsBots: true, status: "available", accent: "spectrum"
   },
   {
     id: "rotating-rummy",

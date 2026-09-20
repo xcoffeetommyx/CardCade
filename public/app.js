@@ -1,5 +1,6 @@
 import { createPointerClickGuard } from "./pointer-click-guard.js?v=1";
-import { createTurnAlertTracker, createTurnFeedback } from "./turn-alerts.js?v=1";
+import { createTurnAlertTracker, createTurnFeedback } from "./turn-alerts.js?v=2";
+import { createExpansionUI, expansionGameIds } from "./expansion-games.js?v=4";
 
 const app = document.querySelector("#app");
 const toast = document.querySelector("#toast");
@@ -88,6 +89,15 @@ const state = {
   renderedScreen: null,
   navigationDirection: "forward"
 };
+
+const expansionUI = createExpansionUI({
+  getState: () => state, escapeHtml, render, sendRoom, showToast,
+  renderPlayingCard, renderJuanCard, renderCardBack, renderTableScene, renderTableOpponent,
+  tableClass: activeTableAppearanceClass,
+  reducedMotion: libraryReducedMotion,
+  saveAndMenu: () => { disconnectRoomSocket(); navigate("home"); },
+  abandon: () => { sendRoom({ type: "leave_room" }); clearGameSession(); navigate("home"); }
+});
 
 const pwaState = {
   online: navigator.onLine,
@@ -192,7 +202,7 @@ const rotatingRummyGameAdapter = {
 };
 
 function supportsGame(gameId) {
-  return Boolean(standardGameAdapters[gameId]) || gameId === "juan" || gameId === "rotating-rummy" || gameId === "finders-makers" || gameId === "blackjack" || gameId === "holdem" || gameId === "five-card-draw" || gameId === "snap";
+  return expansionGameIds.includes(gameId) || Boolean(standardGameAdapters[gameId]) || gameId === "juan" || gameId === "rotating-rummy" || gameId === "finders-makers" || gameId === "blackjack" || gameId === "holdem" || gameId === "five-card-draw" || gameId === "snap";
 }
 
 function sortAdapterForGame(gameId = state.room?.gameId) {
@@ -754,6 +764,8 @@ function moveLibraryGameFocus(direction, { controller = false } = {}) {
 }
 
 function renderHome() {
+  let savedSolo = state.session?.mode === "solo";
+  try { savedSolo ||= JSON.parse(localStorage.getItem(storageKeys.room) || "null")?.mode === "solo"; } catch { /* Ignore obsolete local session data. */ }
   return `
     <section class="game-shell-screen title-screen" aria-labelledby="cardcade-title">
       <div class="title-lockup">
@@ -761,6 +773,7 @@ function renderHome() {
       </div>
       <nav class="main-menu" aria-label="Cardcade main menu">
         <button class="main-menu-option" type="button" data-action="open-solo"><span aria-hidden="true">›</span><strong>Solo</strong></button>
+        ${savedSolo ? '<button class="main-menu-option" type="button" data-action="exp-resume"><span aria-hidden="true">›</span><strong>Resume Solo game</strong></button>' : ""}
         <button class="main-menu-option" type="button" data-action="open-multiplayer"><span aria-hidden="true">›</span><strong>Multiplayer</strong></button>
         <button class="main-menu-option" type="button" data-action="open-settings"><span aria-hidden="true">›</span><strong>Options</strong></button>
       </nav>
@@ -816,6 +829,7 @@ function renderLocalLobby() {
           <p class="shell-kicker">${escapeHtml(game.eyebrow)}</p>
           <h1 id="pregame-title">${escapeHtml(game.name)}</h1>
           <span class="game-player-range">${game.players.min}–${game.players.max} players</span>
+          ${game.id === "spades" ? '<p class="setup-note">Partners sit opposite: seats 1 + 3 versus seats 2 + 4.</p>' : ""}
         </header>
         <div class="table-setup-console" aria-label="${escapeHtml(game.name)} table configuration">
           ${state.mode === "solo" ? `
@@ -823,14 +837,14 @@ function renderLocalLobby() {
               <label for="local-name">Player</label>
               <input id="local-name" maxlength="24" value="${escapeHtml(playerName())}" autocomplete="nickname">
             </div>
-            <div class="configuration-selector">
+            ${game.supportsBots ? `<div class="configuration-selector">
               <span class="configuration-label">CPU players</span>
               <div class="stepper game-stepper">
                 <button type="button" data-action="local-bot-down" aria-label="Remove CPU player" ${state.localBots <= minBots ? "disabled" : ""}>−</button>
                 <output><strong>${state.localBots}</strong><span>CPU${state.localBots === 1 ? "" : "s"}</span></output>
                 <button type="button" data-action="local-bot-up" aria-label="Add CPU player" ${state.localBots >= maxBots ? "disabled" : ""}>+</button>
               </div>
-            </div>` : `
+            </div>` : `<div class="configuration-selector"><label for="solitaire-draw-count">Cards per draw</label><select id="solitaire-draw-count"><option value="1">Draw one</option><option value="3">Draw three</option></select></div>`}` : `
             <div class="configuration-selector">
               <span class="configuration-label">Human players</span>
               <div class="stepper game-stepper">
@@ -1212,9 +1226,12 @@ function tableSeatSlotFor(match, viewerSeat, playerSeat) {
 }
 
 function renderOpponentFan(deckFamilyId, count, { ariaLabel = "", revealedCards = [] } = {}) {
-  const safeCount = Math.min(108, Math.max(0, Math.floor(Number(count) || 0)));
+  const safeCount = Math.min(deckFamilyId === "color-action" ? 112 : 108, Math.max(0, Math.floor(Number(count) || 0)));
   const cards = Array.from({ length: safeCount }, (_, index) => {
     const revealedCard = revealedCards[index];
+    if (deckFamilyId === "color-action" && revealedCard?.side) {
+      return renderJuanCard(revealedCard, index, { played: true }).replace('class="playing-card', 'class="opponent-card opponent-card-face playing-card');
+    }
     if (deckFamilyId === "standard-52" && revealedCard) {
       return renderPlayingCard(revealedCard, index, {
         played: true,
@@ -1253,7 +1270,7 @@ function renderTableOpponent({
   const active = match.activeSeat === player.seat && !match.roundOver;
   const revealedLabel = deckFamilyId === "standard-52"
     ? revealedCards.filter(Boolean).map((card) => standard52.cardLong(card)).join(", ")
-    : "";
+    : deckFamilyId === "color-action" ? revealedCards.filter(Boolean).map(card => globalThis.CardcadeFleepDeck.label(card)).join(", ") : "";
   const handLabel = revealedLabel
     ? `${player.name} has ${count} cards, showing ${revealedLabel}`
     : `${player.name} has ${count} hidden cards`;
@@ -1309,6 +1326,7 @@ function renderTableScene({
 
 function juanCornerFace(card) {
   if (card.kind === "number") return String(card.value);
+  if (card.side) return globalThis.CardcadeFleepDeck.MARKS[card.kind] || "?";
   return {
     pause: "Ⅱ",
     turnabout: "↺",
@@ -2565,6 +2583,9 @@ function renderFindersMakersGame() {
 }
 
 function juanActionMark(kind) {
+  if (["draw-one", "draw-five", "wild-two", "wild-color", "pause-all", "fleep"].includes(kind)) {
+    return `<span class="juan-action-mark fleep-action fleep-action-${kind}" aria-hidden="true"><b>${escapeHtml(globalThis.CardcadeFleepDeck.MARKS[kind])}</b>${kind === "fleep" ? "<small>FLEEP</small>" : ""}</span>`;
+  }
   if (kind === "pause") {
     return `<span class="juan-action-mark juan-action-pause" aria-hidden="true"><i></i><i></i></span>`;
   }
@@ -2589,6 +2610,7 @@ function renderJuanCard(card, index, { played = false, enter = false, selectable
   const classes = [
     "playing-card",
     "juan-card",
+    card.side === "dark" ? "fleep-dark-card" : "",
     "card-skin-face",
     selectedCardSkin("color-action")?.className || "",
     `juan-kind-${card.kind}`,
@@ -2604,7 +2626,7 @@ function renderJuanCard(card, index, { played = false, enter = false, selectable
   return `
     <button class="${classes}" type="button" ${played ? "disabled" : ""} ${style}
       ${played ? "" : `data-game-card="${escapeHtml(card.id)}" data-card-index="${index}" tabindex="${selectable ? "0" : "-1"}"`}
-      aria-label="${escapeHtml(juanDeck.cardLong(card))}" aria-pressed="${selected}">
+      aria-label="${escapeHtml(card.side ? globalThis.CardcadeFleepDeck.label(card) : juanDeck.cardLong(card))}" aria-pressed="${selected}">
       <span class="juan-card-ink" aria-hidden="true"></span>
       <span class="card-corner juan-corner"><strong class="${isNumber ? "juan-rank-glyph" : ""}">${escapeHtml(corner)}</strong></span>
       <span class="juan-card-center">${isNumber
@@ -3362,6 +3384,7 @@ function restoreGameScrollPosition(position) {
 }
 
 function render() {
+  const expansionFocus = expansionUI.captureFocus();
   const screenChanged = state.renderedScreen !== state.screen;
   const shouldPreserveGameScroll = state.screen === "game" && Boolean(app.querySelector(".standard-card-game"));
   const gameScrollPosition = shouldPreserveGameScroll ? captureGameScrollPosition() : null;
@@ -3412,6 +3435,7 @@ function render() {
   if (controllerState.active) requestAnimationFrame(updateControllerHover);
   restoreGameScrollPosition(gameScrollPosition);
   syncTurnAlert();
+  if (!screenChanged) expansionUI.restoreFocus(expansionFocus);
 }
 
 function syncSnapCountdown() {
@@ -3545,6 +3569,7 @@ function layoutOpponentHands() {
 }
 
 function renderCurrentGame() {
+  if (expansionGameIds.includes(state.room?.gameId)) return expansionUI.render();
   if (state.room?.gameId === "snap") return renderSnapGame();
   if (state.room?.gameId === "rotating-rummy") return renderRotatingRummyGame();
   if (state.room?.gameId === "finders-makers") return renderFindersMakersGame();
@@ -3672,7 +3697,7 @@ function layoutStandardHand() {
     const match = state.gameView?.state;
     const viewer = state.room?.players.find((player) => player.isYou);
     if (["blackjack", "holdem"].includes(state.room?.gameId)) return;
-    if (state.gameActionLock || !match || match.roundOver || match.activeSeat !== viewer?.seat) return;
+    if (state.gameActionLock || !match || match.roundOver || (match.activeSeat !== viewer?.seat && !match.actions?.pass)) return;
     // Browser hit testing already accounts for each card's rotation, visible
     // stacking order, and raised selection state. Re-mapping from broad
     // bounding boxes lets a neighboring card steal otherwise precise clicks.
@@ -3684,6 +3709,7 @@ function layoutStandardHand() {
 }
 
 function toggleStandardCard(cardId) {
+  if (expansionGameIds.includes(state.room?.gameId)) return expansionUI.selectCard(cardId);
   const match = state.gameView?.state;
   const viewer = state.room?.players.find((player) => player.isYou);
   if (["blackjack", "holdem"].includes(state.room?.gameId)) return;
@@ -3838,6 +3864,7 @@ function hiddenPrivateView(view) {
   if (!view) return null;
   return {
     ...view,
+    challengeHand: null,
     ownBuild: null,
     privateSearch: null,
     hand: [],
@@ -4047,6 +4074,7 @@ function connectRoom(session) {
     socket.send(JSON.stringify({ type: "authenticate", code: session.code, token: session.token }));
   });
   socket.addEventListener("message", (event) => {
+    if (state.socket !== socket || socket.cardcadeIntentionalClose) return;
     const message = JSON.parse(event.data);
     if (["room_state", "game_state"].includes(message.type)) {
       state.reconnectAttempts = 0;
@@ -4258,6 +4286,8 @@ document.addEventListener("click", async (event) => {
   const button = event.target.closest("[data-action]");
   if (!button) return;
   const action = button.dataset.action;
+  if (action === "exp-resume") { await resumeRoom(); return; }
+  if (expansionUI.handle(action, button)) return;
 
   if (action.startsWith("controller-key")) {
     handleControllerKeyboardAction(button);
@@ -4434,7 +4464,7 @@ document.addEventListener("click", async (event) => {
     const name = savePlayerName(document.querySelector("#local-name")?.value || playerName());
     button.disabled = true;
     try {
-      const session = await api(`/api/solo/${encodeURIComponent(state.selectedGameId)}`, { method: "POST", body: JSON.stringify({ name, botCount: state.localBots }) });
+      const session = await api(`/api/solo/${encodeURIComponent(state.selectedGameId)}`, { method: "POST", body: JSON.stringify({ name, botCount: state.localBots, ...(state.selectedGameId === "solitaire" ? { settings: { drawCount: Number(document.querySelector("#solitaire-draw-count")?.value || 1) } } : {}) }) });
       enterGameSession(session, "solo");
     } catch (error) {
       showToast(error.message);

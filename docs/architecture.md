@@ -8,6 +8,8 @@ The launcher follows the same rule through the existing `state.screen` render ar
 
 ## Runtime shape
 
+Spades and Hearts share a narrow trick-taking helper and room adapter, with separate scoring and phases. Solitaire uses a dedicated flat board and true Solo room mode. JUAN FLEEP uses an independent paired-face deck and rules engine with JUAN's existing face renderer extended for the new effects and dark-side artwork. The new games use `server/src/games/expansion` and `public/expansion-games.js`; they do not change existing game engines. See [expansion games](expansion-games.md).
+
 Cardcade is one Node.js process and one Docker service:
 
 ```text

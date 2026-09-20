@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
+import { games } from "../server/src/game-catalog.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const read = (file) => readFileSync(path.join(root, file), "utf8");
@@ -38,9 +39,7 @@ test("Snap uses the shared physical cards with explicit READY, countdown, and SN
 });
 
 test("Snap is intentionally absent from Hot Seat while available to Solo and multiplayer", () => {
-  const catalog = read("server/src/game-catalog.js");
-  const snapEntry = catalog.slice(catalog.indexOf('id: "snap"'), catalog.indexOf('id: "juan"'));
-  assert.match(snapEntry, /modes: \["solo", "multiplayer"\]/);
-  assert.doesNotMatch(snapEntry, /hot-seat/);
-  assert.match(snapEntry, /supportsBots: true/);
+  const snapEntry = games.find(game => game.id === "snap");
+  assert.deepEqual(snapEntry.modes, ["solo", "multiplayer"]);
+  assert.equal(snapEntry.supportsBots, true);
 });

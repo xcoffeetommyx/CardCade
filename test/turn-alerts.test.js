@@ -160,5 +160,5 @@ test("The shared app wires default-on preferences, user activation, and offline 
   assert.match(app, /if \(event.isTrusted\) turnFeedback.unlock\(\)/);
   assert.match(app, /restoreGameScrollPosition\(gameScrollPosition\);\s+syncTurnAlert\(\)/);
   assert.match(app, /toggle-turn-alerts/);
-  assert.match(sw, /turn-alerts\.js\?v=1/);
+  assert.match(sw, /turn-alerts\.js\?v=2/);
 });
