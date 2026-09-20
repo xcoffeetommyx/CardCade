@@ -25,8 +25,8 @@
     pause: Object.freeze({ short: "II", symbol: "Ⅱ", name: "Pause" }),
     turnabout: Object.freeze({ short: "TURN", symbol: "↻", name: "Turnabout" }),
     "double-draw": Object.freeze({ short: "+2", symbol: "+2", name: "Double Draw" }),
-    prism: Object.freeze({ short: "PRISM", symbol: "✦", name: "Prism" }),
-    "prism-burst": Object.freeze({ short: "+4", symbol: "+4", name: "Prism Burst" })
+    prism: Object.freeze({ short: "Wild", symbol: "■", name: "Wild" }),
+    "prism-burst": Object.freeze({ short: "Wild +4", symbol: "+4", name: "Wild +4" })
   });
 
   function makeDeck() {

@@ -5,8 +5,8 @@ Rotating Rummy is CardCade's original route-completion rummy game. A match selec
 ## Deck
 
 - 96 numbered cards: values 1–12, four color lanes, two copies of each.
-- 8 Glitches: wildcards that may stand in for a number or color while completing a Route.
-- 4 Locks: discard-only interruption cards that skip the next player. Locks never count toward a Route.
+- 8 Wild cards: wildcards that may stand in for a number or color while completing a Route.
+- 4 Pass cards: discard-only interruption cards that skip a chosen opponent's next turn. Pass cards cannot be taken from the discard pile or used in a Route.
 
 ## Round flow
 

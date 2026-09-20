@@ -65,6 +65,7 @@ const state = {
   selectedCards: new Set(),
   juanChosenColor: null,
   rummyLinkTarget: null,
+  rummyPassCardId: null,
   rummyPatternHelpOpen: false,
   juanPrismReveal: null,
   juanPrismRevealTimer: null,
@@ -1312,7 +1313,7 @@ function juanCornerFace(card) {
     pause: "Ⅱ",
     turnabout: "↺",
     "double-draw": "+2",
-    prism: "✦",
+    prism: "■",
     "prism-burst": "+4"
   }[card.kind] || "?";
 }
@@ -2034,7 +2035,7 @@ function juanSelection() {
     return { ok: false, reason: "Match the color lane or printed face" };
   }
   if ((card.kind === "prism" || card.kind === "prism-burst") && !juanDeck.COLORS.includes(state.juanChosenColor)) {
-    return { ok: false, reason: "Choose the Prism's next color" };
+    return { ok: false, reason: "Choose the Wild's next color" };
   }
   const color = card.kind === "prism" || card.kind === "prism-burst" ? ` · ${juanDeck.COLOR_NAME[state.juanChosenColor]} next` : "";
   return { ok: true, reason: `${juanDeck.cardLong(card)}${color}`, card };
@@ -2246,7 +2247,7 @@ function renderRummyPatternHelp() {
         <li><b>Pairs that add to 13:</b> 1+12, 2+11, 3+10, and so on.</li>
         <li><b>Pairs with consecutive numbers:</b> 5-5 and 6-6, for example.</li>
       </ul>
-      <p><b>Wild cards</b> can stand in for any number. <b>Pass cards</b> move play past the next player and cannot be used in a Route.</p>
+      <p><b>Wild cards</b> can stand in for any number. <b>Pass cards</b> skip a chosen opponent's next turn, cannot be taken from the discard, and cannot be used in a Route.</p>
     </div>
   </section>`;
 }
@@ -2295,6 +2296,8 @@ function renderRotatingRummyGame() {
     : isYourTurn
       ? match.turnStage === "draw" ? `${yourPlayer?.name || "You"}, draw a card` : `${yourPlayer?.name || "You"}, finish your turn`
       : `${activePlayer?.name || "Player"} is planning a Route`;
+  const passCard = view.hand.find((card) => card.id === state.rummyPassCardId && card.kind === "lock");
+  const showPassPicker = passCard && isYourTurn && match.turnStage === "play" && state.selectedCards.has(passCard.id);
 
   return `
     <section class="standard-card-game ${activeTableAppearanceClass()} rotating-rummy-game" data-game-id="rotating-rummy">
@@ -2354,12 +2357,37 @@ function renderRotatingRummyGame() {
         <button class="primary" type="button" data-action="rummy-link" ${actions.link && selection.linkOk && !state.gameActionLock ? "" : "disabled"}>Link ↓</button>
         <button class="primary" type="button" data-action="rummy-discard" ${actions.discard && selection.discardOk && !state.gameActionLock ? "" : "disabled"}>Discard</button>
       </nav>
+      ${showPassPicker ? `<div class="rummy-pass-dialog" role="dialog" aria-modal="true" aria-labelledby="rummy-pass-title">
+        <div class="rummy-pass-picker">
+          <span class="family-kicker">Pass card</span>
+          <h3 id="rummy-pass-title">Choose player to pass</h3>
+          <p>Pass will skip their next turn.</p>
+          <div class="rummy-pass-targets" role="group" aria-label="Choose a player to skip">
+            ${opponents.map((player) => `<button type="button" data-action="rummy-pass-target" data-target-seat="${player.seat}">${escapeHtml(player.name)}</button>`).join("")}
+          </div>
+          <button type="button" class="rummy-pass-cancel" data-action="rummy-pass-cancel">Cancel</button>
+        </div>
+      </div>` : ""}
       ${match.roundOver ? `
         <div class="round-result rummy-result">
           <div><span class="family-kicker">${match.matchOver ? "Route circuit complete" : `Round ${match.round} complete`}</span><h3>${escapeHtml(match.lastMoveText)}</h3><p>${match.players.map((player) => `${escapeHtml(player.name)} · ${player.routeIndex}/${match.totalRoutes} Routes cleared${player.completedThisRound ? " · advanced" : " · repeats"}${player.score ? ` · ${player.score} pts` : ""}`).join(" · ")}</p></div>
           ${match.matchOver ? `<button class="action-button" type="button" data-action="leave-game">Return to Cardcade</button>` : `<button class="action-button primary" type="button" data-action="rummy-next-round" ${isHost ? "" : "disabled"}>${isHost ? "Deal next Route round" : "Waiting for host"}</button>`}
         </div>` : ""}
     </section>`;
+}
+
+function submitRummyDiscard(discard, targetSeat) {
+  if (state.gameActionLock) return;
+  state.gameActionLock = true;
+  state.rummyPassCardId = null;
+  animateStandardHandExit([discard.id], () => {
+    state.selectedCards.clear();
+    state.rummyLinkTarget = null;
+    if (!sendRoom({ type: "rummy_discard", cardId: discard.id, ...(targetSeat === undefined ? {} : { targetSeat }) })) {
+      state.gameActionLock = false;
+      render();
+    }
+  });
 }
 
 function findersPlayerLabel(match, seat) {
@@ -2547,7 +2575,7 @@ function juanActionMark(kind) {
     return `<span class="juan-action-mark juan-action-double-draw" aria-hidden="true"><i></i><i></i><b>+2</b></span>`;
   }
   if (kind === "prism" || kind === "prism-burst") {
-    return `<span class="juan-action-mark juan-action-${kind}" aria-hidden="true"><i></i><i></i><i></i><i></i><b>${kind === "prism-burst" ? "+4" : ""}</b></span>`;
+    return `<span class="juan-action-mark juan-action-${kind}" aria-hidden="true"><span class="juan-wild-tiles"><i></i><i></i><i></i><i></i></span>${kind === "prism-burst" ? "<b>+4</b>" : ""}</span>`;
   }
   return `<span class="juan-action-mark" aria-hidden="true">?</span>`;
 }
@@ -2592,11 +2620,11 @@ function juanColorChooser(selectedCard) {
   return `
     <div class="juan-prism-dialog" role="dialog" aria-modal="true" aria-labelledby="juan-prism-title">
       <div class="juan-prism-picker">
-        <span class="family-kicker">Prism in hand</span>
+        <span class="family-kicker">Wild in hand</span>
         <h3 id="juan-prism-title">Choose the next color</h3>
         <p>Set the lane every player must follow.</p>
         <div class="juan-prism-stage-card">${renderJuanCard(selectedCard, 0, { played: true })}</div>
-        <div class="juan-color-chooser" role="group" aria-label="Choose the Prism's next color">
+        <div class="juan-color-chooser" role="group" aria-label="Choose the Wild's next color">
           ${juanDeck.COLORS.map((color, index) => `
             <button type="button" class="juan-color-choice juan-${color}" style="--choice-delay:${120 + (index * 55)}ms" data-action="choose-juan-color" data-color="${color}">
               <i aria-hidden="true"></i><strong>${escapeHtml(juanDeck.COLOR_NAME[color])}</strong>
@@ -2628,7 +2656,7 @@ function renderJuanPrismReveal() {
       <div class="juan-prism-reveal-burst" aria-hidden="true"></div>
       <div class="juan-prism-reveal-card">${renderJuanCard(reveal.card, 0, { played: true })}</div>
       <div class="juan-prism-reveal-copy">
-        <span>${escapeHtml(reveal.playerName)} played a Prism</span>
+        <span>${escapeHtml(reveal.playerName)} played a ${reveal.card.kind === "prism-burst" ? "Wild +4" : "Wild"}</span>
         <strong><i aria-hidden="true"></i>${escapeHtml(juanDeck.COLOR_NAME[reveal.color])}</strong>
         <small>is now the active color</small>
       </div>
@@ -2869,7 +2897,7 @@ function renderJuanReactionPanels(match, viewerSeat) {
       const previousColor = juanDeck.COLOR_NAME[prismBurst.priorColor] || "previous";
       panels.push(`
         <section class="juan-reaction-panel juan-prism-challenge-panel" aria-live="polite">
-          <span><strong>Prism Burst +4</strong><small>${escapeHtml(source?.name || "That player")} chose a new lane. Challenge if they held ${escapeHtml(previousColor)}.</small></span>
+          <span><strong>Wild +4</strong><small>${escapeHtml(source?.name || "That player")} chose a new lane. Challenge if they held ${escapeHtml(previousColor)}.</small></span>
           <div class="juan-reaction-actions">
             <button type="button" data-action="juan-challenge-prism-burst" ${state.gameActionLock ? "disabled" : ""}>Challenge +4</button>
             <button class="primary" type="button" data-action="juan-accept-prism-burst" ${state.gameActionLock ? "disabled" : ""}>Take 4</button>
@@ -2878,12 +2906,12 @@ function renderJuanReactionPanels(match, viewerSeat) {
     } else {
       panels.push(`
         <section class="juan-reaction-panel juan-prism-wait-panel" aria-live="polite">
-          <span><strong>Prism Burst +4</strong><small>${escapeHtml(target?.name || "The next player")} is deciding whether to challenge ${escapeHtml(source?.name || "the play")}.</small></span>
+          <span><strong>Wild +4</strong><small>${escapeHtml(target?.name || "The next player")} is deciding whether to challenge ${escapeHtml(source?.name || "the play")}.</small></span>
         </section>`);
     }
   }
   if (!panels.length) return "";
-  // A missed-call window can coexist with a Prism Burst decision. Keep the
+  // A missed-call window can coexist with a Wild +4 decision. Keep the
   // Call/Catch action first, but expose both authoritative actions together.
   return `<div class="juan-gameplay-overlay" role="region" aria-label="JUAN reactions">${panels.join("")}</div>`;
 }
@@ -2931,7 +2959,6 @@ function renderJuanGame() {
       </header>
       <div class="juan-lane-bar">
         <span>Active color</span>
-        ${juanDeck.COLORS.map((color) => `<i class="juan-lane juan-${color} ${match.activeColor === color ? "active" : ""}" title="${escapeHtml(juanDeck.COLOR_NAME[color])}"></i>`).join("")}
         <strong>${escapeHtml(juanDeck.COLOR_NAME[match.activeColor])}</strong>
         <span class="juan-direction" aria-label="Play direction ${match.direction === 1 ? "forward" : "backward"}">${match.direction === 1 ? "↻" : "↺"}</span>
       </div>
@@ -3069,7 +3096,7 @@ function renderSkinPreview(skin) {
   return `
     <div class="skin-preview ${skin.className}" data-skin-preview="${escapeHtml(skin.deckFamilyId)}" role="img" aria-label="${escapeHtml(skin.name)} card face and back preview">
       <span class="skin-preview-card skin-preview-face skin-preview-juan-face" aria-hidden="true"><small>1</small><b>1</b></span>
-      <span class="skin-preview-card skin-preview-face skin-preview-juan-prism" aria-hidden="true"><small>PRISM</small><b>✦</b></span>
+      <span class="skin-preview-card skin-preview-face skin-preview-juan-prism" aria-hidden="true"><small>WILD</small><b class="juan-wild-tiles"><i></i><i></i><i></i><i></i></b></span>
       ${renderCardBack({ deckFamilyId: skin.deckFamilyId, skinId: skin.id, context: "settings-preview", className: "skin-preview-card skin-preview-back skin-preview-juan-back", ariaHidden: true })}
     </div>`;
 }
@@ -3377,6 +3404,8 @@ function render() {
     animateStandardHandReflow(previousHand);
     const firstColor = app.querySelector(".juan-prism-dialog .juan-color-choice");
     if (firstColor) requestAnimationFrame(() => firstColor.focus({ preventScroll: true }));
+    const firstPassTarget = app.querySelector(".rummy-pass-dialog .rummy-pass-targets button");
+    if (firstPassTarget) requestAnimationFrame(() => firstPassTarget.focus({ preventScroll: true }));
     const searchConfirmation = app.querySelector('[data-action="finders-confirm-search"]');
     if (searchConfirmation) requestAnimationFrame(() => searchConfirmation.focus({ preventScroll: true }));
   }
@@ -4087,6 +4116,7 @@ function connectRoom(session) {
         state.dealtHandOwners = new Set();
         state.lastPileSignature = null;
         state.rummyLinkTarget = null;
+        state.rummyPassCardId = null;
         state.findersBuildSelection = new Set();
         state.findersSearchConfirmation = null;
         state.findersPendingSearch = null;
@@ -4102,6 +4132,8 @@ function connectRoom(session) {
           : blackjackPrivateCards(message.view).map((card) => card.id)
       );
       state.selectedCards = new Set([...state.selectedCards].filter((cardId) => handIds.has(cardId)));
+      if (message.gameId !== "rotating-rummy" || message.view.state.activeSeat !== message.room.players.find((player) => player.isYou)?.seat
+        || message.view.state.turnStage !== "play" || !handIds.has(state.rummyPassCardId)) state.rummyPassCardId = null;
       if (!state.selectedCards.size) state.juanChosenColor = null;
       if (message.gameId !== "rotating-rummy") state.rummyLinkTarget = null;
       if (message.gameId !== "finders-makers") {
@@ -4491,6 +4523,21 @@ document.addEventListener("click", async (event) => {
     state.rummyPatternHelpOpen = !state.rummyPatternHelpOpen;
     render();
   }
+  if (action === "rummy-pass-cancel") {
+    state.rummyPassCardId = null;
+    render();
+    requestAnimationFrame(() => app.querySelector('[data-action="rummy-discard"]')?.focus({ preventScroll: true }));
+    return;
+  }
+  if (action === "rummy-pass-target") {
+    const viewerSeat = state.room?.players.find((player) => player.isYou)?.seat;
+    const targetSeat = Number(button.dataset.targetSeat);
+    const discard = state.gameView?.hand.find((card) => card.id === state.rummyPassCardId && card.kind === "lock");
+    if (!discard || !state.selectedCards.has(discard.id) || targetSeat === viewerSeat
+      || !state.gameView?.state.players.some((player) => player.seat === targetSeat)) return;
+    submitRummyDiscard(discard, targetSeat);
+    return;
+  }
   if (action === "finders-cancel-search") {
     if (!state.findersSearchConfirmation || state.gameActionLock) return;
     const position = state.findersSearchConfirmation.position;
@@ -4668,16 +4715,13 @@ document.addEventListener("click", async (event) => {
     if (state.gameActionLock) return;
     const selection = rotatingRummySelection();
     if (!selection.discardOk) return;
-    state.gameActionLock = true;
     const [discard] = selection.selected;
-    animateStandardHandExit([discard.id], () => {
-      state.selectedCards.clear();
-      state.rummyLinkTarget = null;
-      if (!sendRoom({ type: "rummy_discard", cardId: discard.id })) {
-        state.gameActionLock = false;
-        render();
-      }
-    });
+    if (discard.kind === "lock") {
+      state.rummyPassCardId = discard.id;
+      render();
+      return;
+    }
+    submitRummyDiscard(discard);
   }
   if (action === "rummy-next-round") {
     state.selectedCards.clear();
@@ -4736,7 +4780,7 @@ document.addEventListener("click", async (event) => {
       else {
         const choice = legal.slice().sort((left, right) => juanRules.moveCost(left, state.gameView.hand) - juanRules.moveCost(right, state.gameView.hand))[0];
         state.selectedCards = new Set([choice.id]);
-        // A hinted Prism still belongs to the player: open the same color
+        // A hinted Wild still belongs to the player: open the same color
         // picker instead of silently choosing a lane for them.
         state.juanChosenColor = null;
         render();
@@ -5068,6 +5112,21 @@ document.addEventListener("keydown", (event) => {
   if (handleAppearanceKeydown(event)) return;
   if (handleMainMenuKeydown(event)) return;
   if (handleLibraryKeydown(event)) return;
+  const rummyPassDialog = app.querySelector(".rummy-pass-dialog");
+  if (event.key === "Tab" && rummyPassDialog) {
+    const controls = [...rummyPassDialog.querySelectorAll("button:not([disabled])")];
+    const first = controls[0];
+    const last = controls.at(-1);
+    if (!first || !last) return;
+    if (event.shiftKey && (document.activeElement === first || !rummyPassDialog.contains(document.activeElement))) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+    return;
+  }
   const findersSearchDialog = app.querySelector(".finders-search-confirmation");
   if (event.key === "Tab" && findersSearchDialog) {
     const controls = [...findersSearchDialog.querySelectorAll("button:not([disabled])")];
@@ -5096,6 +5155,13 @@ document.addEventListener("keydown", (event) => {
     state.selectedCards.clear();
     state.juanChosenColor = null;
     render();
+    return;
+  }
+  if (event.key === "Escape" && app.querySelector(".rummy-pass-dialog")) {
+    event.preventDefault();
+    state.rummyPassCardId = null;
+    render();
+    requestAnimationFrame(() => app.querySelector('[data-action="rummy-discard"]')?.focus({ preventScroll: true }));
     return;
   }
   const card = event.target.closest?.("[data-game-card]");
@@ -5399,6 +5465,7 @@ function controllerTargetScope() {
     || findersMakersPresentationRoot?.querySelector(".finders-build-reveal")
     || app.querySelector(".finders-search-confirmation")
     || app.querySelector(".juan-prism-dialog")
+    || app.querySelector(".rummy-pass-dialog")
     || app.querySelector(".round-result")
     || document;
 }
@@ -5520,6 +5587,11 @@ function controllerBack() {
   const prismCancel = app.querySelector('[data-action="cancel-juan-color"]');
   if (prismCancel) {
     prismCancel.click();
+    return;
+  }
+  const passCancel = app.querySelector('[data-action="rummy-pass-cancel"]');
+  if (passCancel) {
+    passCancel.click();
     return;
   }
   const findersSearchCancel = app.querySelector('[data-action="finders-cancel-search"]');

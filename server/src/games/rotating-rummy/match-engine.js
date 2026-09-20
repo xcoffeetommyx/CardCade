@@ -69,6 +69,7 @@ export class MatchEngine {
       turnStage: "draw",
       stock,
       discardPile: [openingCard],
+      pendingSkipSeats: [],
       roundWinnerSeat: null,
       winnerSeat: null,
       winnerSeats: [],
@@ -93,8 +94,10 @@ export class MatchEngine {
 
   drawDiscard(match, seat) {
     const player = requireActivePlayer(match, seat, "draw");
-    const card = match.discardPile.pop();
+    const card = match.discardPile.at(-1);
     if (!card) throw new RoomError("There is no discard to take.", "DISCARD_EMPTY", 409);
+    if (card.kind === "lock") throw new RoomError("Pass cards cannot be taken from the discard.", "PASS_DISCARD_BLOCKED", 409);
+    match.discardPile.pop();
     player.hand.push(card);
     player.hand = rules.sortCards(player.hand, "rank");
     match.turnStage = "play";
@@ -174,19 +177,26 @@ export class MatchEngine {
     return match;
   }
 
-  discard(match, seat, cardId) {
+  discard(match, seat, cardId, targetSeat) {
     const player = requireActivePlayer(match, seat, "play");
     const card = player.hand.find((candidate) => candidate.id === String(cardId));
     if (!card) throw new RoomError("That card is not in your hand.", "CARD_NOT_OWNED", 404);
+    const passTarget = card.kind === "lock" ? match.players.find((candidate) => candidate.seat === targetSeat) : null;
+    if (card.kind === "lock" && (!passTarget || passTarget.seat === player.seat)) {
+      throw new RoomError("Choose another player to skip with this Pass.", "INVALID_PASS_TARGET", 409);
+    }
     if (player.hand.length === 1 && !player.routeComplete) {
       throw new RoomError("Complete your current Route before going out.", "ROUTE_REQUIRED", 409);
     }
 
     player.hand = player.hand.filter((candidate) => candidate.id !== card.id);
     match.discardPile.push(card);
+    if (passTarget) (match.pendingSkipSeats ??= []).push(passTarget.seat);
     player.lastPlayedCard = { ...card };
     player.lastPlay = { kind: "discard", label: `Discarded ${rummyDeck.cardLabel(card)}`, cards: [{ ...card }] };
-    match.lastMoveText = `${player.name} discarded ${rummyDeck.cardLabel(card)}.`;
+    match.lastMoveText = passTarget
+      ? `${player.name} discarded a Pass. ${passTarget.name} will miss their next turn.`
+      : `${player.name} discarded ${rummyDeck.cardLabel(card)}.`;
     match.log.unshift(match.lastMoveText);
 
     if (player.hand.length === 0) {
@@ -195,15 +205,7 @@ export class MatchEngine {
     }
 
     match.turnStage = "draw";
-    const target = nextPlayer(match, player.seat);
-    if (card.kind === "lock" && target) {
-      const afterTarget = nextPlayer(match, target.seat);
-      match.activeSeat = afterTarget?.seat ?? null;
-      match.lastMoveText = `${player.name} discarded a Pass. Play moves past ${target.name}.`;
-      match.log[0] = match.lastMoveText;
-    } else {
-      match.activeSeat = target?.seat ?? null;
-    }
+    match.activeSeat = nextUnskippedPlayer(match, player.seat)?.seat ?? null;
     return match;
   }
 
@@ -235,7 +237,7 @@ export class MatchEngine {
     const route = currentRoute(match, player);
 
     if (match.turnStage === "draw") {
-      const topCard = match.discardPile.at(-1);
+      const topCard = match.discardPile.at(-1)?.kind === "lock" ? null : match.discardPile.at(-1);
       const completionFromDiscard = !player.routeComplete && topCard
         ? rules.findRouteCompletion([...player.hand, topCard], route)
         : null;
@@ -269,7 +271,7 @@ export class MatchEngine {
       ? player.hand.slice().sort((left, right) => rules.cardPoints(right) - rules.cardPoints(left) || right.id.localeCompare(left.id))[0]
       : rules.recommendedDiscard(player.hand, route);
     if (!discard) throw new RoomError("Rotating Rummy CPU could not choose a discard.", "BOT_DISCARD_FAILED", 500);
-    this.discard(match, player.seat, discard.id);
+    this.discard(match, player.seat, discard.id, discard.kind === "lock" ? nextPlayer(match, player.seat)?.seat : undefined);
     return true;
   }
 
@@ -314,7 +316,7 @@ export class MatchEngine {
         matchOver: match.matchOver,
         actions: {
           drawStock: yourTurn && match.turnStage === "draw",
-          drawDiscard: yourTurn && match.turnStage === "draw" && match.discardPile.length > 0,
+          drawDiscard: yourTurn && match.turnStage === "draw" && match.discardPile.length > 0 && match.discardPile.at(-1).kind !== "lock",
           completeRoute: yourTurn && match.turnStage === "play" && !viewer.routeComplete && Boolean(viewerRoute),
           link: yourTurn && match.turnStage === "play" && viewer.routeComplete,
           discard: yourTurn && match.turnStage === "play"
@@ -509,6 +511,18 @@ function nextPlayer(match, fromSeat) {
   const fromIndex = match.players.findIndex((player) => player.seat === Number(fromSeat));
   if (fromIndex < 0) return null;
   return match.players[(fromIndex + 1) % match.players.length];
+}
+
+function nextUnskippedPlayer(match, fromSeat) {
+  let next = nextPlayer(match, fromSeat);
+  for (let index = 0; index < match.players.length - 1 && next; index += 1) {
+    const pendingIndex = match.pendingSkipSeats?.indexOf(next.seat) ?? -1;
+    if (pendingIndex < 0) break;
+    match.pendingSkipSeats.splice(pendingIndex, 1);
+    match.log.unshift(`${next.name}'s turn was skipped by a Pass.`);
+    next = nextPlayer(match, next.seat);
+  }
+  return next;
 }
 
 function finishRound(match, winner = null) {

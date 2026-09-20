@@ -20,6 +20,8 @@ test("JUAN uses the complete 108-card color/action distribution", () => {
     }
   }
   assert.equal(deck.cardLong(cards.find((card) => card.id === "blaze-3-a")), "Blaze 3");
-  assert.equal(deck.cardLong("prism-2"), "Prism");
-  assert.equal(deck.cardLong("prism-burst-2"), "Prism Burst");
+  assert.equal(deck.cardLong("prism-2"), "Wild");
+  assert.equal(deck.cardLong("prism-burst-2"), "Wild +4");
+  assert.equal(deck.cardLabel("prism-2"), "Wild");
+  assert.equal(deck.cardLabel("prism-burst-2"), "Wild +4");
 });

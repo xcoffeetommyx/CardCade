@@ -49,7 +49,7 @@ test("JUAN deals seven cards and keeps the 108-card deck private", () => {
   for (const hiddenCard of match.players[1].hand) assert.equal(serialized.includes(`"${hiddenCard.id}"`), false);
 });
 
-test("JUAN rejects wrong turns, nonmatching cards, and an uncolored Prism", () => {
+test("JUAN rejects wrong turns, nonmatching cards, and an uncolored Wild", () => {
   const engine = new MatchEngine({ shuffleDeck: identityShuffle });
   const match = setTable(matchFor(), {
     hands: [["tide-3-a", "grove-7-a", "prism-1"], ["spark-1-a"], ["blaze-2-a"]]
@@ -149,7 +149,7 @@ test("JUAN automatically draws two when its call is missed before the next actio
   assertGameError(() => engine.catchJuan(match, 2), "JUAN_CATCH_NOT_AVAILABLE");
 });
 
-test("a Prism play that leaves one card exposes the same authoritative Call and Catch JUAN window", () => {
+test("a Wild play that leaves one card exposes the same authoritative Call and Catch JUAN window", () => {
   const engine = new MatchEngine({ shuffleDeck: identityShuffle });
   const match = setTable(matchFor(), {
     hands: [["prism-1", "tide-7-a"], ["tide-1-a"], ["grove-1-a"]],
@@ -172,7 +172,7 @@ test("a Prism play that leaves one card exposes the same authoritative Call and 
   assert.equal(caught.pendingJuan, null);
 });
 
-test("JUAN Prism Burst opens a challenge decision instead of drawing cards immediately", () => {
+test("JUAN Wild +4 opens a challenge decision instead of drawing cards immediately", () => {
   const engine = new MatchEngine({ shuffleDeck: identityShuffle });
   const match = setTable(matchFor(), {
     hands: [["prism-burst-1", "tide-7-a"], ["tide-1-a"], ["grove-1-a"]],
@@ -220,7 +220,7 @@ test("JUAN Prism Burst opens a challenge decision instead of drawing cards immed
   assert.equal(match.activeSeat, 2);
 });
 
-test("a successful Prism Burst challenge makes the player who used it illegally draw four and restores the target turn", () => {
+test("a successful Wild +4 challenge makes the player who used it illegally draw four and restores the target turn", () => {
   const engine = new MatchEngine({ shuffleDeck: identityShuffle });
   const match = setTable(matchFor(), {
     hands: [["prism-burst-1", "blaze-7-a", "tide-7-a"], ["spark-1-a"], ["grove-1-a"]],
@@ -233,10 +233,10 @@ test("a successful Prism Burst challenge makes the player who used it illegally 
   assert.equal(match.players[1].hand.length, 1);
   assert.equal(match.pendingPrismBurst, null);
   assert.equal(match.activeSeat, 1, "The challenged player gets their turn back");
-  assert.match(match.lastMoveText, /won the Prism Burst challenge/);
+  assert.match(match.lastMoveText, /won the Wild \+4 challenge/);
 });
 
-test("a failed Prism Burst challenge draws six and skips the challenged player", () => {
+test("a failed Wild +4 challenge draws six and skips the challenged player", () => {
   const engine = new MatchEngine({ shuffleDeck: identityShuffle });
   const match = setTable(matchFor(), {
     hands: [["prism-burst-1", "tide-7-a", "grove-7-a"], ["spark-1-a"], ["grove-1-a"]],
@@ -248,10 +248,10 @@ test("a failed Prism Burst challenge draws six and skips the challenged player",
   assert.equal(match.players[1].hand.length, 7);
   assert.equal(match.pendingPrismBurst, null);
   assert.equal(match.activeSeat, 2);
-  assert.match(match.lastMoveText, /lost the Prism Burst challenge/);
+  assert.match(match.lastMoveText, /lost the Wild \+4 challenge/);
 });
 
-test("JUAN does not end a Prism Burst finish until the target resolves its challenge", () => {
+test("JUAN does not end a Wild +4 finish until the target resolves its challenge", () => {
   const engine = new MatchEngine({ shuffleDeck: identityShuffle });
   const match = setTable(matchFor(), {
     hands: [["prism-burst-1"], ["spark-1-a"], ["grove-1-a"]],

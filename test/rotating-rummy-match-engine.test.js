@@ -151,16 +151,108 @@ test("next rounds retain player Route progress and use the same Route Deck", () 
   assert.equal(next.players[0].score, 12);
 });
 
-test("Pass cards move play past the next seat after a discard", () => {
+test("Pass can target a later opponent while intervening players take turns, then expires after one skip", () => {
   const game = engine();
-  const table = matchFor();
+  const table = matchFor([human(0, "One"), human(1, "Two"), human(2, "Three"), human(3, "Four")]);
   setTable(table, {
-    hands: [["rr-lock-1", "rr-red-1-a"], ["rr-blue-1-a"], ["rr-green-1-a"]],
+    hands: [["rr-lock-1", "rr-red-1-a", "rr-red-2-a"], ["rr-blue-1-a", "rr-blue-2-a", "rr-blue-3-a"], ["rr-green-1-a", "rr-green-2-a"], ["rr-yellow-1-a", "rr-yellow-2-a"]],
+    stock: ["rr-red-9-a", "rr-blue-9-a", "rr-green-9-a", "rr-yellow-9-a", "rr-red-10-a"],
     turnStage: "play"
   });
-  game.discard(table, 0, "rr-lock-1");
+  game.discard(table, 0, "rr-lock-1", 2);
+  assert.equal(table.activeSeat, 1);
+  assert.deepEqual(table.pendingSkipSeats, [2]);
+  assert.match(table.lastMoveText, /Three will miss their next turn/);
+  assert.deepEqual(JSON.parse(JSON.stringify(table)).pendingSkipSeats, [2]);
+  game.drawStock(table, 1);
+  game.discard(table, 1, "rr-blue-1-a");
+  assert.equal(table.activeSeat, 3);
+  assert.deepEqual(table.pendingSkipSeats, []);
+  game.drawStock(table, 3);
+  game.discard(table, 3, "rr-yellow-1-a");
+  assert.equal(table.activeSeat, 0);
+  game.drawStock(table, 0);
+  game.discard(table, 0, "rr-red-1-a");
+  assert.equal(table.activeSeat, 1);
+  game.drawStock(table, 1);
+  game.discard(table, 1, "rr-blue-2-a");
   assert.equal(table.activeSeat, 2);
-  assert.match(table.lastMoveText, /discarded a Pass\. Play moves past Two/);
+});
+
+test("Pass skips the immediately next opponent, including at a two-player table", () => {
+  const game = engine();
+  const three = matchFor();
+  setTable(three, { hands: [["rr-lock-1", "rr-red-1-a"], ["rr-blue-1-a"], ["rr-green-1-a"]], turnStage: "play" });
+  game.discard(three, 0, "rr-lock-1", 1);
+  assert.equal(three.activeSeat, 2);
+  assert.deepEqual(three.pendingSkipSeats, []);
+
+  const two = matchFor([human(0, "One"), human(1, "Two")]);
+  setTable(two, { hands: [["rr-lock-1", "rr-red-1-a"], ["rr-blue-1-a"]], turnStage: "play" });
+  game.discard(two, 0, "rr-lock-1", 1);
+  assert.equal(two.activeSeat, 0);
+  assert.deepEqual(two.pendingSkipSeats, []);
+});
+
+test("Pass target validation rejects missing, self, and invalid seats without changing the match", () => {
+  const game = engine();
+  const table = matchFor();
+  setTable(table, { hands: [["rr-lock-1", "rr-red-1-a"], ["rr-blue-1-a"], ["rr-green-1-a"]], turnStage: "play" });
+  for (const target of [undefined, null, 0, 9, "2"]) {
+    const before = structuredClone(table);
+    assertGameError(() => game.discard(table, 0, "rr-lock-1", target), "INVALID_PASS_TARGET");
+    assert.deepEqual(table, before);
+  }
+  game.discard(table, 0, "rr-red-1-a");
+  assert.equal(table.activeSeat, 1);
+  assert.deepEqual(table.pendingSkipSeats, []);
+});
+
+test("a Pass on top of discard is unavailable to humans and bots", () => {
+  const game = engine();
+  const table = matchFor([human(0, "One"), bot(1, "Bot")]);
+  setTable(table, { hands: [["rr-red-1-a"], ["rr-blue-1-a", "rr-blue-2-a"]], top: "rr-lock-1", stock: ["rr-red-9-a"], activeSeat: 0 });
+  assert.equal(game.viewFor(table, 0).state.actions.drawDiscard, false);
+  const before = structuredClone(table);
+  assertGameError(() => game.drawDiscard(table, 0), "PASS_DISCARD_BLOCKED");
+  assert.deepEqual(table, before);
+  table.activeSeat = 1;
+  game.runBotTurn(table);
+  assert.equal(table.players[1].lastPlay.label, "Drew stock");
+  assert.equal(table.discardPile.at(-1).id, "rr-lock-1");
+});
+
+test("a bot can discard a Pass through the same target validation", () => {
+  const game = engine();
+  const table = matchFor([human(0, "One"), bot(1, "Bot"), human(2, "Three")]);
+  setTable(table, { hands: [["rr-red-1-a"], ["rr-lock-1", "rr-blue-1-a"], ["rr-green-1-a"]], activeSeat: 1, turnStage: "play" });
+  game.runBotTurn(table);
+  assert.equal(table.discardPile.at(-1).id, "rr-lock-1");
+  assert.match(table.lastMoveText, /discarded a Pass/);
+  assert.equal(table.activeSeat, 0);
+});
+
+test("the Rummy runtime forwards Pass targets and restores pending skips from snapshots", () => {
+  const table = matchFor();
+  setTable(table, {
+    hands: [["rr-lock-1", "rr-red-1-a"], ["rr-blue-1-a", "rr-blue-2-a"], ["rr-green-1-a"]],
+    stock: ["rr-red-9-a"],
+    turnStage: "play"
+  });
+  const restore = (state) => new RotatingRummyRuntime({ matchEngine: engine(), restoredMatches: [{ gameId: "rotating-rummy", code: "PASS", state }] });
+  const runtime = restore(table);
+  const room = { code: "PASS", players: [{ seat: 0, isYou: true }] };
+  assertGameError(() => runtime.act(room, { type: "rummy_discard", cardId: "rr-lock-1" }), "INVALID_PASS_TARGET");
+  runtime.act(room, { type: "rummy_discard", cardId: "rr-lock-1", targetSeat: 2 });
+  const saved = runtime.snapshot("PASS");
+  assert.deepEqual(saved.pendingSkipSeats, [2]);
+  const resumed = restore(saved);
+  const resumedMatch = resumed.snapshot("PASS");
+  assert.equal(resumedMatch.activeSeat, 1);
+  engine().drawStock(resumedMatch, 1);
+  engine().discard(resumedMatch, 1, "rr-blue-1-a");
+  assert.equal(resumedMatch.activeSeat, 0);
+  assert.deepEqual(resumedMatch.pendingSkipSeats, []);
 });
 
 test("Rotating Rummy CPUs expose draw, Route, and discard as separate steps", () => {
@@ -206,7 +298,7 @@ test("Rotating Rummy CPUs link compatible cards so short Routes can still go out
   assert.equal(table.players[1].hand.length, 0);
 });
 
-test("Rotating Rummy CPUs preserve a useful Glitch instead of feeding it to the next player", () => {
+test("Rotating Rummy CPUs preserve a useful Wild instead of feeding it to the next player", () => {
   const game = engine();
   const table = matchFor([human(0, "Host"), bot(1, "Byte")]);
   setTable(table, {
@@ -219,7 +311,7 @@ test("Rotating Rummy CPUs preserve a useful Glitch instead of feeding it to the 
   assert.ok(table.players[1].hand.some((entry) => entry.kind === "glitch"));
 });
 
-test("Rotating Rummy CPUs take a public Glitch when it materially improves Route prospects", () => {
+test("Rotating Rummy CPUs take a public Wild when it materially improves Route prospects", () => {
   const game = engine();
   const table = matchFor([human(0, "Host"), bot(1, "Byte")]);
   setTable(table, {

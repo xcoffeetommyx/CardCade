@@ -171,7 +171,7 @@ test("alternate standard skins cover faces, backs, stacks, and previews without 
   assert.doesNotMatch(css, /\.juan-card\.card-skin-(?:casino-gold|royal-violet|crimson-arcade)/);
 });
 
-test("JUAN skins cover number, action, Prism, backs, piles, opponent minis, and previews without leaking into Standard 52", () => {
+test("JUAN skins cover number, action, Wild, backs, piles, opponent minis, and previews without leaking into Standard 52", () => {
   const app = read("public/app.js");
   const css = read("public/app.css");
 

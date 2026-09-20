@@ -114,3 +114,17 @@ test("Rotating Rummy's blackout and light skins remain deck-family-scoped visual
   assert.match(skins, /id: "rotating-rummy-light"/);
   assert.doesNotMatch(css, /\.playing-card\.card-skin-rotating-rummy-(?:blackout|light)\.(?:red|black)/);
 });
+
+test("Rotating Rummy Pass picker sends a target and supports cancel and controller focus", () => {
+  const app = read("public/app.js");
+  const css = read("public/app.css");
+  assert.match(app, /discard\.kind === "lock"\) \{\s*state\.rummyPassCardId = discard\.id;\s*render\(\);/);
+  assert.match(app, /class="rummy-pass-dialog" role="dialog" aria-modal="true"/);
+  assert.match(app, /data-action="rummy-pass-target" data-target-seat="\$\{player\.seat\}"/);
+  assert.match(app, /data-action="rummy-pass-cancel"/);
+  assert.match(app, /type: "rummy_discard", cardId: discard\.id, \.\.\.\(targetSeat === undefined \? \{\} : \{ targetSeat \}\)/);
+  assert.match(app, /app\.querySelector\("\.rummy-pass-dialog \.rummy-pass-targets button"\)/);
+  assert.match(app, /app\.querySelector\("\.rummy-pass-dialog"\)/);
+  assert.match(css, /\.rummy-pass-dialog \{[\s\S]*?position: fixed;[\s\S]*?z-index: var\(--layer-gameplay-overlay\);/);
+  assert.match(css, /\.rummy-pass-picker \{[\s\S]*?width: min\(380px, 100%\);/);
+});

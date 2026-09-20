@@ -6,14 +6,14 @@ import rules from "../shared/juan-rules.js";
 const cards = new Map(deck.makeDeck().map((card) => [card.id, card]));
 const card = (id) => cards.get(id);
 
-test("JUAN matches the active color, the printed face, or a Prism", () => {
+test("JUAN matches the active color, the printed face, or a Wild", () => {
   const top = card("blaze-3-a");
   assert.equal(rules.canPlay(card("blaze-7-a"), top, "blaze"), true);
   assert.equal(rules.canPlay(card("tide-3-a"), top, "blaze"), true);
   assert.equal(rules.canPlay(card("tide-7-a"), top, "blaze"), false);
   assert.equal(rules.canPlay(card("prism-1"), top, "blaze"), true);
   assert.equal(rules.canPlay(card("prism-burst-1"), top, "blaze"), true);
-  assert.equal(rules.canPlay(card("grove-7-a"), top, "grove"), true, "a Prism-selected color controls the next match");
+  assert.equal(rules.canPlay(card("grove-7-a"), top, "grove"), true, "a Wild-selected color controls the next match");
 });
 
 test("JUAN action faces match across color lanes", () => {

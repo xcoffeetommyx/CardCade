@@ -1099,7 +1099,7 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 .skin-preview-juan-face b { font: 400 2.4rem "Cardcade Ranks", monospace; text-shadow: 2px 2px 0 rgba(5,13,26,.16); }
 .skin-preview-juan-prism { color: #fffaf0; background: radial-gradient(circle at 50% 45%, rgba(124,169,217,.22), transparent 36%), #0b1320; }
 .skin-preview-juan-prism small { position: absolute; top: 6px; left: 7px; font: 800 .4rem "Cardcade Pixel", monospace; letter-spacing: -.03em; }
-.skin-preview-juan-prism b { font: 900 1.8rem "Cardcade Pixel", monospace; }
+.skin-preview-juan-prism .juan-wild-tiles { width: 48%; aspect-ratio: 1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8%; }
 .skin-preview-juan-back { color: #fffaf0; background: linear-gradient(135deg, rgba(255,255,255,.08), transparent 46%), #0b1c34; font: 900 .68rem "Cardcade Pixel", monospace; letter-spacing: .1em; }
 .skin-preview-rummy-face { color: #f5ca4d; border-color: #dce9f4; background: #080c12; }
 .skin-preview-rummy-face small { position: absolute; top: 6px; left: 7px; font: 400 .9rem "Cardcade Ranks", monospace; }
@@ -1908,33 +1908,37 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 }
 
 .juan-lane-bar {
+  --juan-active: #2d7dd2;
   min-height: 50px;
   padding: 8px 14px;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: clamp(8px, 2vw, 18px);
-  border: 2px solid var(--line);
+  border: 2px solid color-mix(in srgb, var(--juan-active) 72%, #fff);
   border-radius: 13px;
-  color: var(--muted);
-  background: rgba(8, 24, 43, .88);
+  color: #f1f5f9;
+  background:
+    linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px),
+    radial-gradient(circle at 50% 0, color-mix(in srgb, var(--juan-active) 47%, #102039), color-mix(in srgb, var(--juan-active) 19%, #081525) 72%);
+  background-size: 5px 5px, 5px 5px, auto;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.16), inset 0 -9px 22px rgba(0,0,0,.23), 0 0 18px color-mix(in srgb, var(--juan-active) 22%, transparent);
   font: 800 .7rem "Cardcade Pixel", "Courier New", monospace;
   text-transform: uppercase;
   letter-spacing: .06em;
 }
-.juan-lane-bar > strong { min-width: 52px; color: var(--ink); }
-.juan-lane { width: 18px; height: 18px; border: 2px solid rgba(255,255,255,.5); border-radius: 4px; opacity: .36; transform: rotate(45deg) scale(.72); transition: transform 160ms ease, opacity 160ms ease, box-shadow 160ms ease; }
-.juan-lane.active { opacity: 1; transform: rotate(45deg) scale(1); box-shadow: 0 0 0 3px rgba(255,255,255,.12), 0 0 18px currentColor; }
-.juan-direction { min-width: 34px; color: var(--mint); font-size: 1.35rem; text-align: center; }
+.juan-lane-bar > strong { min-width: 52px; color: color-mix(in srgb, var(--juan-active) 40%, white); text-shadow: 0 1px 2px #06101f; }
+.juan-direction { min-width: 34px; color: #fff; font-size: 1.35rem; text-align: center; }
+.juan-game[data-active-color="blaze"] .juan-lane-bar { --juan-active: var(--juan-blaze); }
+.juan-game[data-active-color="tide"] .juan-lane-bar { --juan-active: var(--juan-tide); }
+.juan-game[data-active-color="grove"] .juan-lane-bar { --juan-active: var(--juan-grove); }
+.juan-game[data-active-color="spark"] .juan-lane-bar { --juan-active: var(--juan-spark); }
 
 .juan-blaze { --juan-face: var(--juan-blaze, #ef4d54); --juan-deep: #a92138; }
 .juan-tide { --juan-face: var(--juan-tide, #2d7dd2); --juan-deep: #14508c; }
 .juan-grove { --juan-face: var(--juan-grove, #43b66b); --juan-deep: #18723f; }
 .juan-spark { --juan-face: var(--juan-spark, #f2bf3d); --juan-deep: #b87918; }
-.juan-lane.juan-blaze { background: #ef4d54; color: #ef4d54; }
-.juan-lane.juan-tide { background: #2d7dd2; color: #2d7dd2; }
-.juan-lane.juan-grove { background: #43b66b; color: #43b66b; }
-.juan-lane.juan-spark { background: #f2bf3d; color: #f2bf3d; }
 
 .juan-reaction-panel {
   min-width: 0;
@@ -2190,33 +2194,16 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   -webkit-text-stroke-color: #07101d;
 }
 .juan-action-prism,
-.juan-action-prism-burst { width: 78%; height: 74%; }
-.juan-action-prism i,
-.juan-action-prism-burst i {
-  width: 19%;
-  aspect-ratio: 1;
-  border: 2px solid rgba(255,250,240,.82);
-  border-radius: 2px;
-  box-shadow: 1px 2px 0 rgba(0,0,0,.28);
-  transform: rotate(45deg);
-}
-.juan-action-prism i:nth-child(1), .juan-action-prism-burst i:nth-child(1) { left: 4%; top: 12%; background: #ef4d54; }
-.juan-action-prism i:nth-child(2), .juan-action-prism-burst i:nth-child(2) { right: 4%; top: 12%; background: #f2bf3d; }
-.juan-action-prism i:nth-child(3), .juan-action-prism-burst i:nth-child(3) { left: 4%; bottom: 12%; background: #2d7dd2; }
-.juan-action-prism i:nth-child(4), .juan-action-prism-burst i:nth-child(4) { right: 4%; bottom: 12%; background: #43b66b; }
-.juan-action-prism b {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 34%;
-  aspect-ratio: 1;
-  border: 2px solid rgba(5,13,26,.22);
-  border-radius: 3px;
-  background: #fffaf0;
-  box-shadow: 2px 3px 0 rgba(0,0,0,.28);
-  transform: translate(-50%, -50%) rotate(45deg);
-}
-.juan-action-prism-burst b { padding: 0; border: 0; border-radius: 0; background: transparent; }
+.juan-action-prism-burst { width: 80%; height: 80%; display: grid; place-items: center; align-content: center; gap: 6%; }
+.juan-wild-tiles { width: 68%; aspect-ratio: 1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8%; }
+.juan-action-mark .juan-wild-tiles i,
+.skin-preview-juan-prism .juan-wild-tiles i { position: static; display: block; border: 1px solid rgba(255,250,240,.75); border-radius: 2px; box-shadow: 1px 2px 0 rgba(0,0,0,.3); transform: none; }
+.juan-wild-tiles i:nth-child(1) { background: #ef4d54; }
+.juan-wild-tiles i:nth-child(2) { background: #2d7dd2; }
+.juan-wild-tiles i:nth-child(3) { background: #43b66b; }
+.juan-wild-tiles i:nth-child(4) { background: #f2bf3d; }
+.juan-action-prism-burst .juan-wild-tiles { width: 51%; }
+.juan-action-prism-burst b { position: static; padding: 0; border: 0; border-radius: 0; background: transparent; transform: none; }
 .juan-card.played .juan-card-center { inset: 20% 13% 17%; }
 .juan-card.played .juan-card-center > b { font-size: 3rem; }
 .juan-card.played .juan-action-mark { transform: scale(.88); }
@@ -2442,6 +2429,32 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
 .rummy-route-banner.complete .family-kicker { color: #ffe3a1; }
 .rummy-route-banner.complete h3 { color: #fff6d6; }
 .rummy-route-banner.complete p { color: #f0dbab; }
+.rummy-pass-dialog {
+  position: fixed;
+  z-index: var(--layer-gameplay-overlay);
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: max(16px, var(--safe-top)) max(14px, var(--safe-right)) max(16px, var(--safe-bottom)) max(14px, var(--safe-left));
+  background: rgba(2, 8, 18, .76);
+  backdrop-filter: blur(6px);
+}
+.rummy-pass-picker {
+  width: min(380px, 100%);
+  padding: 20px;
+  border: 2px solid #dfebf5;
+  border-radius: 16px;
+  background: linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px), radial-gradient(circle at 50% 0, #1b3750, #091728 72%);
+  background-size: 5px 5px, 5px 5px, auto;
+  box-shadow: 8px 10px 0 rgba(0,0,0,.5), 0 0 28px rgba(79,167,255,.18);
+  text-align: center;
+}
+.rummy-pass-picker h3 { margin: 5px 0; font-size: 1.15rem; }
+.rummy-pass-picker p { margin: 0 0 15px; color: #ccd9e5; font-size: .78rem; }
+.rummy-pass-targets { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+.rummy-pass-targets button { min-height: 48px; overflow-wrap: anywhere; border: 1px solid #8db5d8; border-radius: 9px; color: #f5f9fc; background: #173653; font: 800 .72rem "Cardcade Pixel", monospace; }
+.rummy-pass-targets button:hover, .rummy-pass-targets button:focus-visible { border-color: #f5ca4d; background: #245276; }
+.rummy-pass-cancel { min-height: 42px; margin-top: 12px; padding: 7px 18px; border: 1px solid #91abc2; border-radius: 8px; color: #e4edf5; background: #15283a; }
 .rummy-route-circuit { flex: 0 0 auto; }
 .rummy-pattern-help { border: 1px solid rgba(126,159,194,.48); border-radius: 10px; background: rgba(8,20,35,.84); color: var(--muted); font-size: .68rem; }
 .rummy-pattern-help-toggle { width: 100%; min-height: 0; margin: 0; padding: 8px 11px; display: flex; align-items: center; justify-content: space-between; border: 0; border-radius: 9px; background: transparent; color: #dce9f4; cursor: pointer; font: 800 .68rem "Cardcade Pixel", monospace; letter-spacing: .04em; text-align: left; }
@@ -3273,7 +3286,6 @@ h3 { margin-bottom: 0.4rem; font-size: 1.05rem; }
   .playing-card.played { flex-basis: 72px; width: 72px; height: 102px; }
   .game-actions button { font-size: .69rem; padding-inline: 4px; }
   .juan-lane-bar { min-height: 44px; gap: 8px; padding-inline: 7px; font-size: .6rem; }
-  .juan-lane { width: 15px; height: 15px; }
   .juan-lane-bar > strong { min-width: 42px; }
   .juan-direction { min-width: 25px; font-size: 1.1rem; }
   .juan-gameplay-overlay { bottom: max(7px, calc(var(--safe-bottom) + 4px)); width: calc(100% - var(--safe-left) - var(--safe-right) - 14px); gap: 5px; }

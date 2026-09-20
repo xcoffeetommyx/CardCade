@@ -44,7 +44,7 @@ test("JUAN has its own renderer while retaining the shared fan and motion path",
   assert.match(css, /\.juan-action-double-draw b \{[\s\S]*?color: #fffaf0;[\s\S]*?-webkit-text-stroke-color: #07101d;/);
   assert.match(css, /\.juan-card\.card-skin-juan-paper-pop:is\(\.juan-kind-double-draw, \.juan-kind-prism-burst\) \.juan-corner strong \{[\s\S]*?color: #07101d;[\s\S]*?-webkit-text-stroke: 0;/);
   assert.match(css, /\.juan-card\.card-skin-juan-paper-pop \.juan-action-double-draw b,[\s\S]*?color: #07101d;[\s\S]*?-webkit-text-stroke-color: var\(--juan-face\);/);
-  assert.match(css, /\.juan-action-prism-burst b \{ padding: 0; border: 0; border-radius: 0; background: transparent; \}/);
+  assert.match(css, /\.juan-action-prism-burst b \{ position: static;[\s\S]*?background: transparent; transform: none; \}/);
   assert.match(app, /renderOrdinaryStock\(\{ deckFamilyId: "color-action", className: "juan-stock", count: match\.stockCount \}\)/);
   assert.match(css, /\.ordinary-stock-copy/);
   assert.doesNotMatch(css, /\.card-back-count/);
@@ -90,6 +90,26 @@ test("JUAN has its own renderer while retaining the shared fan and motion path",
   assert.doesNotMatch(renderer, /JUAN/);
   assert.doesNotMatch(renderer, /juan-card-brand/);
   assert.doesNotMatch(renderer, /juan-card-emblem/);
+});
+
+test("JUAN Wild cards use square color tiles and the active color tints the full bar", () => {
+  const app = read("public/app.js");
+  const css = read("public/app.css");
+  const cardMark = app.slice(app.indexOf("function juanActionMark"), app.indexOf("function renderJuanCard"));
+  const laneBar = app.slice(app.indexOf('<div class="juan-lane-bar">'), app.indexOf('<div class="juan-lane-bar">') + 350);
+  assert.match(cardMark, /juan-wild-tiles"><i><\/i><i><\/i><i><\/i><i><\/i>/);
+  assert.match(cardMark, /kind === "prism-burst" \? "<b>\+4<\/b>"/);
+  assert.match(css, /\.juan-wild-tiles \{[^}]*grid-template-columns: repeat\(2/);
+  assert.match(css, /\.juan-action-mark \.juan-wild-tiles i,[\s\S]*?transform: none;/);
+  for (const color of ["blaze", "tide", "grove", "spark"]) {
+    assert.match(css, new RegExp(`\\.juan-game\\[data-active-color="${color}"\\] \\.juan-lane-bar`));
+  }
+  assert.match(css, /\.juan-lane-bar \{[\s\S]*?background:[\s\S]*?radial-gradient/);
+  assert.doesNotMatch(laneBar, /juanDeck\.COLORS\.map|juan-lane /);
+  assert.match(app, /Choose the Wild's next color/);
+  assert.match(app, /<strong>Wild \+4<\/strong>/);
+  assert.match(app, /played a \$\{reveal\.card\.kind === "prism-burst" \? "Wild \+4" : "Wild"\}/);
+  assert.doesNotMatch(app, />Prism Burst|played a Prism|Prism in hand/);
 });
 
 test("JUAN authoritative reactions stay above non-interactive cinematic reveals", () => {

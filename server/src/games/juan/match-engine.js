@@ -99,13 +99,13 @@ export class MatchEngine {
     if (!card) throw new RoomError("That card is not in your hand.", "CARD_NOT_OWNED");
     const topCard = match.discardPile.at(-1);
     if (!rules.canPlay(card, topCard, match.activeColor)) {
-      throw new RoomError("Match the active color or printed face, or play a Prism.", "CARD_DOES_NOT_MATCH");
+      throw new RoomError("Match the active color or printed face, or play a Wild.", "CARD_DOES_NOT_MATCH");
     }
     if (match.drawnSeat === player.seat && match.drawnCardId && card.id !== match.drawnCardId) {
       throw new RoomError("After drawing, play the drawn card or keep your hand.", "DRAWN_CARD_ONLY");
     }
     if ((card.kind === "prism" || card.kind === "prism-burst") && !juanDeck.COLORS.includes(chosenColor)) {
-      throw new RoomError("Choose a color lane for the Prism.", "COLOR_REQUIRED");
+      throw new RoomError("Choose a color lane for the Wild.", "COLOR_REQUIRED");
     }
 
     const missedJuan = this.#resolveMissedJuan(match);
@@ -226,7 +226,7 @@ export class MatchEngine {
     const count = this.#drawCards(match, target, 4).length;
     syncJuanAfterDraw(match, target);
     target.lastPlay = { kind: "draw", label: `Drew ${count}`, cards: [] };
-    match.lastMoveText = `${missedJuan}${target.name} takes the four-card Prism Burst and loses the turn.`;
+    match.lastMoveText = `${missedJuan}${target.name} takes the Wild +4 and loses the turn.`;
     match.log.unshift(match.lastMoveText);
     if (source.hand.length === 0) {
       finishRound(match, source);
@@ -245,7 +245,7 @@ export class MatchEngine {
       const count = this.#drawCards(match, source, 4).length;
       syncJuanAfterDraw(match, source);
       source.lastPlay = { kind: "penalty", label: `Lost +4 challenge · drew ${count}`, cards: [] };
-      match.lastMoveText = `${missedJuan}${target.name} won the Prism Burst challenge. ${source.name} draws ${count}, and ${target.name} keeps the turn.`;
+      match.lastMoveText = `${missedJuan}${target.name} won the Wild +4 challenge. ${source.name} draws ${count}, and ${target.name} keeps the turn.`;
       match.log.unshift(match.lastMoveText);
       match.activeSeat = target.seat;
       return match;
@@ -254,7 +254,7 @@ export class MatchEngine {
     const count = this.#drawCards(match, target, 6).length;
     syncJuanAfterDraw(match, target);
     target.lastPlay = { kind: "penalty", label: `Lost +4 challenge · drew ${count}`, cards: [] };
-    match.lastMoveText = `${missedJuan}${target.name} lost the Prism Burst challenge, draws ${count}, and loses the turn.`;
+    match.lastMoveText = `${missedJuan}${target.name} lost the Wild +4 challenge, draws ${count}, and loses the turn.`;
     match.log.unshift(match.lastMoveText);
     if (source.hand.length === 0) {
       finishRound(match, source);
@@ -449,7 +449,7 @@ export class MatchEngine {
         chosenColor: match.activeColor,
         sourceHadPriorColor: prismBurst?.sourceHadPriorColor === true
       };
-      match.lastMoveText += ` ${target.name} may challenge the Prism Burst or take four.`;
+      match.lastMoveText += ` ${target.name} may challenge the Wild +4 or take four.`;
       match.activeSeat = target.seat;
       return;
     }
@@ -495,12 +495,12 @@ export class MatchEngine {
     requirePlayingMatch(match);
     const target = requirePlayer(match, seat);
     const pending = match.pendingPrismBurst;
-    if (!pending) throw new RoomError("No Prism Burst challenge is waiting.", "PRISM_BURST_NOT_PENDING", 409);
+    if (!pending) throw new RoomError("No Wild +4 challenge is waiting.", "PRISM_BURST_NOT_PENDING", 409);
     if (pending.targetSeat !== target.seat || match.activeSeat !== target.seat) {
-      throw new RoomError("Only the Prism Burst target can resolve it.", "PRISM_BURST_TARGET_ONLY", 409);
+      throw new RoomError("Only the Wild +4 target can resolve it.", "PRISM_BURST_TARGET_ONLY", 409);
     }
     const source = getPlayer(match, pending.sourceSeat);
-    if (!source) throw new RoomError("The Prism Burst source is unavailable.", "PRISM_BURST_SOURCE_MISSING", 409);
+    if (!source) throw new RoomError("The Wild +4 source is unavailable.", "PRISM_BURST_SOURCE_MISSING", 409);
     return { pending, source, target };
   }
 }
@@ -542,7 +542,7 @@ function requireActivePlayer(match, seat) {
 
 function requireNoPendingPrismBurst(match) {
   if (match.pendingPrismBurst) {
-    throw new RoomError("Resolve the Prism Burst by challenging it or taking four first.", "PRISM_BURST_RESPONSE_REQUIRED", 409);
+    throw new RoomError("Resolve the Wild +4 by challenging it or taking four first.", "PRISM_BURST_RESPONSE_REQUIRED", 409);
   }
 }
 

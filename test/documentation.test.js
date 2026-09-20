@@ -30,7 +30,7 @@ test("JUAN documentation defines a four-round cumulative match and intentional t
   assert.match(juan, /Scores are cumulative/i);
   assert.match(juan, /joint winners/i);
   assert.match(juan, /Round 1 chooses one opening player at random/i);
-  assert.match(juan, /number scores its printed value plus one.*Pause scores 12.*Prism Burst scores 35/is);
+  assert.match(juan, /number scores its printed value plus one.*Pause scores 12.*Wild \+4 scores 35/is);
   assert.doesNotMatch(juan, /Emptying the hand wins the match/i);
 });
 
@@ -38,8 +38,10 @@ test("custom-game documentation matches implemented inventory and round structur
   const rummy = read("docs/rotating-rummy.md");
   const finders = read("docs/finders-makers.md");
 
-  assert.match(rummy, /8 Glitches/);
-  assert.match(rummy, /4 Locks/);
+  assert.match(rummy, /8 Wild cards/);
+  assert.match(rummy, /4 Pass cards/);
+  assert.match(rummy, /skip a chosen opponent's next turn/);
+  assert.match(rummy, /cannot be taken from the discard pile/);
   assert.match(finders, /normal match lasts four rounds/i);
   assert.match(finders, /exactly three Pieces/i);
   assert.match(finders, /2–2 tie.*Sudden Death/is);

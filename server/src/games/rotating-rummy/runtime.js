@@ -81,7 +81,7 @@ export class RotatingRummyRuntime {
         this.#engine.link(match, viewer.seat, action.targetSeat, action.groupIndex, action.cardIds);
         break;
       case "rummy_discard":
-        this.#engine.discard(match, viewer.seat, action.cardId);
+        this.#engine.discard(match, viewer.seat, action.cardId, action.targetSeat);
         break;
       case "rummy_next_round":
         this.#nextRound(room.code, match, viewer);
