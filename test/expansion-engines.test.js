@@ -145,6 +145,7 @@ test("FLEEP has 112 faces per side and opaque unique physical pairings", () => {
 
 function fleepFixture(side = "light") {
   const engine = new FleepEngine(); const m = engine.create(humans(2));
+  m.drawEvents = []; m.drawSequence = 0; m.colorChoice = null; m.colorSequence = 0;
   m.side = side; m.phase = "playing"; m.activeSeat = 0; m.call = null; m.pending = null; m.drawnId = null;
   m.activeColor = fleepDeck.COLORS[side][0]; m.direction = 1;
   const make = (id, kind, color = m.activeColor, value = null) => ({ id, [side]: { kind, color, value, side }, [side === "light" ? "dark" : "light"]: { kind: "number", value: 3, color: fleepDeck.COLORS[side === "light" ? "dark" : "light"][0], side: side === "light" ? "dark" : "light" } });
@@ -232,4 +233,72 @@ test("FLEEP CPU simulations finish four rounds and preserve 112 paired cards", (
     }
     assert.equal(m.matchOver, true); assert.equal(m.round, 4); assert.ok(m.winners.length);
   }
+});
+
+
+test("FLEEP explains a seven-card Draw Color and a subsequent two-card penalty exactly once", () => {
+  const { engine, m, make } = fleepFixture("dark");
+  m.players[1].hand = Array.from({ length: 4 }, (_, i) => make(`held${i}`, "number", "lagoon", 3));
+  m.players[0].hand = [make("action", "wild-color", null), make("spare", "number", "lagoon", 3)];
+  m.stock = [make("stop", "number", "dusk", 1), ...Array.from({ length: 6 }, (_, i) => make(`draw${i}`, "number", "ember", 2))];
+  engine.act(m, 0, { type: "play", cardId: "action", chosenColor: "dusk", declareJuan: true });
+  engine.act(m, 1, { type: "accept" });
+  assert.equal(m.players[1].hand.length, 11);
+  assert.equal(m.drawEvents.at(-1).count, 7);
+  assert.match(m.drawEvents.at(-1).reason, /draw through Dusk/);
+  assert.equal(m.drawEvents.at(-1).handCount, 11);
+  const saved = structuredClone(m);
+  assert.throws(() => engine.act(m, 1, { type: "accept" }));
+  assert.deepEqual(m.drawEvents, saved.drawEvents);
+  // Follow with a light-side draw Wild; each physical penalty has one event.
+  m.side = "light"; m.activeColor = "blaze"; m.activeSeat = 0;
+  const wild = { id: "two", light: { kind: "wild-two", color: null, side: "light" }, dark: { kind: "number", color: "dusk", value: 1, side: "dark" } };
+  m.players[0].hand.push(wild);
+  engine.act(m, 0, { type: "play", cardId: "two", chosenColor: "tide", declareJuan: true });
+  engine.act(m, 1, { type: "accept" });
+  assert.equal(m.players[1].hand.length, 13);
+  assert.equal(m.drawEvents.at(-1).count, 2);
+  const view = engine.view(m, 1);
+  assert.equal(view.state.drawEvents.length, 2);
+  assert.ok(view.state.drawEvents.every(e => !('cards' in e)));
+});
+
+test("FLEEP clears Call JUAN after drawing and ignores stale restored calls", () => {
+  const { engine, m } = fleepFixture();
+  m.players[1].hand = m.players[1].hand.slice(0, 1); m.call = { seat: 1, at: 0 };
+  engine.drawCards(m, 1, 5, null, "Draw Five");
+  assert.equal(m.call, null); assert.equal(m.players[1].hand.length, 6);
+  m.call = { seat: 1, at: 0 }; // Old snapshot with a now-invalid call.
+  engine.missedCall(m);
+  assert.equal(m.players[1].hand.length, 6); assert.equal(m.call, null);
+  assert.equal(m.drawEvents.length, 1);
+});
+
+test("FLEEP failed color challenge separately accounts for its extra two cards", () => {
+  const { engine, m, make } = fleepFixture("dark");
+  m.players[0].hand = [make("action", "wild-color", null), make("left", "number", "lagoon", 9)];
+  engine.act(m, 0, { type: "play", cardId: "action", chosenColor: "dusk", declareJuan: true });
+  const before = m.players[1].hand.length;
+  engine.act(m, 1, { type: "challenge" });
+  const events = m.drawEvents.filter(e => e.seat === 1);
+  assert.equal(events.length, 2); assert.equal(events[1].count, 2);
+  assert.match(events[1].reason, /Failed challenge/);
+  assert.equal(m.players[1].hand.length - before, events.reduce((sum, e) => sum + e.count, 0));
+  const restored = structuredClone(m); const counts = restored.players.map(p => p.hand.length);
+  engine.act(restored, 1, { type: "acknowledge_challenge" });
+  assert.deepEqual(restored.players.map(p => p.hand.length), counts);
+  assert.deepEqual(restored.drawEvents, m.drawEvents);
+});
+
+test("FLEEP publishes a stable color reveal event for dark Wilds and flipped Wild choices", () => {
+  const { engine, m, make } = fleepFixture("dark");
+  m.players[0].hand[0] = make("action", "prism", null);
+  engine.act(m, 0, { type: "play", cardId: "action", chosenColor: "orchid", declareJuan: true });
+  assert.equal(m.colorChoice.color, "orchid"); assert.equal(m.colorChoice.seat, 0);
+  const reveal = structuredClone(m.colorChoice);
+  engine.act(m, 1, { type: "draw" }); assert.deepEqual(m.colorChoice, reveal);
+  m.phase = "choose-color"; m.activeSeat = 1;
+  engine.act(m, 1, { type: "choose_color", color: "dusk" });
+  assert.notEqual(m.colorChoice.id, reveal.id); assert.equal(m.colorChoice.color, "dusk");
+  assert.deepEqual(engine.view(m, 0).state.colorChoice, m.colorChoice);
 });

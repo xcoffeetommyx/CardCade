@@ -36,7 +36,7 @@ Call JUAN when one card remains. Players may catch an uncalled hand; the next ac
 
 Final-card effects resolve before scoring. Number cards score their value; Draw One 10; Draw Five, Turnabout, Pause, and FLEEP 20; Pause All 30; Wild 40; Wild Draw Two 50; Wild Draw Color 60. Score the active side when the round ends. Play four cumulative rounds, rotate the dealer, and share tied highest scores.
 
-Light faces reuse JUAN's renderer and skins, with new Draw One, draw Wild, and FLEEP symbols. Dark faces use the same geometry with distinct colors, dark edging, and geometric decoration. Opponent outward faces are inspectable in a disclosure panel for all seats; current playable faces remain private. The stock exposes only its outward top face.
+Light faces reuse JUAN's renderer and skins, with new Draw One, draw Wild, and FLEEP symbols. Dark faces use the same geometry with distinct colors, dark edging, and geometric decoration. Opponent outward faces are inspectable in the Table info overlay for all seats; current playable faces remain private. The stock exposes only its outward top face.
 
 ## Interfaces and persistence
 
@@ -45,3 +45,5 @@ Light faces reuse JUAN's renderer and skins, with new Draw One, draw Wild, and F
 All expansion game actions include the current `revision`. Stale revisions are rejected, and the room adapter applies actions to a clone before committing, so rejected actions cannot partially mutate the saved match. Actions are `bid`, `pass_cards`, `play`, and `next_round` for trick games; `move`, `draw`, `undo`, `restart`, `new_deal`, and `auto_finish` for Solitaire; and `play`, `draw`, `end_turn`, `choose_color`, `accept`, `challenge`, `acknowledge_challenge`, `juan_call`, `juan_catch`, and `next_round` for FLEEP.
 
 Completed tricks remain visible for 1.2 seconds. Their pending deadline and cards are persisted and resolve exactly once. The new runtimes are registered both in the server factory and restart initialization. Covered cards, stock order, FLEEP pairing inventories, pending pass contents, undo history, and private challenge evidence are not broadcast. No database schema migration is needed.
+
+FLEEP shares JUAN’s fixed viewport table, hand/deal/play motion, color picker, and color-reveal presentation on both sides. Calls and draw decisions use the shared reaction overlay. Table info contains rules, outward faces, and the last twelve draws of the current round, with the recipient, actual count, cause, and resulting hand size. Draw Color can add many cards; its prompt explains the stopping color before acceptance. Challenge evidence and results use bounded dialogs. Drawing away from a one-card hand clears any stale Call JUAN window.

@@ -47,7 +47,7 @@ body:has(.system-banner:not([hidden])) :is(.expansion-game, .solitaire-game) { p
 .fleep-action small { font-size: .65rem; letter-spacing: .05em; }
 .fleep-action-fleep b { font-size: 3.5rem; }
 .fleep-action-pause-all b { font-size: 1.4rem; }
-.fleep-flipped .exp-fleep-piles, .fleep-flipped .game-hand { animation: fleep-turn-in 380ms ease-out; }
+.fleep-flipped .juan-pile-zone { animation: fleep-turn-in 380ms ease-out; }
 @keyframes fleep-turn-in { from { opacity: .25; rotate: y 75deg; } to { opacity: 1; rotate: y 0deg; } }
 .reduced-motion .fleep-flipped .exp-fleep-piles, .reduced-motion .fleep-flipped .game-hand { animation: none; }
 .solitaire-game { --sol-width: 100%; display: block; width: 100%; min-height: 0; }
@@ -93,3 +93,50 @@ body:has(.system-banner:not([hidden])) :is(.expansion-game, .solitaire-game) { p
   .exp-status { font-size: .7rem; }
 }
 @media (prefers-reduced-motion: reduce) { .expansion-game *, .solitaire-game * { animation-duration: .001ms !important; transition-duration: .001ms !important; } }
+
+/* FLEEP uses JUAN's four fixed viewport rows and overlays. Face changes and
+   reaction prompts never contribute another row or resize the hand. */
+.fleep-game .game-topbar p { white-space: nowrap; }
+.fleep-game .hand-heading .selection-status { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fleep-stock { display: grid; place-items: center; width: var(--game-card-width); height: var(--game-card-height); }
+.fleep-stock > .playing-card { position: relative; inset: auto; width: 100%; height: 100%; transform: rotateX(var(--table-card-lay, 40deg)); transform-origin: 50% 64%; }
+.fleep-game[data-active-color="orchid"] .juan-lane-bar { --juan-active: #cb4086; }
+.fleep-game[data-active-color="lagoon"] .juan-lane-bar { --juan-active: #188d89; }
+.fleep-game[data-active-color="ember"] .juan-lane-bar { --juan-active: #de742c; }
+.fleep-game[data-active-color="dusk"] .juan-lane-bar { --juan-active: #8353c1; }
+.juan-color-choice.juan-orchid, .juan-prism-reveal.juan-orchid { --juan-choice: #cb4086; --reveal-color: #cb4086; }
+.juan-color-choice.juan-lagoon, .juan-prism-reveal.juan-lagoon { --juan-choice: #188d89; --reveal-color: #188d89; }
+.juan-color-choice.juan-ember, .juan-prism-reveal.juan-ember { --juan-choice: #de742c; --reveal-color: #de742c; }
+.juan-color-choice.juan-dusk, .juan-prism-reveal.juan-dusk { --juan-choice: #8353c1; --reveal-color: #8353c1; }
+.fleep-dialog { position: fixed; inset: 0; display: grid; place-items: center; padding: max(12px, var(--safe-top)) max(12px, var(--safe-right)) max(12px, var(--safe-bottom)) max(12px, var(--safe-left)); background: #01060ddb; pointer-events: auto; }
+.fleep-dialog-card { width: min(620px, 100%); max-height: 100%; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 18px; border: 2px solid #f4eddf; border-radius: 16px; background: #09182d; color: #f5eedf; line-height: 1.55; }
+.fleep-dialog-card > button:first-child { position: sticky; top: 0; z-index: 2; display: block; margin-left: auto; }
+.fleep-dialog-card h2 { font-size: 1.15rem; }
+.fleep-dialog-card .exp-outward-cards { max-width: 100%; }
+.fleep-draw-history { padding-left: 22px; }
+.fleep-draw-history li { margin-block: 8px; }
+.fleep-dialog .round-summary { margin: 0; }
+
+.fleep-game .juan-prism-picker { max-height: 100%; overflow-y: auto; overscroll-behavior: contain; }
+@media (orientation: landscape) and (max-height: 500px) {
+  .playing-game .fleep-game { grid-template-columns: minmax(160px, 24%) minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr) auto; gap: 5px; }
+  .fleep-game > :is(.game-topbar, .juan-lane-bar, .game-actions) { grid-column: 1; }
+  .fleep-game .game-topbar { grid-row: 1; grid-template-columns: 32px minmax(0, 1fr); gap: 4px; padding: 0; }
+  .fleep-game .game-topbar h2 { font-size: .8rem; }
+  .fleep-game .game-topbar p { display: none; }
+  .fleep-game .game-score { grid-column: 2; min-height: 36px; display: flex; justify-content: center; gap: 10px; }
+  .fleep-game .juan-lane-bar { grid-row: 2; flex-wrap: wrap; padding: 6px; }
+  .fleep-game .juan-actions { grid-row: 4; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 4px; }
+  .fleep-game .juan-actions button { min-height: 44px; padding: 4px; }
+  .fleep-game .juan-table-scene { grid-column: 2; grid-row: 1 / 5; --game-card-width: clamp(44px, 14vh, 62px); --game-card-height: calc(var(--game-card-width) * 1.42); --opponent-card-width: 26px; }
+  .fleep-game .tabletop-status-area { left: 1%; top: 1%; width: 30%; }
+  .fleep-game .game-status { padding: 4px; }
+  .fleep-game .game-status .badge { display: none; }
+  .fleep-game .juan-table-scene .table-seat-north { top: 0; left: 64%; grid-template-rows: auto 48px; }
+  .fleep-game .opponent-hand-wrap, .fleep-game .opponent-hand { height: 48px; }
+  .fleep-game .juan-table-scene .center-play-area { top: 29%; left: 30%; width: 48%; height: 27%; }
+  .fleep-game .juan-table-scene .physical-hand { left: 0; right: 0; min-height: 136px; padding: 4px 8px 0; }
+  .fleep-game .juan-table-scene .local-player-hud { bottom: 138px; }
+  .fleep-game .hand-heading { padding-inline: 0; }
+  .fleep-game .physical-hand .game-hand { min-height: 0; }
+}

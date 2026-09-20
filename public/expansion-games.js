@@ -5,11 +5,11 @@ export function createExpansionUI(ctx) {
   const { escapeHtml: esc } = ctx;
   let scope = "", selectedSource = null, chosenColor = null, hint = null, help = false, confirmation = null;
   let drag = null, suppressClick = false;
-  let flipKey = "";
+  let flipKey = "", fleepPanel = null;
   const state = () => ctx.getState();
   const current = () => state().gameView?.state;
   const viewer = () => state().room?.players.find(p => p.isYou);
-  const button = (action, label, enabled = true, attrs = "") => `<button type="button" class="action-button" data-action="exp-${action}" ${enabled && !state().gameActionLock ? "" : "disabled"} ${attrs}>${label}</button>`;
+  const button = (action, label, enabled = true, attrs = "") => `<button type="button" class="action-button ${action === "play" ? "primary" : ""}" data-action="exp-${action}" ${enabled && !state().gameActionLock ? "" : "disabled"} ${attrs}>${label}</button>`;
   const title = () => ({ spades: "Spades", hearts: "Hearts", solitaire: "Solitaire", "juan-fleep": "JUAN FLEEP" })[state().room?.gameId];
   const encode = value => esc(JSON.stringify(value));
   const picture = (card, fleep = false) => (fleep ? ctx.renderJuanCard(card, 0, { played: true }) : ctx.renderPlayingCard(card, 0, { played: true }))
@@ -17,14 +17,19 @@ export function createExpansionUI(ctx) {
   function sync() {
     const s = state(), m = current();
     const key = [s.room?.code, s.room?.gameId, viewer()?.seat, m?.round, m?.side, s.room?.gameId === "solitaire" ? m?.revision : ""].join(":");
-    if (key !== scope) { scope = key; selectedSource = null; chosenColor = null; hint = null; confirmation = null; s.selectedCards.clear(); }
+    if (key !== scope) { scope = key; selectedSource = null; chosenColor = null; hint = null; confirmation = null; help = false; fleepPanel = null; s.selectedCards.clear(); }
   }
   function send(action) {
     if (state().gameActionLock) return;
     state().gameActionLock = true;
-    if (!ctx.sendRoom({ ...action, revision: current().revision })) { state().gameActionLock = false; state().hotSeatForceHandoff = false; }
-    state().selectedCards.clear(); selectedSource = null; hint = null; chosenColor = null;
-    ctx.render();
+    const message = { ...action, revision: current().revision };
+    const submit = () => {
+      if (!ctx.sendRoom(message)) { state().gameActionLock = false; state().hotSeatForceHandoff = false; }
+      state().selectedCards.clear(); selectedSource = null; hint = null; chosenColor = null;
+      ctx.render();
+    };
+    if (current().gameId === "juan-fleep" && action.type === "play") ctx.animateStandardHandExit([action.cardId], submit);
+    else submit();
   }
   const helpText = {
     spades: "Partners sit opposite. Bid 0–13; zero is nil. Follow suit; spades are trump and cannot lead until broken unless only spades remain. A made team bid earns 10 per trick bid plus overtricks; a failed bid loses 10 per trick bid. Ten bags cost 100. Nil is +100 or −100; failed-nil tricks count as bags, not toward the partner’s bid. Highest team score at 500 wins; tied teams play another hand.",
@@ -42,7 +47,7 @@ export function createExpansionUI(ctx) {
     const winners = m.players.filter(p => m.winners?.includes(p.seat)).map(p => p.name).join(" & ");
     return `<section class="round-summary"><h2>${m.matchOver ? `${esc(winners || "Table")} wins` : "Hand complete"}</h2>
       <div class="exp-scores">${m.players.map(p => `<span><strong>${esc(p.name)}</strong> ${p.score} pts${p.delta !== undefined ? ` (${p.delta >= 0 ? "+" : ""}${p.delta})` : ""}</span>`).join("")}</div>
-      ${m.matchOver ? '<button class="action-button" data-action="leave-game">Return to CardCade</button>' : button("next", viewer()?.role === "host" ? "Deal next hand" : "Waiting for host", viewer()?.role === "host")}</section>`;
+      ${m.matchOver ? '<button class="action-button ${action === "play" ? "primary" : ""}" data-action="leave-game">Return to CardCade</button>' : button("next", viewer()?.role === "host" ? "Deal next hand" : "Waiting for host", viewer()?.role === "host")}</section>`;
   }
   function hand(m, fleep = false) {
     const s = state();
@@ -70,25 +75,53 @@ export function createExpansionUI(ctx) {
       <div class="exp-controls">${controls}</div>${m.lastTrick ? `<details class="exp-last-trick"><summary>Previous trick</summary>${m.lastTrick.map(p => `${esc(m.players.find(q => q.seat === p.seat).name)}: ${esc(globalThis.CardcadeStandard52.cardLabel(p.card))}`).join(" · ")}</details>` : ""}${results(m)}</section>`;
   }
   function renderFleep(m) {
-    const nextFlipKey = `${state().room.code}:${m.round}:${m.flipSequence}`;
-    const flipped = flipKey && flipKey !== nextFlipKey && m.flipSequence > 0 && !ctx.reducedMotion();
-    flipKey = nextFlipKey;
     const you = viewer().seat, s = state(), deck = globalThis.CardcadeFleepDeck;
     const selected = s.gameView.hand.find(c => s.selectedCards.has(c.id));
-    const colors = !m.roundOver && (m.phase === "choose-color" && m.activeSeat === you || selected && !selected.color);
-    const colorButtons = colors ? `<div class="exp-color-choices" aria-label="Choose active color">${deck.COLORS[m.side].map(color => button("color", esc(deck.NAMES[color]), true, `data-color="${color}" aria-pressed="${chosenColor === color}"`)).join("")}</div>` : "";
+    const turn = m.activeSeat === you && !m.roundOver && m.phase === "playing";
     const canPlay = selected && m.actions.legalCardIds.includes(selected.id) && (selected.color || chosenColor);
-    const turn = m.activeSeat === you && !m.roundOver;
-    let controls = m.phase === "challenge-review" ? button("review-done", turn ? "Done reviewing · Continue" : "Challenger reviewing", turn) : m.pending ? `${button("accept", "Accept draw", turn)}${button("challenge", "Challenge", turn)}` : `${button("play", "Play selected", !!canPlay)}${button(m.drawnId ? "keep" : "draw", m.drawnId ? "Keep drawn card" : "Draw", turn && m.phase === "playing")}`;
-    if (m.call) controls += button(m.call.seat === you ? "call" : "catch", m.call.seat === you ? "Call JUAN!" : "Catch missed JUAN!");
-    const center = `<div class="exp-fleep-piles" data-side="${m.side}"><div><small>Draw · ${m.stockCount}</small>${m.stockFace ? picture(m.stockFace, true) : '<span class="exp-empty-card">Empty</span>'}</div><div><small>Discard</small>${picture(m.topCard, true)}</div></div>`;
-    const outward = `<details class="exp-outward"><summary>Inspect opponents’ outward ${m.side === "light" ? "dark" : "light"} faces</summary>${m.players.filter(p => p.seat !== you).map(p => `<div><strong>${esc(p.name)}</strong><div class="exp-outward-cards">${p.outward.map(c => `<div>${picture(c, true)}<small>${esc(deck.label(c))}</small></div>`).join("")}</div></div>`).join("")}</details>`;
-    return `<section class="standard-card-game juan-game expansion-game fleep-game ${ctx.tableClass()} fleep-${m.side} ${flipped ? "fleep-flipped" : ""}" data-game-id="juan-fleep">${header(m)}
-      ${m.announcement ? `<p class="exp-announcement" role="status">${esc(m.announcement.text)}</p>` : ""}
-      ${ctx.renderTableScene({ match: m, viewerSeat: you, opponentsMarkup: m.players.filter(p => p.seat !== you).map(p => ctx.renderTableOpponent({ match: m, viewerSeat: you, player: p, deckFamilyId: "color-action", detail: `${p.cardCount} cards · ${p.score} pts`, revealedCards: p.outward })).join(""),
-        centerMarkup: center, tableStatusMarkup: `<div class="exp-status"><strong>${m.side.toUpperCase()} SIDE</strong> · ${esc(deck.NAMES[m.activeColor] || "Choose color")} · ${m.direction === 1 ? "↻" : "↺"} · Round ${m.round}/4</div>`, handMarkup: hand(m, true), localDetail: `${m.players.find(p => p.seat === you).score} pts`, localActive: turn })}
-      ${colorButtons}<div class="exp-controls">${controls}</div>${outward}
-      ${s.gameView.challengeHand ? `<aside class="exp-help"><strong>Challenge evidence (hand when played)</strong><p>${s.gameView.challengeHand.map(c => esc(deck.label(c))).join(" · ")}</p></aside>` : ""}${results(m)}</section>`;
+    const active = m.players.find(p => p.seat === m.activeSeat);
+    const owner = `fleep:${s.room.code}:${you}:round-${m.round}`;
+    const dealing = !s.dealtHandOwners.has(owner); s.dealtHandOwners.add(owner);
+    const pileKey = `${m.round}:${m.side}:${m.topCard.id}`;
+    const newPile = s.lastPileSignature !== pileKey; s.lastPileSignature = pileKey;
+    const nextFlip = `${s.room.code}:${m.round}:${m.flipSequence}`;
+    const flipped = flipKey && flipKey !== nextFlip && m.flipSequence > 0 && !ctx.reducedMotion(); flipKey = nextFlip;
+    const colors = deck.COLORS[m.side];
+    const cards = s.gameView.hand.slice().sort((a, b) => s.gameSort === "rank"
+      ? (a.value ?? 20) - (b.value ?? 20) || colors.indexOf(a.color) - colors.indexOf(b.color)
+      : colors.indexOf(a.color) - colors.indexOf(b.color) || (a.value ?? 20) - (b.value ?? 20) || a.kind.localeCompare(b.kind));
+    const picker = ctx.juanColorChooser(m.phase === "choose-color" && m.activeSeat === you ? m.topCard : selected, {
+      colors, names: deck.NAMES, chosen: chosenColor, action: "exp-color", cancel: "exp-color-cancel", required: m.phase === "choose-color"
+    });
+    const localDraw = (m.drawEvents || []).filter(e => e.seat === you).at(-1);
+    return `<section class="standard-card-game juan-game fleep-game ${ctx.tableClass()} fleep-${m.side} ${flipped ? "fleep-flipped" : ""}" data-game-id="juan-fleep" data-active-color="${esc(m.activeColor)}">
+      <header class="game-topbar"><button class="back-button" data-action="leave-game" aria-label="Leave game">←</button><div><span class="family-kicker">${s.gameMode === "hot-seat" ? "Hot Seat" : s.gameMode === "solo" ? "Solo" : "Multiplayer"} table</span><h2>JUAN FLEEP</h2><p role="status" title="${esc(m.lastMoveText)}">${esc(m.lastMoveText)}</p></div><button class="game-score" data-action="exp-fleep-info" aria-label="Rules, outward faces and draw history"><span>Table info</span><strong>☰</strong></button></header>
+      <div class="juan-lane-bar"><span>${m.side === "dark" ? "Dark" : "Light"} side</span><strong>${esc(deck.NAMES[m.activeColor] || "Choose color")}</strong><span class="juan-direction" aria-label="Play direction ${m.direction === 1 ? "forward" : "backward"}">${m.direction === 1 ? "↻" : "↺"}</span></div>
+      ${ctx.renderTableScene({ match: m, viewerSeat: you,
+        opponentsMarkup: m.players.filter(p => p.seat !== you).map(p => ctx.renderTableOpponent({ match: m, viewerSeat: you, player: p, deckFamilyId: "color-action", detail: `${p.cardCount} cards · ${p.score} pts`, revealedCards: p.outward, modifiers: m.call?.seat === p.seat ? "juan-call-pending" : "" })).join(""),
+        centerMarkup: `<section class="game-table status-separated-table juan-table"><div class="juan-pile-zone"><div class="fleep-stock" aria-label="Draw stock · ${m.stockCount} cards">${m.stockFace ? picture(m.stockFace, true) : '<span class="exp-empty-card">Empty</span>'}</div><div class="active-pile cards-pile">${ctx.renderJuanCard(m.topCard, 0, { played: true, enter: newPile })}</div></div></section>`,
+        tableStatusMarkup: `<div class="game-status"><span><strong>${m.roundOver ? "Round complete" : m.pending ? `${esc(active.name)} is resolving a draw` : m.phase === "challenge-review" ? "Reviewing the challenge" : turn ? "Your turn" : `${esc(active.name)} is thinking`}</strong><small>Round ${m.round}/4 · Stock ${m.stockCount}</small></span><span class="badge">${esc(deck.NAMES[m.activeColor] || "Wild")}</span></div>`,
+        handMarkup: `<section class="physical-hand ${turn ? "your-turn" : ""}"><div class="hand-heading"><span><strong>Your hand${m.call?.seat === you ? " · call JUAN!" : ""}</strong><small>${cards.length} cards · ${s.gameSort === "rank" ? "rank" : "color"} sort</small></span><span class="selection-status ${canPlay ? "valid" : ""}">${esc(selected ? deck.label(selected) : localDraw ? `Last draw: +${localDraw.count} · ${localDraw.reason}` : "Choose a card")}</span></div><div class="game-hand" data-hand-owner="${esc(owner)}" aria-label="Your fanned JUAN FLEEP hand">${cards.map((c, i) => ctx.renderJuanCard(c, i, { selectable: turn && !s.gameActionLock && (!m.drawnId || m.drawnId === c.id), dealt: dealing, turnDrawn: m.drawnId === c.id })).join("")}</div></section>`,
+        localDetail: `${m.players.find(p => p.seat === you).score} pts · ${cards.length} cards`, localActive: turn, playOriginSeat: m.lastPlaySeat, className: "juan-table-scene"
+      })}
+      <nav class="game-actions juan-actions">${button("fleep-hint", "Hint", turn)}${button("fleep-sort", "Sort")}${button(m.drawnId ? "keep" : "draw", m.drawnId ? "Keep" : "Draw", turn && (!selected || m.drawnId))}${button("play", s.gameMode === "hot-seat" && cards.length === 2 ? "JUAN + Play" : "▶ Play", turn && !!canPlay)}</nav>
+      ${picker}</section>`;
+  }
+  function renderFleepOverlay() {
+    const m = current(), you = viewer()?.seat, deck = globalThis.CardcadeFleepDeck;
+    if (!m || m.gameId !== "juan-fleep") return "";
+    const panels = [];
+    if (m.call && !m.roundOver) panels.push(`<section class="juan-reaction-panel"><span><strong>${m.call.seat === you ? "One card left." : `${esc(m.players.find(p => p.seat === m.call.seat).name)} has one card.`}</strong><small>Call JUAN before another player catches you.</small></span>${button(m.call.seat === you ? "call" : "catch", m.call.seat === you ? "Call JUAN!" : "Catch missed JUAN!")}</section>`);
+    if (m.pending) {
+      const pending = m.pending, mine = pending.targetSeat === you;
+      panels.push(`<section class="juan-reaction-panel"><span><strong>${esc(deck.ACTIONS[pending.kind])}</strong><small>${mine ? `${esc(m.players.find(p => p.seat === pending.sourceSeat).name)} played this. ${pending.kind === "wild-color" ? `Draw until ${esc(deck.NAMES[pending.color])}, including that card.` : "Draw two and lose your turn."} Challenge if they held ${esc(deck.NAMES[pending.priorColor] || "the previous color")}.` : `${esc(m.players.find(p => p.seat === pending.targetSeat).name)} is deciding.`}</small></span>${mine ? `<div class="juan-reaction-actions">${button("challenge", "Challenge")}${button("accept", pending.kind === "wild-color" ? "Take color draw" : "Take 2")}</div>` : ""}</section>`);
+    }
+    let modal = "";
+    if (state().gameView.challengeHand) modal = `<h2>Challenge evidence</h2><p>${esc(m.lastMoveText)}</p><p>${state().gameView.challengeHand.map(c => esc(deck.label(c))).join(" · ") || "No other cards were held."}</p>${button("review-done", "Done reviewing · Continue")}`;
+    else if (m.roundOver) modal = results(m);
+    else if (fleepPanel) modal = `<h2>JUAN FLEEP · Table info</h2><h3>Recent draws</h3><ol class="fleep-draw-history">${(m.drawEvents || []).slice().reverse().map(e => `<li><strong>${esc(m.players.find(p => p.seat === e.seat)?.name)} +${e.count}</strong> · ${esc(e.reason)} <small>(${e.handCount} cards after draw)</small></li>`).join("") || "<li>No draws this round.</li>"}</ol><h3>Outward ${m.side === "light" ? "dark" : "light"} faces</h3>${m.players.filter(p => p.seat !== you).map(p => `<strong>${esc(p.name)}</strong><div class="exp-outward-cards">${p.outward.map(c => `<div>${picture(c, true)}<small>${esc(deck.label(c))}</small></div>`).join("")}</div>`).join("")}<h3>Rules</h3><p>${esc(helpText["juan-fleep"])}</p>`;
+    if (modal) return `<div class="fleep-dialog" role="dialog" aria-modal="true" aria-label="JUAN FLEEP details"><section class="fleep-dialog-card">${fleepPanel && !m.roundOver && !state().gameView.challengeHand ? button("fleep-info-close", "Close") : ""}${modal}</section></div>`;
+    return panels.length ? `<div class="juan-gameplay-overlay" role="region" aria-label="JUAN FLEEP reactions">${panels.join("")}</div>` : "";
   }
   function renderSolitaire(m) {
     const label = c => globalThis.CardcadeStandard52.cardLong(c);
@@ -134,6 +167,11 @@ export function createExpansionUI(ctx) {
       case "draw": send({ type: "draw" }); break;
       case "keep": send({ type: "end_turn" }); break;
       case "next": if (state().gameMode === "hot-seat") state().hotSeatForceHandoff = true; send({ type: "next_round" }); break;
+      case "color-cancel": chosenColor = null; state().selectedCards.clear(); ctx.render(); break;
+      case "fleep-info": fleepPanel = true; ctx.render(); break;
+      case "fleep-info-close": fleepPanel = null; ctx.render(); break;
+      case "fleep-sort": state().gameSort = state().gameSort === "rank" ? "color" : "rank"; ctx.render(); break;
+      case "fleep-hint": if (m.actions.legalCardIds.length) selectCard(m.actions.legalCardIds[0]); else ctx.showToast("No matching cards. Draw from the stock."); break;
       case "color": chosenColor = element.dataset.color; if (m.phase === "choose-color") send({ type: "choose_color", color: chosenColor }); else ctx.render(); break;
       case "accept": case "challenge": send({ type: action.slice(4) }); break;
       case "review-done": send({ type: "acknowledge_challenge" }); break;
@@ -173,17 +211,24 @@ export function createExpansionUI(ctx) {
   });
   document.addEventListener("pointercancel", () => { drag = null; });
   return {
-    handle, selectCard,
+    handle, selectCard, renderFleepOverlay,
+    observeFleepDraws(previous, next, room) {
+      if (previous?.state?.gameId !== "juan-fleep" || previous.state.round !== next?.state?.round) return;
+      const seat = room?.players.find(p => p.isYou)?.seat;
+      const seen = new Set((previous.state.drawEvents || []).map(e => e.id));
+      const events = (next.state.drawEvents || []).filter(e => e.seat === seat && !seen.has(e.id) && e.reason !== "Drew from stock");
+      if (events.length) ctx.showToast(`You drew ${events.reduce((n, e) => n + e.count, 0)} cards: ${events.map(e => e.reason).join("; ")}. Table info keeps the draw history.`);
+    },
     captureFocus() {
       const element = document.activeElement;
-      if (!element?.closest?.('.expansion-game, .solitaire-game')) return null;
+      if (!element?.closest?.('.expansion-game, .solitaire-game, .fleep-game, #juan-gameplay-overlay-root')) return null;
       if (element.id) return { id: element.id };
       const entries = Object.entries(element.dataset).filter(([key]) => ['action', 'gameCard', 'solSource', 'solTarget', 'color'].includes(key));
       return entries.length ? { entries } : null;
     },
     restoreFocus(token) {
       if (!token) return;
-      const element = token.id ? document.getElementById(token.id) : [...document.querySelectorAll('.expansion-game button, .solitaire-game button')].find(e => token.entries.every(([key, value]) => e.dataset[key] === value));
+      const element = token.id ? document.getElementById(token.id) : [...document.querySelectorAll('.expansion-game button, .solitaire-game button, .fleep-game button, #juan-gameplay-overlay-root button')].find(e => token.entries.every(([key, value]) => e.dataset[key] === value));
       if (element && !element.disabled) element.focus({ preventScroll: true });
     },
     render() { sync(); const m = current(); return m.gameId === "solitaire" ? renderSolitaire(m) : m.gameId === "juan-fleep" ? renderFleep(m) : renderTrick(m); }

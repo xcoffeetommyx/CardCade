@@ -20,6 +20,7 @@ export class FleepEngine {
     m.round++; m.side = "light"; m.direction = 1; m.phase = "playing"; m.roundOver = false; m.matchOver = false;
     m.stock = this.shuffleDeck(cards); m.discard = []; m.pending = null; m.call = null; m.drawnId = null; m.stalls = 0;
     m.announcement = null; m.challengeReveal = null; m.reviewResume = null; m.flipSequence = 0;
+    m.drawEvents = []; m.drawSequence = 0; m.colorChoice = null; m.colorSequence = 0; m.lastPlaySeat = null;
     m.players.forEach(p => { p.hand = m.stock.splice(0, 7); });
     const dealer = m.players[(m.round - 1) % m.players.length];
     m.activeSeat = nextSeat(m, dealer.seat);
@@ -31,7 +32,7 @@ export class FleepEngine {
     else if (card.light.kind === "fleep") this.flip(m);
     else if (card.light.kind === "turnabout") { m.direction = -1; m.activeSeat = dealer.seat; }
     else if (card.light.kind === "pause") m.activeSeat = nextSeat(m, m.activeSeat);
-    else if (card.light.kind === "draw-one") { this.drawCards(m, m.activeSeat, 1); m.activeSeat = nextSeat(m, m.activeSeat); }
+    else if (card.light.kind === "draw-one") { this.drawCards(m, m.activeSeat, 1, null, "Opening Draw One"); m.activeSeat = nextSeat(m, m.activeSeat); }
   }
   take(m) {
     if (!m.stock.length && m.discard.length > 1) {
@@ -39,7 +40,15 @@ export class FleepEngine {
     }
     return m.stock.pop() || null;
   }
-  drawCards(m, seat, count, color = null) {
+  recordDraw(m, seat, count, reason) {
+    const p = player(m, seat);
+    const event = { id: `${m.round}:${m.drawSequence = (m.drawSequence || 0) + 1}`, seat, count, reason, handCount: p.hand.length };
+    m.drawEvents = [...(m.drawEvents || []), event].slice(-12);
+    // A player who no longer has one card cannot owe a Call JUAN penalty.
+    if (m.call?.seat === seat && p.hand.length !== 1) m.call = null;
+    return event;
+  }
+  drawCards(m, seat, count, color = null, reason = "Draw") {
     const p = player(m, seat); let drawn = 0;
     // Exhaustion terminates even when every card of the requested color is held.
     while (color ? true : drawn < count) {
@@ -47,7 +56,11 @@ export class FleepEngine {
       p.hand.push(card); drawn++;
       if (color && card[m.side].color === color) break;
     }
+    this.recordDraw(m, seat, drawn, reason);
     return drawn;
+  }
+  recordColor(m, seat) {
+    m.colorChoice = { id: `${m.round}:${m.colorSequence = (m.colorSequence || 0) + 1}`, seat, color: m.activeColor, card: top(m) };
   }
   flip(m) {
     m.side = m.side === "light" ? "dark" : "light";
@@ -62,7 +75,10 @@ export class FleepEngine {
   }
   missedCall(m) {
     if (!m.call) return;
-    this.drawCards(m, m.call.seat, 2); m.lastMoveText = `${player(m, m.call.seat).name} missed Call JUAN and draws two.`; m.call = null;
+    const seat = m.call.seat; m.call = null;
+    if (player(m, seat).hand.length !== 1) return;
+    const count = this.drawCards(m, seat, 2, null, "Missed Call JUAN");
+    m.lastMoveText = `${player(m, seat).name} missed Call JUAN and draws ${count}.`;
   }
   finish(m) {
     if (m.pending || m.phase === "choose-color") return;
@@ -85,25 +101,27 @@ export class FleepEngine {
     check(m.phase !== "challenge-review", "The challenger is reviewing the evidence.");
     if (a.type === "juan_call" || a.type === "juan_catch") {
       check(m.call && (a.type === "juan_call" ? m.call.seat === seat : m.call.seat !== seat), "There is no call to resolve.");
-      if (a.type === "juan_catch") this.drawCards(m, m.call.seat, 2);
-      m.announcement = { seat, text: a.type === "juan_call" ? `${p.name}: JUAN!` : `${p.name} catches a missed JUAN!`, id: (m.announcement?.id || 0) + 1 };
+      check(player(m, m.call.seat).hand.length === 1, "That player no longer has one card.");
+      if (a.type === "juan_catch") this.drawCards(m, m.call.seat, 2, null, `Missed Call JUAN · caught by ${p.name}`);
+      m.announcement = { seat, kind: a.type, text: a.type === "juan_call" ? `${p.name}: JUAN!` : `${p.name} catches a missed JUAN!`, id: (m.announcement?.id || 0) + 1 };
       m.lastMoveText = m.announcement.text; m.call = null; return;
     }
     check(m.activeSeat === seat, "Wait for your turn.");
     if (a.type === "choose_color") {
       check(m.phase === "choose-color" && deck.COLORS[m.side].includes(a.color), "Choose a color on the active side.");
-      m.activeColor = a.color; m.phase = "playing"; this.finish(m); return;
+      m.activeColor = a.color; m.phase = "playing"; this.recordColor(m, seat); this.finish(m); return;
     }
     if (a.type === "accept" || a.type === "challenge") {
       check(m.pending?.targetSeat === seat, "There is no challenge window.");
       this.missedCall(m);
       const pending = m.pending; const guilty = a.type === "challenge" && pending.illegal;
       const recipient = guilty ? pending.sourceSeat : seat;
-      if (pending.kind === "wild-color") this.drawCards(m, recipient, 0, pending.color);
-      else this.drawCards(m, recipient, 2);
-      if (a.type === "challenge" && !guilty) this.drawCards(m, seat, 2);
+      const source = player(m, pending.sourceSeat).name;
+      const reason = `${guilty ? "Successful challenge" : source + " played " + deck.ACTIONS[pending.kind]}${pending.kind === "wild-color" ? ` · draw through ${deck.NAMES[pending.color]}` : ""}`;
+      const count = pending.kind === "wild-color" ? this.drawCards(m, recipient, 0, pending.color, reason) : this.drawCards(m, recipient, 2, null, reason);
+      const extra = a.type === "challenge" && !guilty ? this.drawCards(m, seat, 2, null, "Failed challenge · two extra") : 0;
       if (a.type === "challenge") m.challengeReveal = { seat, hand: pending.evidence, guilty };
-      m.lastMoveText = a.type === "accept" ? `${p.name} accepts the draw.` : guilty ? "Challenge succeeds; the source draws." : "Challenge fails; two extra cards drawn.";
+      m.lastMoveText = `${player(m, recipient).name} draws ${count + extra}. ${a.type === "accept" ? reason : guilty ? "Challenge succeeds." : "Challenge fails (includes two extra)."}`;
       m.pending = null; m.activeSeat = guilty ? seat : nextSeat(m, seat); m.phase = "playing";
       this.finish(m);
       if (a.type === "challenge" && p.type === "human") {
@@ -117,7 +135,7 @@ export class FleepEngine {
       check(!m.drawnId, "Play or keep the card you just drew.");
       this.missedCall(m); m.challengeReveal = null;
       const card = this.take(m);
-      if (card) { p.hand.push(card); m.stalls = 0; }
+      if (card) { p.hand.push(card); this.recordDraw(m, seat, 1, "Drew from stock"); m.stalls = 0; }
       else m.stalls++;
       if (card && deck.canPlay(face(m, card), top(m), m.activeColor)) m.drawnId = card.id;
       else m.activeSeat = nextSeat(m, seat);
@@ -140,19 +158,26 @@ export class FleepEngine {
     const illegal = evidence.some(card => card.color === m.activeColor);
     const physical = p.hand.find(card => card.id === c.id);
     p.hand = p.hand.filter(card => card.id !== c.id); m.discard.push(physical); m.drawnId = null;
-    m.activeColor = c.color || a.chosenColor; m.activeSeat = nextSeat(m, seat);
+    const priorColor = m.activeColor;
+    m.activeColor = c.color || a.chosenColor; m.activeSeat = nextSeat(m, seat); m.lastPlaySeat = seat;
+    if (!c.color) this.recordColor(m, seat);
     m.lastMoveText = `${p.name} plays ${deck.label(c)}.`;
     if (c.kind === "turnabout") { m.direction *= -1; m.activeSeat = m.players.length === 2 ? seat : nextSeat(m, seat); }
     if (c.kind === "pause") m.activeSeat = nextSeat(m, seat, 2);
     if (c.kind === "pause-all") m.activeSeat = seat;
-    if (c.kind === "draw-one" || c.kind === "draw-five") { this.drawCards(m, m.activeSeat, c.kind === "draw-one" ? 1 : 5); m.activeSeat = nextSeat(m, m.activeSeat); }
+    if (c.kind === "draw-one" || c.kind === "draw-five") {
+      const target = player(m, m.activeSeat);
+      const count = this.drawCards(m, target.seat, c.kind === "draw-one" ? 1 : 5, null, `${p.name} played ${deck.ACTIONS[c.kind]}`);
+      m.lastMoveText += ` ${target.name} draws ${count} and loses the turn.`;
+      m.activeSeat = nextSeat(m, target.seat);
+    }
     if (c.kind === "wild-two" || c.kind === "wild-color") {
-      m.pending = { sourceSeat: seat, targetSeat: m.activeSeat, kind: c.kind, color: a.chosenColor, illegal, evidence };
+      m.pending = { sourceSeat: seat, targetSeat: m.activeSeat, kind: c.kind, color: a.chosenColor, priorColor, illegal, evidence };
       m.phase = "challenge";
     }
     if (c.kind === "fleep") this.flip(m);
     if (p.hand.length === 1) {
-      if (a.declareJuan === true) m.announcement = { seat, text: `${p.name}: JUAN!`, id: (m.announcement?.id || 0) + 1 };
+      if (a.declareJuan === true) m.announcement = { seat, kind: "juan_call", text: `${p.name}: JUAN!`, id: (m.announcement?.id || 0) + 1 };
       else m.call = { seat, at: this.now() + 2600 };
     }
     this.finish(m);
@@ -165,6 +190,7 @@ export class FleepEngine {
   step(m) {
     if (m.roundOver) return false;
     if (m.call) {
+      if (player(m, m.call.seat).hand.length !== 1) { m.call = null; return true; }
       if (m.call.at > this.now()) return false;
       const caller = player(m, m.call.seat);
       if (caller.type === "bot") { this.act(m, caller.seat, { type: "juan_call" }); return true; }
@@ -194,7 +220,8 @@ export class FleepEngine {
         side: m.side, direction: m.direction, activeColor: m.activeColor, topCard: top(m), stockCount: m.stock.length,
         stockFace: m.stock.length ? { ...m.stock.at(-1)[opposite] } : null, flipSequence: m.flipSequence,
         drawnId: m.activeSeat === seat ? m.drawnId : null,
-        pending: m.pending ? { sourceSeat: m.pending.sourceSeat, targetSeat: m.pending.targetSeat, kind: m.pending.kind, color: m.pending.color } : null,
+        pending: m.pending ? { sourceSeat: m.pending.sourceSeat, targetSeat: m.pending.targetSeat, kind: m.pending.kind, color: m.pending.color, priorColor: m.pending.priorColor } : null,
+        drawEvents: m.drawEvents || [], colorChoice: m.colorChoice || null, lastPlaySeat: m.lastPlaySeat,
         call: m.call ? { seat: m.call.seat } : null, announcement: m.announcement,
         actions: { legalCardIds: this.legal(m, p).map(c => c.id) }, roundOver: m.roundOver, matchOver: m.matchOver, winners: m.winners, lastMoveText: m.lastMoveText
       } };

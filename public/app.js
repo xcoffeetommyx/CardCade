@@ -1,6 +1,6 @@
 import { createPointerClickGuard } from "./pointer-click-guard.js?v=1";
 import { createTurnAlertTracker, createTurnFeedback } from "./turn-alerts.js?v=2";
-import { createExpansionUI, expansionGameIds } from "./expansion-games.js?v=4";
+import { createExpansionUI, expansionGameIds } from "./expansion-games.js?v=7";
 
 const app = document.querySelector("#app");
 const toast = document.querySelector("#toast");
@@ -92,7 +92,7 @@ const state = {
 
 const expansionUI = createExpansionUI({
   getState: () => state, escapeHtml, render, sendRoom, showToast,
-  renderPlayingCard, renderJuanCard, renderCardBack, renderTableScene, renderTableOpponent,
+  renderPlayingCard, renderJuanCard, renderCardBack, renderTableScene, renderTableOpponent, juanColorChooser, animateStandardHandExit,
   tableClass: activeTableAppearanceClass,
   reducedMotion: libraryReducedMotion,
   saveAndMenu: () => { disconnectRoomSocket(); navigate("home"); },
@@ -2637,8 +2637,8 @@ function renderJuanCard(card, index, { played = false, enter = false, selectable
     </button>`;
 }
 
-function juanColorChooser(selectedCard) {
-  if (!selectedCard || !["prism", "prism-burst"].includes(selectedCard.kind) || state.juanChosenColor) return "";
+function juanColorChooser(selectedCard, { colors = juanDeck.COLORS, names = juanDeck.COLOR_NAME, chosen = state.juanChosenColor, action = "choose-juan-color", cancel = "cancel-juan-color", required = false } = {}) {
+  if (!selectedCard || selectedCard.color || chosen) return "";
   return `
     <div class="juan-prism-dialog" role="dialog" aria-modal="true" aria-labelledby="juan-prism-title">
       <div class="juan-prism-picker">
@@ -2647,12 +2647,12 @@ function juanColorChooser(selectedCard) {
         <p>Set the lane every player must follow.</p>
         <div class="juan-prism-stage-card">${renderJuanCard(selectedCard, 0, { played: true })}</div>
         <div class="juan-color-chooser" role="group" aria-label="Choose the Wild's next color">
-          ${juanDeck.COLORS.map((color, index) => `
-            <button type="button" class="juan-color-choice juan-${color}" style="--choice-delay:${120 + (index * 55)}ms" data-action="choose-juan-color" data-color="${color}">
-              <i aria-hidden="true"></i><strong>${escapeHtml(juanDeck.COLOR_NAME[color])}</strong>
+          ${colors.map((color, index) => `
+            <button type="button" class="juan-color-choice juan-${color}" style="--choice-delay:${120 + (index * 55)}ms" data-action="${action}" data-color="${color}">
+              <i aria-hidden="true"></i><strong>${escapeHtml(names[color])}</strong>
             </button>`).join("")}
         </div>
-        <button type="button" class="juan-prism-cancel" data-action="cancel-juan-color">Put card back</button>
+        ${required ? "" : `<button type="button" class="juan-prism-cancel" data-action="${cancel}">Put card back</button>`}
       </div>
     </div>`;
 }
@@ -2672,14 +2672,15 @@ function renderJuanPrismReveal() {
       </div>`;
   }
   const reveal = state.juanPrismReveal;
-  if (!reveal?.card || !juanDeck.COLORS.includes(reveal.color)) return "";
+  const colorName = juanDeck.COLOR_NAME[reveal?.color] || globalThis.CardcadeFleepDeck.NAMES[reveal?.color];
+  if (!reveal?.card || !colorName) return "";
   return `
     <div class="juan-prism-reveal juan-${reveal.color}" data-reveal-key="${escapeHtml(reveal.key)}" role="status" aria-live="assertive">
       <div class="juan-prism-reveal-burst" aria-hidden="true"></div>
       <div class="juan-prism-reveal-card">${renderJuanCard(reveal.card, 0, { played: true })}</div>
       <div class="juan-prism-reveal-copy">
-        <span>${escapeHtml(reveal.playerName)} played a ${reveal.card.kind === "prism-burst" ? "Wild +4" : "Wild"}</span>
-        <strong><i aria-hidden="true"></i>${escapeHtml(juanDeck.COLOR_NAME[reveal.color])}</strong>
+        <span>${escapeHtml(reveal.playerName)} ${reveal.card.side ? `chose ${escapeHtml(globalThis.CardcadeFleepDeck.ACTIONS[reveal.card.kind] || "a color")}` : `played a ${reveal.card.kind === "prism-burst" ? "Wild +4" : "Wild"}`}</span>
+        <strong><i aria-hidden="true"></i>${escapeHtml(colorName)}</strong>
         <small>is now the active color</small>
       </div>
     </div>`;
@@ -2710,6 +2711,10 @@ function clearJuanPrismReveal() {
 }
 
 function queueJuanCallReveal(gameId, previousView, nextView, nextRoom = state.room, previousRoom = state.room) {
+  if (gameId === "juan-fleep") {
+    const callView = view => ({ state: { ...view?.state, juanAnnouncement: view?.state?.announcement?.kind === "juan_call" ? { ...view.state.announcement, id: `fleep:${nextRoom?.code}:${view.state.round}:${view.state.announcement.id}` } : null } });
+    return queueJuanCallReveal("juan", callView(previousView), callView(nextView), nextRoom, previousRoom);
+  }
   if (gameId !== "juan") return;
   const announcement = nextView?.state?.juanAnnouncement;
   if (!announcement?.id || !Number.isInteger(announcement.seat)) return;
@@ -2737,6 +2742,18 @@ function queueJuanCallReveal(gameId, previousView, nextView, nextRoom = state.ro
 }
 
 function queueJuanPrismReveal(gameId, previousView, nextView) {
+  if (gameId === "juan-fleep") {
+    const choice = nextView?.state?.colorChoice;
+    if (!previousView || !choice || choice.id === previousView.state?.colorChoice?.id || previousView.state?.round !== nextView.state?.round) return;
+    clearJuanPrismReveal();
+    const key = `fleep:${state.room?.code}:${choice.id}`;
+    state.juanPrismReveal = { key, card: choice.card, color: choice.color, playerName: nextView.state.players.find(p => p.seat === choice.seat)?.name || "A player" };
+    state.juanPrismRevealTimer = setTimeout(() => {
+      if (state.juanPrismReveal?.key !== key) return;
+      clearJuanPrismReveal();
+    }, libraryReducedMotion() ? 900 : 1900);
+    return;
+  }
   if (gameId !== "juan") return;
   const previousCard = previousView?.state?.topCard;
   const nextCard = nextView?.state?.topCard;
@@ -2940,6 +2957,10 @@ function renderJuanReactionPanels(match, viewerSeat) {
 
 function syncJuanGameplayOverlay() {
   if (!juanGameplayOverlayRoot) return;
+  if (state.screen === "game" && state.room?.gameId === "juan-fleep") {
+    juanGameplayOverlayRoot.innerHTML = expansionUI.renderFleepOverlay();
+    return;
+  }
   const match = state.screen === "game" && state.room?.gameId === "juan" ? state.gameView?.state : null;
   const viewerSeat = state.room?.players?.find((player) => player.isYou)?.seat;
   juanGameplayOverlayRoot.innerHTML = match ? renderJuanReactionPanels(match, viewerSeat) : "";
@@ -3418,6 +3439,11 @@ function render() {
   syncJuanGameplayOverlay();
   syncJuanPrismReveal();
   syncFindersBuildReveal();
+  if (state.room?.gameId === "juan-fleep") {
+    const dialog = juanGameplayOverlayRoot?.querySelector(".fleep-dialog");
+    app.toggleAttribute("inert", Boolean(dialog));
+    if (dialog && !dialog.contains(document.activeElement)) dialog.querySelector("button:not([disabled])")?.focus({ preventScroll: true });
+  }
   syncSnapCountdown();
   syncControllerTextEntry();
   if (state.screen === "game") {
@@ -4100,6 +4126,7 @@ function connectRoom(session) {
         navigate("room");
       } else if (state.screen === "room") render();
     } else if (message.type === "game_state" && supportsGame(message.gameId)) {
+      if (message.gameId === "juan-fleep") expansionUI.observeFleepDraws(state.gameView, message.view, message.room);
       queueJuanPrismReveal(message.gameId, state.gameView, message.view);
       queueJuanCallReveal(message.gameId, state.gameView, message.view, message.room);
       const hasPrivateFindersReveal = queueFindersSearchFlip(message.gameId, state.gameView, message.view);
@@ -5187,6 +5214,20 @@ document.addEventListener("keydown", (event) => {
     render();
     return;
   }
+  const fleepDialog = juanGameplayOverlayRoot?.querySelector(".fleep-dialog");
+  if (fleepDialog && event.key === "Escape") {
+    event.preventDefault();
+    fleepDialog.querySelector('[data-action="exp-fleep-info-close"]')?.click();
+    return;
+  }
+  if (fleepDialog && event.key === "Tab") {
+    const buttons = [...fleepDialog.querySelectorAll("button:not([disabled])")];
+    const first = buttons[0], last = buttons.at(-1);
+    if (event.shiftKey && document.activeElement === first || !event.shiftKey && document.activeElement === last) {
+      event.preventDefault(); (event.shiftKey ? last : first)?.focus({ preventScroll: true });
+    }
+    return;
+  }
   if (event.key === "Escape" && app.querySelector(".rummy-pass-dialog")) {
     event.preventDefault();
     state.rummyPassCardId = null;
@@ -5494,6 +5535,7 @@ function controllerTargetScope() {
     || app.querySelector('.menu-layer[role="dialog"]')
     || findersMakersPresentationRoot?.querySelector(".finders-build-reveal")
     || app.querySelector(".finders-search-confirmation")
+    || juanGameplayOverlayRoot?.querySelector(".fleep-dialog")
     || app.querySelector(".juan-prism-dialog")
     || app.querySelector(".rummy-pass-dialog")
     || app.querySelector(".round-result")
@@ -5614,7 +5656,9 @@ function controllerBack() {
     installDialog.close();
     return;
   }
-  const prismCancel = app.querySelector('[data-action="cancel-juan-color"]');
+  const fleepClose = juanGameplayOverlayRoot?.querySelector('[data-action="exp-fleep-info-close"]');
+  if (fleepClose) { fleepClose.click(); return; }
+  const prismCancel = app.querySelector('[data-action="cancel-juan-color"], [data-action="exp-color-cancel"]');
   if (prismCancel) {
     prismCancel.click();
     return;
